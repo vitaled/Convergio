@@ -26,9 +26,9 @@ class TestAISecurityGuardian:
         """Test basic prompt injection detection"""
         # Safe prompt
         safe_prompt = "Hello, can you help me with my project?"
-        result = guardian.validate_prompt(safe_prompt)
+        result = guardian.validate_prompt(safe_prompt, "test_user")
+        assert hasattr(result, 'is_safe')
         assert result.is_safe is True
-        # Note: ThreatLevel enum may not be exported, test the basic validation
     
     def test_malicious_prompt_detection(self, guardian):
         """Test malicious prompt detection"""

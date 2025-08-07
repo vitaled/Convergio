@@ -35,6 +35,47 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = Field(default="Convergio", description="Project name")
     PROJECT_VERSION: str = Field(default="2.0.0", description="Project version")
     
+    # Application version from VERSION file
+    @property
+    def app_version(self) -> str:
+        """Get application version from VERSION file"""
+        try:
+            version_file = Path(__file__).parent.parent.parent / "VERSION"
+            if version_file.exists():
+                return version_file.read_text().strip()
+            return self.PROJECT_VERSION
+        except Exception:
+            return self.PROJECT_VERSION
+    
+    # Build number (simple implementation)
+    @property
+    def build_number(self) -> str:
+        """Get build number"""
+        try:
+            # Try to get git info for build number
+            import subprocess
+            result = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0:
+                return f"git-{result.stdout.strip()}"
+            return "dev-build"
+        except Exception:
+            return "dev-build"
+    
+    # Environment alias for compatibility
+    @property 
+    def environment(self) -> str:
+        """Get environment (alias for ENVIRONMENT)"""
+        return self.ENVIRONMENT
+    
+    # Debug alias for compatibility  
+    @property
+    def debug(self) -> bool:
+        """Debug mode alias"""
+        return self.DEBUG
+    
     # ================================
     # 🔌 SERVER CONFIGURATION  
     # ================================
@@ -59,6 +100,12 @@ class Settings(BaseSettings):
     DB_POOL_OVERFLOW: int = Field(default=30, description="Database pool overflow")
     DB_POOL_TIMEOUT: int = Field(default=30, description="Database pool timeout")
     DB_POOL_RECYCLE: int = Field(default=3600, description="Database pool recycle time")
+    
+    # Alias for compatibility
+    @property
+    def db_port(self) -> int:
+        """Database port alias"""
+        return self.POSTGRES_PORT
     
     @property
     def DATABASE_URL(self) -> str:
@@ -92,6 +139,17 @@ class Settings(BaseSettings):
         auth = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
         return f"redis://{auth}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
     
+    # Aliases for compatibility
+    @property
+    def redis_port(self) -> int:
+        """Redis port alias"""
+        return self.REDIS_PORT
+    
+    @property
+    def redis_db(self) -> int:
+        """Redis database alias"""
+        return self.REDIS_DB
+    
     # ================================
     # 🔐 SECURITY CONFIGURATION
     # ================================
@@ -102,6 +160,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_EXPIRY: int = Field(default=2592000, description="JWT refresh expiry (30d)")
     JWT_ISSUER: str = Field(default="convergio.io", description="JWT issuer")
     JWT_AUDIENCE: str = Field(default="convergio.io", description="JWT audience")
+    JWT_SECRET: str = Field(default="your-super-secret-jwt-key-here-change-in-production", description="JWT secret key")
     
     # RSA Keys for JWT signing
     JWT_PRIVATE_KEY_PATH: str = Field(
@@ -164,6 +223,10 @@ class Settings(BaseSettings):
     
     # Metrics
     METRICS_ENABLED: bool = Field(default=True, description="Enable Prometheus metrics")
+    PROMETHEUS_ENDPOINT: str = Field(default="", description="Prometheus endpoint URL")
+    
+    # Observability
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = Field(default="", description="OpenTelemetry OTLP endpoint")
     
     # Rate limiting
     RATE_LIMIT_PER_MINUTE: int = Field(default=100, description="Rate limit per minute")

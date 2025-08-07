@@ -3,13 +3,14 @@
 Advanced tools that integrate AutoGen agents with Convergio backend APIs
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 import json
 import asyncio
 from datetime import datetime
 
 import structlog
-from autogen_ext.tools import BaseTool
+from autogen_core.tools import BaseTool
+from pydantic import BaseModel
 import httpx
 
 from .backend_api_client import (
@@ -23,32 +24,38 @@ from .vector_search_client import search_similar, embed_text
 logger = structlog.get_logger()
 
 
+class TalentsQueryArgs(BaseModel):
+    query_type: Literal["count", "departments", "skills", "all"] = "count"
+
+
 class TalentsQueryTool(BaseTool):
     """Tool for querying talent information from Convergio database"""
     
-    name = "query_talents"
-    description = "Query talent information from the Convergio database. Returns talent count, departments, skills overview."
-    
     def __init__(self):
-        super().__init__()
+        super().__init__(
+            args_type=TalentsQueryArgs,
+            return_type=str,
+            name="query_talents",
+            description="Query talent information from the Convergio database. Returns talent count, departments, skills overview."
+        )
     
-    async def run(self, query_type: str = "count") -> str:
+    async def run(self, args: TalentsQueryArgs) -> str:
         """
         Query talent information
         
         Args:
-            query_type: Type of query - "count", "departments", "skills", "all"
+            args: Query arguments containing query_type
         """
         try:
-            if query_type == "count":
+            if args.query_type == "count":
                 result = await query_talents_count()
                 return f"Total talents: {result.get('total', 0)}"
             
-            elif query_type == "skills":
+            elif args.query_type == "skills":
                 result = await query_skills_overview()
                 return f"Skills overview: {json.dumps(result, indent=2)}"
             
-            elif query_type == "all":
+            elif args.query_type == "all":
                 # Get comprehensive talent information
                 async with httpx.AsyncClient() as client:
                     response = await client.get("http://localhost:9000/api/v1/talents")
@@ -70,70 +77,82 @@ class TalentsQueryTool(BaseTool):
             return f"Error querying talents: {str(e)}"
 
 
+class VectorSearchArgs(BaseModel):
+    query: str
+    top_k: int = 5
+
+
 class VectorSearchTool(BaseTool):
     """Tool for semantic search using vector embeddings"""
     
-    name = "vector_search"
-    description = "Perform semantic search across Convergio knowledge base using vector embeddings"
-    
     def __init__(self):
-        super().__init__()
+        super().__init__(
+            args_type=VectorSearchArgs,
+            return_type=str,
+            name="vector_search",
+            description="Perform semantic search across Convergio knowledge base using vector embeddings"
+        )
     
-    async def run(self, query: str, top_k: int = 5) -> str:
+    async def run(self, args: VectorSearchArgs) -> str:
         """
         Perform vector search
         
         Args:
-            query: Search query text
-            top_k: Number of results to return
+            args: Search arguments containing query and top_k
         """
         try:
             # Embed the query
-            query_embedding = await embed_text(query)
+            query_embedding = await embed_text(args.query)
             
             # Search for similar content
-            results = await search_similar(query_embedding, top_k=top_k)
+            results = await search_similar(query_embedding, top_k=args.top_k)
             
             if not results:
-                return f"No relevant results found for: {query}"
+                return f"No relevant results found for: {args.query}"
             
             formatted_results = []
             for i, result in enumerate(results, 1):
                 formatted_results.append(f"{i}. {result.get('content', 'No content')[:200]}...")
             
-            return f"Vector search results for '{query}':\n" + "\n".join(formatted_results)
+            return f"Vector search results for '{args.query}':\n" + "\n".join(formatted_results)
             
         except Exception as e:
             logger.error("❌ VectorSearchTool error", error=str(e))
             return f"Error performing vector search: {str(e)}"
 
 
+class EngagementAnalyticsArgs(BaseModel):
+    analysis_type: Literal["summary", "dashboard", "trends"] = "summary"
+
+
 class EngagementAnalyticsTool(BaseTool):
     """Tool for analyzing engagement data and business metrics"""
     
-    name = "engagement_analytics"
-    description = "Analyze engagement data, business metrics, and dashboard statistics"
-    
     def __init__(self):
-        super().__init__()
+        super().__init__(
+            args_type=EngagementAnalyticsArgs,
+            return_type=str,
+            name="engagement_analytics",
+            description="Analyze engagement data, business metrics, and dashboard statistics"
+        )
     
-    async def run(self, analysis_type: str = "summary") -> str:
+    async def run(self, args: EngagementAnalyticsArgs) -> str:
         """
         Analyze engagements and business metrics
         
         Args:
-            analysis_type: Type of analysis - "summary", "dashboard", "trends"
+            args: Analysis arguments containing analysis_type
         """
         try:
-            if analysis_type == "summary":
+            if args.analysis_type == "summary":
                 result = await query_engagements_summary()
                 return f"Engagement summary: {json.dumps(result, indent=2)}"
             
-            elif analysis_type == "dashboard":
+            elif args.analysis_type == "dashboard":
                 result = await query_dashboard_stats()
                 return f"Dashboard stats: {json.dumps(result, indent=2)}"
             
-            elif analysis_type == "trends":
+            elif args.analysis_type == "trends":
                 # Get trend data from multiple sources
                 summary = await query_engagements_summary()
                 dashboard = await query_dashboard_stats()
@@ -157,45 +176,51 @@ class EngagementAnalyticsTool(BaseTool):
             return f"Error analyzing engagements: {str(e)}"
 
 
+class BusinessIntelligenceArgs(BaseModel):
+    focus_area: Literal["overview", "talents", "performance", "insights"] = "overview"
+
+
 class BusinessIntelligenceTool(BaseTool):
     """Advanced business intelligence tool combining multiple data sources"""
     
-    name = "business_intelligence"
-    description = "Comprehensive business intelligence analysis combining talents, engagements, and performance data"
-    
     def __init__(self):
-        super().__init__()
+        super().__init__(
+            args_type=BusinessIntelligenceArgs,
+            return_type=str,
+            name="business_intelligence",
+            description="Comprehensive business intelligence analysis combining talents, engagements, and performance data"
+        )
         self.talents_tool = TalentsQueryTool()
         self.analytics_tool = EngagementAnalyticsTool()
         self.vector_tool = VectorSearchTool()
     
-    async def run(self, focus_area: str = "overview") -> str:
+    async def run(self, args: BusinessIntelligenceArgs) -> str:
         """
         Generate business intelligence report
         
         Args:
-            focus_area: Focus area - "overview", "talents", "performance", "insights"
+            args: Business intelligence arguments containing focus_area
         """
         try:
             report = {
                 "business_intelligence_report": {
                     "generated_at": datetime.now().isoformat(),
-                    "focus_area": focus_area
+                    "focus_area": args.focus_area
                 }
             }
             
-            if focus_area == "overview" or focus_area == "talents":
-                talents_data = await self.talents_tool.run("all")
+            if args.focus_area == "overview" or args.focus_area == "talents":
+                talents_data = await self.talents_tool.run(TalentsQueryArgs(query_type="all"))
                 report["talent_analysis"] = talents_data
             
-            if focus_area == "overview" or focus_area == "performance":
-                performance_data = await self.analytics_tool.run("dashboard")
+            if args.focus_area == "overview" or args.focus_area == "performance":
+                performance_data = await self.analytics_tool.run(EngagementAnalyticsArgs(analysis_type="dashboard"))
                 report["performance_metrics"] = performance_data
             
-            if focus_area == "insights":
+            if args.focus_area == "insights":
                 # Generate insights using vector search
-                insights_query = f"business insights {focus_area} performance metrics trends"
-                insights = await self.vector_tool.run(insights_query)
+                insights_query = f"business insights {args.focus_area} performance metrics trends"
+                insights = await self.vector_tool.run(VectorSearchArgs(query=insights_query))
                 report["ai_insights"] = insights
             
             return json.dumps(report, indent=2)

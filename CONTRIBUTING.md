@@ -50,6 +50,8 @@ cd backend && python -m uvicorn src.main:app --host 0.0.0.0 --port 9000
 cd frontend && npm run dev -- --port 4000
 ```
 
+# NOTE: Docker and docker-compose are no longer supported. Please use native Python/Node.js or Azure deployment as described below.
+
 ---
 
 ## 🎯 **How to Contribute**

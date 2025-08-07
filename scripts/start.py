@@ -173,6 +173,41 @@ def start_backend():
     print("=" * 60)
     print("🛑 Press Ctrl+C to stop")
     print()
+    
+    def open_browser_tabs():
+        """Open browser tabs for backend endpoints and frontend after a delay"""
+        import webbrowser
+        import time
+        
+        # Wait 5 seconds for the backend to start
+        time.sleep(5)
+        
+        try:
+            # Open backend endpoints
+            print("🌐 Opening browser tabs for testing...")
+            webbrowser.open("http://localhost:9000/health")
+            time.sleep(1)  # Small delay between tabs
+            webbrowser.open("http://localhost:9000/docs")
+            time.sleep(1)
+            
+            # Try to open frontend if available
+            try:
+                import httpx
+                response = httpx.get("http://localhost:4000", timeout=2)
+                if response.status_code == 200:
+                    webbrowser.open("http://localhost:4000")
+                    print("✅ Frontend tab opened (http://localhost:4000)")
+            except:
+                print("💡 Frontend not running. Start it with: cd frontend && npm run dev")
+                
+        except Exception as e:
+            print(f"⚠️ Could not open browser tabs: {e}")
+    
+    # Start browser opening in a separate thread
+    import threading
+    browser_thread = threading.Thread(target=open_browser_tabs, daemon=True)
+    browser_thread.start()
+    
     try:
         os.chdir("backend")
         subprocess.run([

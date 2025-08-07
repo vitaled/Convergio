@@ -151,44 +151,32 @@ Convergio is more than an AI platform - it's a testament to human resilience and
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL 15+ with pgvector extension
-- Redis 7+
-- OpenAI API Key
+### Prerequisiti
+Python 3.11+
+Node.js 18+
+PostgreSQL 15+ con estensione pgvector
+Redis 7+
+OpenAI API Key
 
-### Installation
+### Installazione & Avvio
 ```bash
-# 1. Clone repository
+# 1. Clona il repository
 git clone https://github.com/Roberdan/Convergio.git
 cd Convergio
 
-# 2. Backend setup
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+# 2. Configura gli ambienti
+# Copia .env.example in .env sia in backend che in frontend
+# Inserisci la tua OpenAI API key e le credenziali del database
 
-# 3. Frontend setup
-cd ../frontend
-npm install
-
-# 4. Environment configuration
-# Copy .env.example to .env in both backend and frontend
-# Add your OpenAI API key and database credentials
-
-# 5. Start services
-# Terminal 1: Backend
-cd backend && python -m uvicorn src.main:app --host 0.0.0.0 --port 9000 --reload
-
-# Terminal 2: Frontend
-cd frontend && npm run dev -- --port 4000
+# 3. Avvia tutto in locale
+./start.sh
 ```
+
+Questo comando gestisce automaticamente la virtualenv, installa le dipendenze e avvia il backend. Per la parte frontend, segui le istruzioni che appariranno a terminale.
 
 ---
 
-> **Note:** Docker and docker-compose are no longer supported or required. All deployment and development should be done using native Python/Node.js or via Azure services as described in the deployment documentation.
+> **Nota:** Docker, docker-compose e Makefile non sono più supportati o richiesti. Tutto lo sviluppo e la gestione locale avviene tramite `start.sh`. Per il deploy, segui la guida in `deployment/README.md`.
 
 ---
 
