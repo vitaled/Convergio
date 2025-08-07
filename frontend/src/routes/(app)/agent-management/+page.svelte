@@ -1,7 +1,24 @@
+<!-- 
+🚧 ROADMAP: Agent Management - Advanced CRUD Operations
+======================================================
+
+This feature is planned for future implementation and includes:
+- Complete agent CRUD (Create, Read, Update, Delete) operations  
+- Real-time agent editor with syntax highlighting
+- Advanced filtering and search capabilities
+- Agent tier management and categorization
+- Hot-reloading of agent definitions
+- Visual agent relationship mapping
+
+Current Status: COMMENTED OUT for MVP simplification
+Timeline: Phase 2 development (Q2 2025)
+Dependencies: Agent definition standardization, advanced UI components
+-->
+
 <script>
-	import { onMount } from 'svelte';
-	import { writable } from 'svelte/store';
-	import AgentEditor from '$lib/components/AgentEditor.svelte';
+	// import { onMount } from 'svelte';
+	// import { writable } from 'svelte/store';
+	// import AgentEditor from '$lib/components/AgentEditor.svelte';
 	
 	// Stores
 	let agents = writable([]);

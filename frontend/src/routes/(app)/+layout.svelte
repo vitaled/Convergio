@@ -5,15 +5,18 @@
   import AliAssistant from '$lib/components/AliAssistant.svelte';
   import CostDisplay from '$lib/components/CostDisplay.svelte';
   
-  // Simple navigation items
+  // MVP navigation items (simplified for initial release)
   const navItems = [
-    { href: '/ceo-dashboard', label: 'CEO Dashboard', iconPath: '/convergio_icons/dashboard.svg' },
     { href: '/agents', label: 'AI Team', iconPath: '/convergio_icons/users.svg' },
-    { href: '/agent-management', label: 'Agent Manager', iconPath: '/convergio_icons/settings.svg' },
-    { href: '/swarm-coordination', label: 'Swarm Intelligence', iconPath: '/convergio_icons/graphflow_engine.svg' },
     { href: '/dashboard', label: 'Analytics', iconPath: '/convergio_icons/analytics.svg' },
     { href: '/settings', label: 'Settings', iconPath: '/convergio_icons/settings.svg' }
   ];
+  
+  // 🚧 ROADMAP: Advanced features removed for MVP simplification
+  // Future Phase 2 navigation items (Q2-Q3 2025):
+  // - CEO Dashboard (Executive business intelligence)
+  // - Agent Management (Advanced CRUD operations)  
+  // - Swarm Coordination (Multi-agent orchestration)
   
   $: currentPath = $page.url.pathname;
   
