@@ -164,6 +164,20 @@ Dependencies: Agent definition standardization, advanced UI components
 	}
 </script>
 
+<style>
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+</style>
+
 <svelte:head>
 	<title>Agent Management | Convergio</title>
 </svelte:head>
@@ -178,6 +192,7 @@ Dependencies: Agent definition standardization, advanced UI components
 				<button
 					on:click={closeEditor}
 					class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+					aria-label="Close editor"
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -247,6 +262,7 @@ Dependencies: Agent definition standardization, advanced UI components
 					<button
 						on:click={() => notification = null}
 						class="ml-2 text-gray-400 hover:text-gray-600"
+						aria-label="Close notification"
 					>
 						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
 							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -262,72 +278,86 @@ Dependencies: Agent definition standardization, advanced UI components
 		<div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
 			<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Search Agents</label>
+					<label for="search-agents" class="block text-sm font-medium text-gray-700 mb-1">Search Agents</label>
 					<input
+						id="search-agents"
 						type="text"
 						bind:value={searchQuery}
 						placeholder="Search by name or description..."
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						aria-describedby="search-help"
 					/>
+					<div id="search-help" class="sr-only">Search agents by name or description</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Filter by Tier</label>
+					<label for="filter-tier" class="block text-sm font-medium text-gray-700 mb-1">Filter by Tier</label>
 					<select
+						id="filter-tier"
 						bind:value={selectedTier}
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						aria-describedby="tier-help"
 					>
 						<option value="">All Tiers</option>
 						{#each availableTiers as tier}
 							<option value={tier}>{tier}</option>
 						{/each}
 					</select>
+					<div id="tier-help" class="sr-only">Filter agents by organizational tier</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+					<label for="sort-by" class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
 					<select
+						id="sort-by"
 						bind:value={sortBy}
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						aria-describedby="sort-help"
 					>
 						<option value="name">Name</option>
 						<option value="tier">Tier</option>
 						<option value="tools_count">Tools Count</option>
 						<option value="expertise_count">Expertise Count</option>
 					</select>
+					<div id="sort-help" class="sr-only">Sort agents by selected criteria</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Order</label>
+					<label for="sort-order" class="block text-sm font-medium text-gray-700 mb-1">Order</label>
 					<select
+						id="sort-order"
 						bind:value={sortOrder}
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						aria-describedby="order-help"
 					>
 						<option value="asc">Ascending</option>
 						<option value="desc">Descending</option>
 					</select>
+					<div id="order-help" class="sr-only">Choose ascending or descending order</div>
 				</div>
 			</div>
 		</div>
 
 		<!-- Agents Grid -->
 		{#if isLoading}
-			<div class="flex items-center justify-center py-12">
-				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+			<div class="flex items-center justify-center py-12" role="status" aria-live="polite">
+				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" aria-hidden="true"></div>
 				<span class="ml-3 text-gray-600">Loading agents...</span>
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 				{#each filteredAgents as agent (agent.key)}
-					<div class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+					<article class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow" aria-labelledby="agent-{agent.key}-name">
 						<!-- Agent Header -->
 						<div class="p-4 border-b">
 							<div class="flex items-center space-x-3 mb-3">
 								<div 
 									class="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-lg"
 									style="background-color: {agent.color || '#4A90E2'}"
+									role="img"
+									aria-label="Agent avatar for {agent.name}"
 								>
 									{getAgentInitials(agent.name)}
 								</div>
 								<div class="flex-1 min-w-0">
-									<h3 class="font-semibold text-gray-900 truncate" title={agent.name}>
+									<h3 id="agent-{agent.key}-name" class="font-semibold text-gray-900 truncate" title={agent.name}>
 										{agent.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
 									</h3>
 									<p class="text-sm text-gray-500 truncate" title={agent.description}>
@@ -336,12 +366,12 @@ Dependencies: Agent definition standardization, advanced UI components
 								</div>
 							</div>
 							<div class="flex items-center justify-between">
-								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getTierColor(agent.tier)}">
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getTierColor(agent.tier)}" aria-label="Agent tier: {agent.tier}">
 									{agent.tier}
 								</span>
-								<div class="flex space-x-1">
+								<div class="flex space-x-1" aria-label="Agent capabilities">
 									<span class="text-xs text-gray-500">{agent.tools_count} tools</span>
-									<span class="text-xs text-gray-400">•</span>
+									<span class="text-xs text-gray-400" aria-hidden="true">•</span>
 									<span class="text-xs text-gray-500">{agent.expertise_count} areas</span>
 								</div>
 							</div>
@@ -353,8 +383,9 @@ Dependencies: Agent definition standardization, advanced UI components
 								<button
 									on:click={() => editAgent(agent)}
 									class="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors flex items-center justify-center"
+									aria-label="Edit agent {agent.name}"
 								>
-									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
 									</svg>
 									Edit
@@ -362,20 +393,21 @@ Dependencies: Agent definition standardization, advanced UI components
 								<button
 									on:click={() => deleteAgent(agent)}
 									class="px-3 py-2 border border-red-300 text-red-700 text-sm rounded hover:bg-red-50 transition-colors flex items-center justify-center"
+									aria-label="Delete agent {agent.name}"
 								>
-									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
 									</svg>
 								</button>
 							</div>
 						</div>
-					</div>
+					</article>
 				{/each}
 			</div>
 			
 			{#if filteredAgents.length === 0}
-				<div class="text-center py-12">
-					<svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="text-center py-12" role="status" aria-live="polite">
+					<svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" role="presentation">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
 					</svg>
 					<h3 class="text-lg font-medium text-gray-900 mb-2">No agents found</h3>
@@ -385,28 +417,28 @@ Dependencies: Agent definition standardization, advanced UI components
 		{/if}
 
 		<!-- Summary Stats -->
-		<div class="mt-8 bg-white rounded-lg shadow-sm border p-6">
-			<h2 class="text-lg font-semibold mb-4">Agent Statistics</h2>
-			<div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-				<div class="text-center">
-					<div class="text-2xl font-bold text-blue-600">{$agents.length}</div>
+		<section class="mt-8 bg-white rounded-lg shadow-sm border p-6" aria-labelledby="stats-heading">
+			<h2 id="stats-heading" class="text-lg font-semibold mb-4">Agent Statistics</h2>
+			<div class="grid grid-cols-2 md:grid-cols-4 gap-6" role="list">
+				<div class="text-center" role="listitem">
+					<div class="text-2xl font-bold text-blue-600" aria-label="{$agents.length} total agents">{$agents.length}</div>
 					<div class="text-sm text-gray-500">Total Agents</div>
 				</div>
-				<div class="text-center">
-					<div class="text-2xl font-bold text-green-600">{filteredAgents.length}</div>
+				<div class="text-center" role="listitem">
+					<div class="text-2xl font-bold text-green-600" aria-label="{filteredAgents.length} filtered results">{filteredAgents.length}</div>
 					<div class="text-sm text-gray-500">Filtered Results</div>
 				</div>
-				<div class="text-center">
-					<div class="text-2xl font-bold text-purple-600">{availableTiers.length}</div>
+				<div class="text-center" role="listitem">
+					<div class="text-2xl font-bold text-purple-600" aria-label="{availableTiers.length} available tiers">{availableTiers.length}</div>
 					<div class="text-sm text-gray-500">Available Tiers</div>
 				</div>
-				<div class="text-center">
-					<div class="text-2xl font-bold text-orange-600">
+				<div class="text-center" role="listitem">
+					<div class="text-2xl font-bold text-orange-600" aria-label="{$agents.reduce((sum, agent) => sum + agent.tools_count, 0)} total tools">
 						{$agents.reduce((sum, agent) => sum + agent.tools_count, 0)}
 					</div>
 					<div class="text-sm text-gray-500">Total Tools</div>
 				</div>
 			</div>
-		</div>
+		</section>
 	</div>
 </div>
