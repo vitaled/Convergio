@@ -191,7 +191,8 @@ class Settings(BaseSettings):
     # ✅ VALIDATORS
     # ================================
     
-    @validator("ENVIRONMENT")
+    @field_validator("ENVIRONMENT")
+    @classmethod
     def validate_environment(cls, v):
         """Validate environment name"""
         allowed = ["development", "staging", "production"] 
@@ -199,7 +200,8 @@ class Settings(BaseSettings):
             raise ValueError(f"Environment must be one of: {allowed}")
         return v
     
-    @validator("LOG_LEVEL")
+    @field_validator("LOG_LEVEL")
+    @classmethod
     def validate_log_level(cls, v):
         """Validate log level"""
         allowed = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -207,7 +209,8 @@ class Settings(BaseSettings):
             raise ValueError(f"Log level must be one of: {allowed}")
         return v.upper()
     
-    @validator("JWT_ALGORITHM")
+    @field_validator("JWT_ALGORITHM")
+    @classmethod
     def validate_jwt_algorithm(cls, v):
         """Validate JWT algorithm"""
         if v != "RS256":
