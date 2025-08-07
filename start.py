@@ -11,33 +11,23 @@ import subprocess
 from pathlib import Path
 
 def check_dependencies():
-    """Check if all dependencies are installed"""
-    
+    """Check if all dependencies are installed and environment is correct for local dev"""
     print("🔍 Checking dependencies...")
-    
-    # Check Python version
     if sys.version_info < (3, 11):
         print("❌ Python 3.11+ required!")
         sys.exit(1)
-    
-    # Check if we're in the right directory
     if not Path("backend/src/main.py").exists():
         print("❌ Run this script from the Convergio root directory!")
         sys.exit(1)
-    
-    # Check if .env exists
-    if not Path(".env").exists():
-        print("❌ .env file not found! Copy from the main Convergio directory.")
+    if not Path("backend/.env").exists():
+        print("❌ backend/.env file not found! Copy backend/.env.example to backend/.env and configure it.")
         sys.exit(1)
-    
     print("✅ Dependencies check passed")
 
 
 def install_requirements():
-    """Install Python requirements"""
-    
-    print("📦 Installing Python requirements...")
-    
+    """Install Python requirements for backend"""
+    print("📦 Installing Python requirements (backend)...")
     try:
         subprocess.run([
             sys.executable, "-m", "pip", "install", "-r", "backend/requirements.txt"
@@ -49,41 +39,31 @@ def install_requirements():
 
 
 def check_environment():
-    """Check environment variables"""
-    
+    """Check environment variables from backend/.env"""
     print("🔧 Checking environment configuration...")
-    
-    # Load .env file
     from dotenv import load_dotenv
-    load_dotenv()
-    
+    load_dotenv(dotenv_path="backend/.env")
     required_vars = [
         "OPENAI_API_KEY",
-        "ANTHROPIC_API_KEY", 
+        "ANTHROPIC_API_KEY",
         "POSTGRES_HOST",
         "REDIS_HOST"
     ]
-    
     missing_vars = []
     for var in required_vars:
         if not os.getenv(var):
             missing_vars.append(var)
-    
     if missing_vars:
-        print(f"❌ Missing environment variables: {missing_vars}")
+        print(f"❌ Missing environment variables in backend/.env: {missing_vars}")
         sys.exit(1)
-    
     print("✅ Environment configuration valid")
 
 
 def check_services():
-    """Check if required services are running"""
-    
+    """Check if required services (Postgres, Redis) are running"""
     print("🔍 Checking required services...")
-    
-    # Check PostgreSQL
     try:
-        import psycopg2  
+        import psycopg2
         conn = psycopg2.connect(
             host=os.getenv("POSTGRES_HOST", "localhost"),
             port=os.getenv("POSTGRES_PORT", 5432),
@@ -95,10 +75,8 @@ def check_services():
         print("✅ PostgreSQL connection successful")
     except Exception as e:
         print(f"❌ PostgreSQL connection failed: {e}")
-        print("💡 Make sure PostgreSQL is running and database exists")
+        print("💡 Make sure PostgreSQL is running and database exists (check backend/.env)")
         sys.exit(1)
-    
-    # Check Redis
     try:
         import redis
         r = redis.Redis(
@@ -110,7 +88,7 @@ def check_services():
         print("✅ Redis connection successful")
     except Exception as e:
         print(f"❌ Redis connection failed: {e}")
-        print("💡 Make sure Redis is running")
+        print("💡 Make sure Redis is running (check backend/.env)")
         sys.exit(1)
 
 
@@ -183,9 +161,8 @@ def count_agents():
 
 
 def start_backend():
-    """Start the FastAPI backend"""
-    
-    print("🚀 Starting Convergio Unified Backend...")
+    """Start the FastAPI backend for local development"""
+    print("🚀 Starting Convergio Backend (local dev mode)...")
     print("=" * 60)
     print("🌐 Backend URL: http://localhost:9000")
     print("📚 API Docs: http://localhost:9000/docs")
@@ -196,21 +173,16 @@ def start_backend():
     print("=" * 60)
     print("🛑 Press Ctrl+C to stop")
     print()
-    
     try:
-        # Change to backend directory
         os.chdir("backend")
-        
-        # Start with uvicorn
         subprocess.run([
             sys.executable, "-m", "uvicorn",
             "src.main:app",
             "--host", "0.0.0.0",
-            "--port", "9000", 
+            "--port", "9000",
             "--reload",
             "--log-level", "info"
         ], check=True)
-        
     except KeyboardInterrupt:
         print("\n🛑 Shutting down Convergio...")
         sys.exit(0)
@@ -220,28 +192,25 @@ def start_backend():
 
 
 def main():
-    """Main startup sequence"""
-    
-    print("🚀 CONVERGIO - UNIFIED BACKEND STARTUP")
+    print("🚀 CONVERGIO - LOCAL DEVELOPMENT STARTUP")
     print("=" * 50)
-    print("🎯 ZERO technical debt | ZERO mocks | ZERO fallbacks")
+    print("🎯 Docker is NOT required. This script is for bare metal local dev.")
     print("🤖 REAL AI agents | REAL vector search | REAL everything")
     print("=" * 50)
     print()
-    
-    # Complete startup sequence
     check_dependencies()
     install_requirements()
     check_environment()
     check_services()
     test_openai_api()
     count_agents()
-    
     print()
     print("✅ ALL SYSTEMS GO! Starting backend...")
     print()
-    
     start_backend()
+    print()
+    print("👉 To start the frontend, open a new terminal and run:")
+    print("   cd frontend && npm install && npm run dev")
 
 
 if __name__ == "__main__":

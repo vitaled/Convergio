@@ -218,31 +218,21 @@ server: {
 }
 ```
 
-## 🚀 Build & Deploy
+### Build & Deploy
 
-### Development
+#### Development
 ```bash
 npm run dev
 # Open http://localhost:4000
 ```
 
-### Production Build
+#### Production Build
 ```bash
 npm run build
 npm run preview
 ```
 
-### Docker (Optional)
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 4000
-CMD ["npm", "run", "preview", "--", "--host", "0.0.0.0"]
-```
+> **Note:** Docker is no longer supported or required. For deployment, use Azure Static Web Apps or App Service as described in the deployment documentation.
 
 ## 📊 Performance
 

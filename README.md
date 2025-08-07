@@ -186,15 +186,9 @@ cd backend && python -m uvicorn src.main:app --host 0.0.0.0 --port 9000 --reload
 cd frontend && npm run dev -- --port 4000
 ```
 
-### Using Docker
-```bash
-# Start all services
-docker-compose up -d
+---
 
-# Access the application
-# Frontend: http://localhost:4000
-# Backend API: http://localhost:9000
-```
+> **Note:** Docker and docker-compose are no longer supported or required. All deployment and development should be done using native Python/Node.js or via Azure services as described in the deployment documentation.
 
 ---
 

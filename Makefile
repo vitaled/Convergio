@@ -118,17 +118,7 @@ deploy-azure:
 	./deployment/azure/deploy-azure.sh
 	@echo "🎉 Azure deployment completed!"
 
-# 🐳 Development with Docker
-docker-dev:
-	@echo "🐳 Starting development environment with Docker..."
-	docker-compose -f deployment/docker/docker-compose.dev.yml up --build
-	@echo "🛠️ Development environment ready!"
-
-# 🐳 Production with Docker
-docker-prod:
-	@echo "🐳 Starting production environment with Docker..."
-	docker-compose -f deployment/docker/docker-compose.yml up -d --build
-	@echo "🚀 Production environment ready!"
+# NOTE: Docker and docker-compose are no longer supported. Use native Python/Node.js or Azure deployment only.
 
 # 🔍 Health check
 health:
