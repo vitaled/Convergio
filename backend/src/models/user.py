@@ -11,9 +11,32 @@ from .talent import Talent
 
 
 class User:
-    """User compatibility wrapper around Talent model"""
+    """User compatibility wrapper around Talent model.
+
+    Tests construct User directly with kwargs; support that by creating an
+    underlying Talent instance when needed.
+    """
     
-    def __init__(self, talent: Talent):
+    def __init__(self, talent: Optional[Talent] = None, **kwargs):
+        if talent is None:
+            # Map username/full_name to Talent fields
+            username = kwargs.pop("username", None)
+            email = kwargs.get("email")
+            full_name = kwargs.pop("full_name", None)
+            first_name = None
+            last_name = None
+            if full_name:
+                parts = str(full_name).split(" ", 1)
+                first_name = parts[0]
+                last_name = parts[1] if len(parts) > 1 else None
+            elif username and not full_name:
+                first_name = username
+            talent_kwargs = {
+                "email": email or (f"{username}@example.com" if username else None),
+                "first_name": first_name,
+                "last_name": last_name,
+            }
+            talent = Talent(**{k: v for k, v in talent_kwargs.items() if v is not None})
         self.talent = talent
     
     @property
@@ -55,6 +78,9 @@ class User:
     @property
     def updated_at(self):
         return self.talent.updated_at
+
+    def __str__(self) -> str:
+        return f"User(username={self.username}, email={self.email})"
     
     @classmethod
     async def get_all(

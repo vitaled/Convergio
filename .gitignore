@@ -627,3 +627,4 @@ create_test_user.py.bak
 # Legacy specific files (can be removed later)
 ExecutionPlan.md
 ExecutionPlanGTP5.md
+.cursor/

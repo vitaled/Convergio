@@ -8,9 +8,20 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-teal?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![SvelteKit](https://img.shields.io/badge/Frontend-SvelteKit-orange?style=for-the-badge&logo=svelte)](https://kit.svelte.dev/)
 [![AutoGen](https://img.shields.io/badge/AutoGen-0.7.2-red?style=for-the-badge&logo=microsoft)](https://microsoft.github.io/autogen/)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-blue.svg?style=for-the-badge)](LICENSE)
+[![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue?style=for-the-badge)](LICENSE)
 [![Quality Gate](https://img.shields.io/badge/Quality-Enterprise%20Grade-green?style=for-the-badge)](#)
 [![Coverage](https://img.shields.io/badge/Coverage-Improving-yellow?style=for-the-badge)](#)
+
+---
+
+## 📚 Documentation
+
+- Executive Summary: `docs/executive_summary.md`
+- Design Brief: `docs/design_brief.md`
+- Technical Gameplan: `docs/technical_gameplan.md`
+- Data Science Plan: `docs/data_science_plan.md`
+- Project Plan: `docs/project_plan.md`
+- Execution Plan: `ExecutionPlan.md`
 
 ---
 

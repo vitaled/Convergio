@@ -8,6 +8,7 @@ import os
 import sys
 import asyncio
 import subprocess
+import argparse
 from pathlib import Path
 
 def check_dependencies():
@@ -227,18 +228,30 @@ def start_backend():
 
 
 def main():
-    print("🚀 CONVERGIO - LOCAL DEVELOPMENT STARTUP")
-    print("=" * 50)
-    print("🎯 Docker is NOT required. This script is for bare metal local dev.")
-    print("🤖 REAL AI agents | REAL vector search | REAL everything")
-    print("=" * 50)
-    print()
+    parser = argparse.ArgumentParser(description='Convergio startup script')
+    parser.add_argument('--check-only', action='store_true', 
+                       help='Only run system checks, do not start the server')
+    args = parser.parse_args()
+    
+    if not args.check_only:
+        print("🚀 CONVERGIO - LOCAL DEVELOPMENT STARTUP")
+        print("=" * 50)
+        print("🎯 Docker is NOT required. This script is for bare metal local dev.")
+        print("🤖 REAL AI agents | REAL vector search | REAL everything")
+        print("=" * 50)
+        print()
+    
     check_dependencies()
-    install_requirements()
+    # install_requirements() # Skip in --check-only mode, already done by start.sh
     check_environment()
     check_services()
     test_openai_api()
     count_agents()
+    
+    if args.check_only:
+        print("✅ All system checks completed successfully!")
+        return
+    
     print()
     print("✅ ALL SYSTEMS GO! Starting backend...")
     print()

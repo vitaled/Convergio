@@ -49,6 +49,7 @@ class Talent(Base):
         onupdate=func.now(),
         nullable=True
     )
+
     
     @property
     def full_name(self) -> str:
@@ -66,6 +67,8 @@ class Talent(Base):
     def username(self) -> str:
         """Get username from email for compatibility"""
         return self.email.split('@')[0] if self.email else "unknown"
+
+    
     
     @property
     def is_active(self) -> bool:

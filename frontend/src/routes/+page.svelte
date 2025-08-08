@@ -81,7 +81,7 @@
       </p>
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <button
-          on:click={() => goto('/ceo-dashboard')}
+          on:click={() => goto('/dashboard')}
           class="flex items-center justify-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-xl hover:bg-blue-700 transition-all transform hover:scale-[1.02] shadow-lg"
         >
           <img src="/convergio_icons/dashboard.svg" alt="" class="mr-3 h-5 w-5" />

@@ -113,6 +113,14 @@ class Settings(BaseSettings):
     autogen_cost_limit_usd: float = Field(default=50.0, env="AUTOGEN_COST_LIMIT_USD")
     autogen_redis_state_ttl: int = Field(default=3600, env="AUTOGEN_REDIS_STATE_TTL")
     default_ai_model: str = Field(default="gpt-4o-mini", env="DEFAULT_AI_MODEL")
+
+    # Feature Flags
+    rag_in_loop_enabled: bool = Field(default=True, env="RAG_IN_LOOP")
+    true_streaming_enabled: bool = Field(default=True, env="TRUE_STREAMING")
+    speaker_policy_enabled: bool = Field(default=True, env="SPEAKER_POLICY")
+    graphflow_enabled: bool = Field(default=False, env="GRAPHFLOW")
+    hitl_enabled: bool = Field(default=False, env="HITL")
+    cost_safety_enabled: bool = Field(default=True, env="COST_SAFETY")
     
     # Security
     jwt_secret: str = Field(..., env="JWT_SECRET")

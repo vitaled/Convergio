@@ -182,7 +182,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: 'Provide executive summary of all current projects, key metrics, and strategic recommendations for Q4',
-          user_id: 'ceo-dashboard',
+          user_id: 'dashboard',
           context: { source: 'dashboard', role: 'ceo' }
         })
       });
@@ -200,7 +200,7 @@
 </script>
 
 <svelte:head>
-  <title>CEO Dashboard - platform.Convergio.io</title>
+  <title>Analytics Dashboard - platform.Convergio.io</title>
 </svelte:head>
 
 <!-- Simple Dashboard inspired by Reflex -->

@@ -1,6 +1,6 @@
 """
 CONVERGIO 2029 - REDIS STATE MANAGER
-Gestione stato conversazioni AutoGen con Redis
+AutoGen conversation state management with Redis
 """
 
 import json
