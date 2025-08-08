@@ -7,43 +7,25 @@ import asyncio
 import json
 from typing import Dict, List, Any, Optional, AsyncGenerator
 from datetime import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 import structlog
 from uuid import uuid4
 
 from fastapi import WebSocket, WebSocketDisconnect
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.messages import TextMessage
+from autogen_agentchat.messages import TextMessage, HandoffMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from src.core.config import settings
 from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
 from src.core.redis import get_redis_client
+from src.agents.services.streaming.response_types import StreamingResponse
+from src.agents.services.streaming.session import StreamingSession
+from src.agents.services.streaming.runner import stream_agent_response
 
 logger = structlog.get_logger()
 
-@dataclass
-class StreamingResponse:
-    """Represents a streaming response chunk"""
-    chunk_id: str
-    session_id: str
-    agent_name: str
-    chunk_type: str  # 'text', 'thinking', 'complete', 'error', 'status'
-    content: str
-    timestamp: datetime
-    metadata: Optional[Dict[str, Any]] = None
-
-@dataclass
-class StreamingSession:
-    """Manages a streaming conversation session"""
-    session_id: str
-    user_id: str
-    agent_name: str
-    websocket: WebSocket
-    start_time: datetime
-    last_activity: datetime
-    message_count: int
-    status: str  # 'active', 'paused', 'completed', 'error'
+ 
 
 class StreamingOrchestrator:
     """Orchestrates real-time streaming responses from AI agents"""
@@ -53,6 +35,8 @@ class StreamingOrchestrator:
         self.memory_system = AutoGenMemorySystem()
         self.redis_client = None
         self._initialized = False
+        self._heartbeat_tasks: Dict[str, asyncio.Task] = {}
+        self.heartbeat_interval_sec: float = 10.0
         
     async def initialize(self):
         """Initialize streaming orchestrator"""
@@ -90,6 +74,8 @@ class StreamingOrchestrator:
         )
         
         self.active_sessions[session_id] = session
+        # Start heartbeat task
+        self._start_heartbeat(session)
         
         # Send session created confirmation
         await self._send_streaming_response(
@@ -185,10 +171,16 @@ class StreamingOrchestrator:
             
             # Process with streaming with guaranteed response
             has_generated_content = False
+            # Simple backpressure: small send buffer window
+            send_buffer: List[StreamingResponse] = []
             
             try:
-                async for chunk in self._stream_agent_response(agent, context_message, session):
-                    await self._send_streaming_response(session, chunk)
+                async for chunk in stream_agent_response(agent, context_message, session, logger):
+                    send_buffer.append(chunk)
+                    # Flush buffer to avoid overfilling
+                    if len(send_buffer) >= 5 or chunk.chunk_type in ('tool_call','tool_result','handoff'):
+                        while send_buffer:
+                            await self._send_streaming_response(session, send_buffer.pop(0))
                     if chunk.chunk_type == 'text':
                         has_generated_content = True
             except Exception as streaming_error:
@@ -267,6 +259,13 @@ class StreamingOrchestrator:
                     ))
                     await asyncio.sleep(0.4)  # Realistic typing speed
                 
+            # Flush any remaining buffered chunks
+            try:
+                while send_buffer:
+                    await self._send_streaming_response(session, send_buffer.pop(0))
+            except Exception:
+                send_buffer.clear()
+
             # Send completion status
             await self._send_streaming_response(
                 session,
@@ -298,89 +297,7 @@ class StreamingOrchestrator:
             logger.error(f"❌ Streaming processing error", error=str(e), session_id=session_id)
             await self._send_error(session, f"Processing error: {str(e)}")
 
-    async def _stream_agent_response(
-        self,
-        agent: AssistantAgent,
-        message: str,
-        session: StreamingSession
-    ) -> AsyncGenerator[StreamingResponse, None]:
-        """Stream agent response in real-time chunks"""
-        
-        try:
-            # Create text message
-            text_message = TextMessage(content=message, source="user")
-            
-            # Use AutoGen's streaming capability
-            response_content = ""
-            chunk_buffer = ""
-            
-            # Simulate streaming by processing agent response in chunks
-            # In a real implementation with AutoGen 0.7.1, we'd use the actual streaming API
-            logger.info("🔄 Starting agent.run_stream() processing")
-            response_count = 0
-            async for response in agent.run_stream(task=text_message):
-                response_count += 1
-                logger.info(f"📥 Got response {response_count}: {type(response)}")
-                logger.info(f"  hasattr messages: {hasattr(response, 'messages')}")
-                
-                if hasattr(response, 'messages') and response.messages:
-                    logger.info(f"  messages count: {len(response.messages)}")
-                    for i, msg in enumerate(response.messages):
-                        logger.info(f"    Message {i}: source={getattr(msg, 'source', 'unknown')}")
-                        if hasattr(msg, 'content') and msg.content:
-                            content = msg.content
-                            logger.info(f"    Content length: {len(content)}, preview: {content[:100]}...")
-                            
-                            # Process content in chunks
-                            words = content.split()
-                            for i, word in enumerate(words):
-                                chunk_buffer += word + " "
-                                
-                                # Send chunk every 3-5 words or at sentence boundaries
-                                if (i > 0 and i % 4 == 0) or word.endswith('.') or word.endswith('!') or word.endswith('?'):
-                                    if chunk_buffer.strip():
-                                        yield StreamingResponse(
-                                            chunk_id=str(uuid4()),
-                                            session_id=session.session_id,
-                                            agent_name=session.agent_name,
-                                            chunk_type='text',
-                                            content=chunk_buffer.strip(),
-                                            timestamp=datetime.utcnow()
-                                        )
-                                        response_content += chunk_buffer
-                                        chunk_buffer = ""
-                                        
-                                        # Small delay for realistic streaming feel
-                                        await asyncio.sleep(0.1)
-                            
-                            # Send any remaining buffer
-                            if chunk_buffer.strip():
-                                yield StreamingResponse(
-                                    chunk_id=str(uuid4()),
-                                    session_id=session.session_id,
-                                    agent_name=session.agent_name,
-                                    chunk_type='text',
-                                    content=chunk_buffer.strip(),
-                                    timestamp=datetime.utcnow()
-                                )
-                                response_content += chunk_buffer
-                            
-                            break  # Take first response
-                    break  # Take first message
-                break  # Take first response
-            
-            logger.info(f"🎯 Finished processing {response_count} responses, generated content length: {len(response_content)}")
-                
-        except Exception as e:
-            logger.error(f"❌ Agent streaming error", error=str(e))
-            yield StreamingResponse(
-                chunk_id=str(uuid4()),
-                session_id=session.session_id,
-                agent_name=session.agent_name,
-                chunk_type='error',
-                content=f"Streaming error: {str(e)}",
-                timestamp=datetime.utcnow()
-            )
+    
 
     async def _send_streaming_response(
         self,
@@ -390,8 +307,21 @@ class StreamingOrchestrator:
         """Send streaming response via WebSocket"""
         
         try:
+            # Map chunk_type to standardized event names for WS3 protocol
+            event_map = {
+                "text": "delta",
+                "thinking": "agent_status",
+                "complete": "final",
+                "error": "error",
+                "status": "status",
+                "tool_call": "tool_call",
+                "tool_result": "tool_result",
+                "handoff": "handoff",
+            }
+            mapped_event = event_map.get(response.chunk_type, "delta")
             data = {
                 "type": "streaming_response",
+                "event": mapped_event,
                 "data": asdict(response)
             }
             
@@ -443,6 +373,10 @@ class StreamingOrchestrator:
             except:
                 pass  # Client may have already disconnected
             finally:
+                # Cancel heartbeat task if running
+                task = self._heartbeat_tasks.pop(session_id, None)
+                if task:
+                    task.cancel()
                 # Remove from active sessions
                 del self.active_sessions[session_id]
                 logger.info(f"🌊 Closed streaming session {session_id}")
@@ -480,6 +414,31 @@ class StreamingOrchestrator:
             logger.info(f"🧹 Cleaned up inactive session {session_id}")
         
         return len(inactive_sessions)
+
+    def _start_heartbeat(self, session: StreamingSession) -> None:
+        async def _hb():
+            try:
+                while session.session_id in self.active_sessions:
+                    await asyncio.sleep(self.heartbeat_interval_sec)
+                    # Session may have been closed during sleep
+                    if session.session_id not in self.active_sessions:
+                        break
+                    hb = StreamingResponse(
+                        chunk_id=str(uuid4()),
+                        session_id=session.session_id,
+                        agent_name=session.agent_name,
+                        chunk_type='status',
+                        content='heartbeat',
+                        timestamp=datetime.utcnow(),
+                        metadata={"status": session.status}
+                    )
+                    await self._send_streaming_response(session, hb)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                logger.warning("⚠️ Heartbeat error", error=str(e))
+
+        self._heartbeat_tasks[session.session_id] = asyncio.create_task(_hb())
 
 # Global streaming orchestrator instance - lazy loaded
 streaming_orchestrator = None
