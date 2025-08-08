@@ -72,7 +72,14 @@ async def orchestrate_conversation_impl(
     try:
         if orchestrator.settings.rag_in_loop_enabled:
             with start_span("rag.build_context", {"user_id": user_id}):
-                memory_msg = await build_memory_context_func(orchestrator.memory_system, user_id=user_id, agent_id=None, query=message, limit=5)
+                memory_msg = await build_memory_context_func(
+                    orchestrator.memory_system,
+                    user_id=user_id,
+                    agent_id=None,
+                    query=message,
+                    limit=orchestrator.settings.rag_max_facts,
+                    similarity_threshold=orchestrator.settings.rag_similarity_threshold,
+                )
             if memory_msg:
                 enhanced_message = f"{enhanced_message}\n\n{memory_msg.content}"
                 logger.info("🧠 Enhanced with memory context")
@@ -216,5 +223,4 @@ async def store_conversation_impl(orchestrator, conversation_id: str, user_id: s
         await orchestrator.state_manager.store_conversation(conversation_id, conversation_data)
     except Exception as e:
         logger.error("❌ Failed to store conversation", error=str(e))
-
 

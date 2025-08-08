@@ -205,13 +205,23 @@ Please process this request according to your role in the {workflow.name} workfl
 Provide structured outputs as specified in your step definition.
             """
             
-            # Execute workflow
+            # Execute workflow with basic observability
+            exec_start = datetime.utcnow()
             result = await graphflow_team.run(
                 task=TextMessage(content=initial_message, source="user")
             )
+            exec_end = datetime.utcnow()
             
             # Process results
             execution.step_results = await self._extract_workflow_results(result)
+            # Attach basic observability
+            try:
+                execution.step_results.setdefault("observability", {})
+                execution.step_results["observability"]["duration_seconds"] = (exec_end - exec_start).total_seconds()
+                if hasattr(result, 'messages'):
+                    execution.step_results["observability"]["message_count"] = len(result.messages)
+            except Exception:
+                pass
             execution.status = "completed"
             execution.end_time = datetime.utcnow()
             
@@ -234,7 +244,8 @@ Provide structured outputs as specified in your step definition.
     async def _extract_workflow_results(self, flow_result) -> Dict[str, Any]:
         """Extract structured results from GraphFlow execution"""
         
-        results = {}
+        results: Dict[str, Any] = {}
+        step_details: Dict[str, Any] = {}
         
         try:
             if hasattr(flow_result, 'messages'):
@@ -242,6 +253,33 @@ Provide structured outputs as specified in your step definition.
                     if hasattr(message, 'source') and hasattr(message, 'content'):
                         agent_name = message.source
                         content = message.content
+                        ts = getattr(message, 'created_at', None)
+                        # Infer step_id from agent name pattern "{step_id}_agent"
+                        step_id = None
+                        if isinstance(agent_name, str) and agent_name.endswith('_agent'):
+                            step_id = agent_name[:-6]
+                        
+                        if step_id:
+                            step_rec = step_details.setdefault(step_id, {
+                                'agent_name': agent_name,
+                                'messages': [],
+                                'first_seen': None,
+                                'last_seen': None,
+                            })
+                            step_rec['messages'].append(content)
+                            if ts:
+                                try:
+                                    # try ISO format to datetime
+                                    from datetime import datetime as _dt
+                                    tsv = ts if isinstance(ts, str) else str(ts)
+                                    dt = _dt.fromisoformat(tsv) if isinstance(tsv, str) else None
+                                except Exception:
+                                    dt = None
+                                if dt:
+                                    if step_rec['first_seen'] is None or dt < step_rec['first_seen']:
+                                        step_rec['first_seen'] = dt
+                                    if step_rec['last_seen'] is None or dt > step_rec['last_seen']:
+                                        step_rec['last_seen'] = dt
                         
                         # Try to extract structured data
                         try:
@@ -264,6 +302,24 @@ Provide structured outputs as specified in your step definition.
             logger.warning(f"⚠️ Could not extract structured results: {e}")
             results["raw_result"] = str(flow_result)
             
+        # Attach step details and approximate durations if available
+        try:
+            for sid, rec in step_details.items():
+                if rec.get('first_seen') and rec.get('last_seen'):
+                    rec['duration_seconds'] = (rec['last_seen'] - rec['first_seen']).total_seconds()
+                # Store last message as output summary
+                if rec.get('messages'):
+                    rec['output_summary'] = rec['messages'][-1][:500]
+                # Convert datetimes to iso
+                for k in ('first_seen', 'last_seen'):
+                    if isinstance(rec.get(k), (list, tuple)):
+                        continue
+                    v = rec.get(k)
+                    if v is not None:
+                        rec[k] = v.isoformat() if hasattr(v, 'isoformat') else str(v)
+            results['steps'] = step_details
+        except Exception:
+            pass
         return results
         
     async def _save_execution_state(self, execution: WorkflowExecution):

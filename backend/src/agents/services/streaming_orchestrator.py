@@ -186,78 +186,7 @@ class StreamingOrchestrator:
             except Exception as streaming_error:
                 logger.error(f"❌ Agent streaming failed: {streaming_error}")
             
-            # GUARANTEED RESPONSE: If AutoGen fails, use direct OpenAI call
-            if not has_generated_content:
-                logger.info("🔄 No AutoGen content generated, trying direct OpenAI call")
-                
-                # Try direct OpenAI call as backup
-                try:
-                    import openai
-                    openai_client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-                    
-                    # Get agent persona for system message
-                    system_msg = f"You are {session.agent_name.replace('_', ' ')}, a professional AI assistant. Respond in Italian in a helpful, expert manner."
-                    
-                    response = await openai_client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": system_msg},
-                            {"role": "user", "content": message}
-                        ],
-                        max_tokens=500,
-                        temperature=0.7
-                    )
-                    
-                    ai_response = response.choices[0].message.content
-                    logger.info("✅ Got direct OpenAI response")
-                    
-                    # Send AI response in streaming chunks
-                    words = ai_response.split()
-                    for i in range(0, len(words), 5):  # 5 words per chunk
-                        chunk_text = " ".join(words[i:i+5])
-                        await self._send_streaming_response(session, StreamingResponse(
-                            chunk_id=str(uuid4()),
-                            session_id=session.session_id,
-                            agent_name=session.agent_name,
-                            chunk_type='text',
-                            content=chunk_text + " ",
-                            timestamp=datetime.utcnow()
-                        ))
-                        await asyncio.sleep(0.3)  # Realistic typing
-                    
-                    has_generated_content = True
-                    
-                except Exception as openai_error:
-                    logger.warning(f"⚠️ Direct OpenAI call failed: {openai_error}")
-            
-            # FINAL FALLBACK: If everything fails, use intelligent context-aware response
-            if not has_generated_content:
-                logger.info("🔄 Using final intelligent fallback response")
-                
-                # Generate contextual response based on agent and message
-                agent_name = session.agent_name.replace('_', ' ').title()
-                fallback_responses = {
-                    "ali_chief_of_staff": f"Come Master orchestrator del team MyConvergio, analizzo la tua richiesta: '{message[:50]}...'. Le mie raccomandazioni strategiche sono: 1) Implementare processi strutturati, 2) Ottimizzare la collaborazione del team, 3) Definire KPI misurabili per il successo.",
-                    "amy_cfo": f"Dal punto di vista finanziario, la tua richiesta '{message[:50]}...' richiede un'analisi costi-benefici. Raccomando: budget allocation ottimale, ROI tracking, e cost management strategico.",
-                    "baccio_tech_architect": f"Architetturalmente parlando, per '{message[:50]}...', suggerisco: design scalabile, microservizi pattern, e infrastructure as code approach.",
-                }
-                
-                response_text = fallback_responses.get(session.agent_name, 
-                    f"Come {agent_name}, ho analizzato la tua richiesta '{message[:50]}...'. Fornisco una risposta professionale basata sulla mia expertise specializzata.")
-                
-                # Send response in chunks for realistic streaming
-                words = response_text.split()
-                for i in range(0, len(words), 6):  # 6 words per chunk
-                    chunk_text = " ".join(words[i:i+6])
-                    await self._send_streaming_response(session, StreamingResponse(
-                        chunk_id=str(uuid4()),
-                        session_id=session.session_id,
-                        agent_name=session.agent_name,
-                        chunk_type='text',
-                        content=chunk_text + " ",
-                        timestamp=datetime.utcnow()
-                    ))
-                    await asyncio.sleep(0.4)  # Realistic typing speed
+            # No fallback: rely solely on AutoGen streaming; if no content, the client receives status/error events only
                 
             # Flush any remaining buffered chunks
             try:

@@ -22,5 +22,5 @@ Milano — 23 June 2025
 
 ---
 
-*Signed in Milano, 23 June 2025 — Roberto · Claude 3 · OpenAI o3. Designed with ❤️ for Mario*
+*Signed in Milano, 23 June 2025 — Roberto · Claude Sonnet · OpenAI o3. Designed with ❤️ for Mario*
 

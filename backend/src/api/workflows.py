@@ -11,10 +11,12 @@ from datetime import datetime
 import structlog
 
 from src.agents.services.graphflow_orchestrator import get_graphflow_orchestrator
+from src.agents.utils.config import get_settings
 from src.core.logging import get_logger
 
 logger = get_logger()
 router = APIRouter()
+settings = get_settings()
 
 # Pydantic models
 class WorkflowExecutionRequest(BaseModel):
@@ -49,11 +51,18 @@ class WorkflowListResponse(BaseModel):
 async def startup_workflows():
     """Initialize GraphFlow orchestrator on startup"""
     try:
+        if not settings.graphflow_enabled:
+            logger.info("GraphFlow disabled by feature flag; skipping initialization")
+            return
         orchestrator = get_graphflow_orchestrator()
         await orchestrator.initialize()
         logger.info("✅ Workflows API initialized")
     except Exception as e:
         logger.error(f"❌ Failed to initialize workflows API: {e}")
+
+def _ensure_graphflow_enabled():
+    if not settings.graphflow_enabled:
+        raise HTTPException(status_code=503, detail="GraphFlow feature flag is disabled")
 
 @router.get("/", response_model=WorkflowListResponse)
 async def list_workflows():
@@ -61,6 +70,7 @@ async def list_workflows():
     List all available business workflows
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         workflows = await orchestrator.list_available_workflows()
         
@@ -81,6 +91,7 @@ async def execute_workflow(
     Execute a business workflow asynchronously
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         
         # Validate workflow exists
@@ -124,6 +135,7 @@ async def get_workflow_status(execution_id: str):
     Get current status and results of a workflow execution
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         execution = await orchestrator.get_workflow_status(execution_id)
         
@@ -162,6 +174,7 @@ async def cancel_workflow(execution_id: str):
     Cancel a running workflow execution
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         success = await orchestrator.cancel_workflow(execution_id)
         
@@ -184,6 +197,7 @@ async def get_workflow_details(workflow_id: str):
     Get detailed information about a specific workflow
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         workflows = await orchestrator.list_available_workflows()
         workflow = next((w for w in workflows if w["workflow_id"] == workflow_id), None)
@@ -224,6 +238,7 @@ async def get_recent_executions(limit: int = 10, user_id: Optional[str] = None):
     Get recent workflow executions with optional user filtering
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         # Get all executions from orchestrator
         all_executions = list(orchestrator.executions.values())
@@ -263,6 +278,7 @@ async def test_workflow_execution():
     Test endpoint for workflow execution with sample data
     """
     try:
+        _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         # Use strategic analysis workflow for testing
         execution_id = await orchestrator.execute_workflow(
@@ -291,6 +307,12 @@ async def test_workflow_execution():
 async def workflows_health():
     """Health check for workflows system"""
     try:
+        # Feature flag gate
+        if not settings.graphflow_enabled:
+            return {
+                "status": "disabled",
+                "message": "GraphFlow feature flag is disabled",
+            }
         orchestrator = get_graphflow_orchestrator()
         workflows = await orchestrator.list_available_workflows()
         return {

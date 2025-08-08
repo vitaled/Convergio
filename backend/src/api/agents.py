@@ -20,6 +20,9 @@ from src.core.database import get_db_session
 from src.core.redis import cache_get, cache_set
 from src.api.user_keys import get_user_api_key
 from src.agents.services.streaming_orchestrator import get_streaming_orchestrator
+from src.agents.utils.config import get_settings
+from src.agents.services.groupchat.selection_metrics import get_selection_metrics
+from src.agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["AI Agents"])
@@ -44,6 +47,7 @@ class ConnectionManager:
             await connection.send_text(message)
 
 manager = ConnectionManager()
+settings = get_settings()
 
 
 # Request/Response models
@@ -170,6 +174,103 @@ async def get_ecosystem_status():
             "message": "AI agents system is starting up...",
             "timestamp": datetime.utcnow().isoformat()
         }
+
+
+@router.get("/selection-metrics")
+async def selection_metrics():
+    """Return in-memory speaker selection metrics (for audits/metrics)."""
+    try:
+        return get_selection_metrics()
+    except Exception as e:
+        logger.error("❌ Failed to read selection metrics", error=str(e))
+        raise HTTPException(status_code=500, detail="Metrics unavailable")
+
+
+# ================================
+# 🧑‍⚖️ Human-in-the-Loop (HITL) Approvals
+# ================================
+
+@router.get("/approvals")
+async def list_approvals(status: str = "pending"):
+    try:
+        orch = await get_agent_orchestrator()
+        store = getattr(orch.orchestrator, 'approval_store', None)
+        if not store or not settings.hitl_enabled:
+            raise HTTPException(status_code=503, detail="HITL not enabled")
+        # naive list from internal store
+        approvals = getattr(store, '_store', {})
+        data = []
+        for ap in approvals.values():
+            if status and getattr(ap, 'status', None) != status:
+                continue
+            data.append({
+                "approval_id": ap.approval_id,
+                "conversation_id": ap.conversation_id,
+                "user_id": ap.user_id,
+                "status": ap.status,
+                "payload": ap.payload,
+                "created_at": ap.created_at,
+                "updated_at": ap.updated_at,
+            })
+        return {"approvals": data, "count": len(data)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("❌ Failed to list approvals", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to list approvals")
+
+
+@router.post("/approvals/{approval_id}/approve")
+async def approve_approval(approval_id: str):
+    try:
+        orch = await get_agent_orchestrator()
+        store = getattr(orch.orchestrator, 'approval_store', None)
+        if not store or not settings.hitl_enabled:
+            raise HTTPException(status_code=503, detail="HITL not enabled")
+        ap = store.approve(approval_id)
+        if not ap:
+            raise HTTPException(status_code=404, detail="Approval not found")
+        return {"status": "approved", "approval_id": approval_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("❌ Approval approve failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to approve")
+
+
+@router.post("/approvals/{approval_id}/deny")
+async def deny_approval(approval_id: str):
+    try:
+        orch = await get_agent_orchestrator()
+        store = getattr(orch.orchestrator, 'approval_store', None)
+        if not store or not settings.hitl_enabled:
+            raise HTTPException(status_code=503, detail="HITL not enabled")
+        ap = store.deny(approval_id)
+        if not ap:
+            raise HTTPException(status_code=404, detail="Approval not found")
+        return {"status": "denied", "approval_id": approval_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("❌ Approval deny failed", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to deny")
+
+
+@router.get("/feature-flags")
+async def feature_flags():
+    """Expose current runtime feature flags for debugging/ops."""
+    try:
+        return {
+            "RAG_IN_LOOP": settings.rag_in_loop_enabled,
+            "TRUE_STREAMING": settings.true_streaming_enabled,
+            "SPEAKER_POLICY": settings.speaker_policy_enabled,
+            "GRAPHFLOW": settings.graphflow_enabled,
+            "HITL": settings.hitl_enabled,
+            "COST_SAFETY": settings.cost_safety_enabled,
+        }
+    except Exception as e:
+        logger.error("❌ Failed to read feature flags", error=str(e))
+        raise HTTPException(status_code=500, detail="Flags unavailable")
 
 
 class ConversationRequest(BaseModel):
@@ -1378,6 +1479,17 @@ async def streaming_agent_conversation(
     WebSocket endpoint for streaming agent responses in real-time
     """
     
+    # Feature flag gate for TRUE_STREAMING
+    if not settings.true_streaming_enabled:
+        await websocket.accept()
+        await websocket.send_json({
+            "type": "status",
+            "event": "disabled",
+            "data": {"message": "TRUE_STREAMING is disabled by feature flag"}
+        })
+        await websocket.close()
+        return
+
     streaming_orchestrator = get_streaming_orchestrator()
     
     try:
@@ -1444,6 +1556,12 @@ async def streaming_health():
     """
     
     try:
+        if not settings.true_streaming_enabled:
+            return {
+                "status": "disabled",
+                "message": "TRUE_STREAMING feature flag is disabled",
+                "timestamp": datetime.utcnow().isoformat()
+            }
         streaming_orchestrator = get_streaming_orchestrator()
         
         # Check if streaming orchestrator is initialized
@@ -1487,6 +1605,8 @@ async def get_streaming_sessions():
     """
     
     try:
+        if not settings.true_streaming_enabled:
+            raise HTTPException(status_code=503, detail="TRUE_STREAMING feature flag is disabled")
         streaming_orchestrator = get_streaming_orchestrator()
         
         if not hasattr(streaming_orchestrator, '_initialized'):
@@ -1517,6 +1637,8 @@ async def cleanup_streaming_sessions(max_idle_minutes: int = 30):
     """
     
     try:
+        if not settings.true_streaming_enabled:
+            raise HTTPException(status_code=503, detail="TRUE_STREAMING feature flag is disabled")
         streaming_orchestrator = get_streaming_orchestrator()
         
         if not hasattr(streaming_orchestrator, '_initialized'):

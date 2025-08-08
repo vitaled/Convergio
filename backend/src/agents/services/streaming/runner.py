@@ -101,8 +101,39 @@ async def stream_agent_response(
                             )
                             response_content += chunk_buffer
                             chunk_buffer = ""
-                break
-            break
+            else:
+                # Fallback handling for implementations that stream plain deltas
+                content = getattr(response, 'content', None)
+                if isinstance(response, str):
+                    content = response
+                if content:
+                    words = str(content).split()
+                    for wi, word in enumerate(words):
+                        chunk_buffer += word + " "
+                        if (wi > 0 and wi % 4 == 0) or word.endswith(('.', '!', '?')):
+                            if chunk_buffer.strip():
+                                yield StreamingResponse(
+                                    chunk_id=str(uuid4()),
+                                    session_id=session.session_id,
+                                    agent_name=session.agent_name,
+                                    chunk_type='text',
+                                    content=chunk_buffer.strip(),
+                                    timestamp=datetime.utcnow(),
+                                )
+                                response_content += chunk_buffer
+                                chunk_buffer = ""
+                                await asyncio.sleep(0.05)
+                    if chunk_buffer.strip():
+                        yield StreamingResponse(
+                            chunk_id=str(uuid4()),
+                            session_id=session.session_id,
+                            agent_name=session.agent_name,
+                            chunk_type='text',
+                            content=chunk_buffer.strip(),
+                            timestamp=datetime.utcnow(),
+                        )
+                        response_content += chunk_buffer
+                        chunk_buffer = ""
         logger.info("🎯 Finished processing %s responses", response_count)
     except Exception as e:
         logger.error("❌ Agent streaming error", error=str(e))
@@ -114,5 +145,4 @@ async def stream_agent_response(
             content=f"Streaming error: {str(e)}",
             timestamp=datetime.utcnow()
         )
-
 

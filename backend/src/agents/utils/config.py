@@ -113,6 +113,9 @@ class Settings(BaseSettings):
     autogen_cost_limit_usd: float = Field(default=50.0, env="AUTOGEN_COST_LIMIT_USD")
     autogen_redis_state_ttl: int = Field(default=3600, env="AUTOGEN_REDIS_STATE_TTL")
     default_ai_model: str = Field(default="gpt-4o-mini", env="DEFAULT_AI_MODEL")
+    # RAG configuration
+    rag_similarity_threshold: float = Field(default=0.5, env="RAG_SIMILARITY_THRESHOLD")
+    rag_max_facts: int = Field(default=5, env="RAG_MAX_FACTS")
 
     # Feature Flags
     rag_in_loop_enabled: bool = Field(default=True, env="RAG_IN_LOOP")
