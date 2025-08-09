@@ -779,10 +779,18 @@ def selection_rationale(message_text: str, participants: List[AssistantAgent]) -
         _, rationale = loop.run_until_complete(
             intelligent_speaker_selection(message_text, participants)
         )
+        picked = rationale.get("selected_agent")
+        if not picked:
+            # Fallback to simple analysis if intelligent result is incomplete
+            text = message_text.lower()
+            if any(k in text for k in ["budget", "cost", "finance"]):
+                return {"reason": "finance_keywords", "picked": "amy_cfo"}
+            if any(k in text for k in ["strategy", "decision", "plan"]):
+                return {"reason": "strategy_keywords", "picked": "ali_chief_of_staff"}
         
         return {
             "reason": rationale.get("primary_reason", "intelligent_analysis"),
-            "picked": rationale.get("selected_agent", "unknown"),
+            "picked": picked,
             "confidence": str(rationale.get("confidence_score", 0.0)),
             "method": "intelligent_selection"
         }
