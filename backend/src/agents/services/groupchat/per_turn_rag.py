@@ -13,8 +13,8 @@ from autogen_agentchat.messages import TextMessage
 from autogen_agentchat.teams import SelectorGroupChat
 
 from .rag import AdvancedRAGProcessor
-from ..utils.config import get_settings
-from ..utils.tracing import start_span
+from ...utils.config import get_settings
+from ...utils.tracing import start_span
 
 logger = structlog.get_logger()
 

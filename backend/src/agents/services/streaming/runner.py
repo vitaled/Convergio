@@ -13,9 +13,7 @@ from enum import Enum
 
 import structlog
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.messages import TextMessage, HandoffMessage, ToolCallMessage, ToolResultMessage
-from autogen_core.base import AgentRuntime
-from autogen_core.tools import BaseTool, ToolResult
+from autogen_agentchat.messages import TextMessage, HandoffMessage
 
 from .response_types import StreamingResponse
 
@@ -198,11 +196,11 @@ class NativeAutoGenStreamer:
             return StreamingEventType.DELTA
             
         # Check for tool calls
-        if hasattr(event, 'tool_calls') or isinstance(event, ToolCallMessage):
+        if hasattr(event, 'tool_calls') or hasattr(event, 'tool_call_id') or hasattr(event, 'tool_name'):
             return StreamingEventType.TOOL_CALL
             
         # Check for tool results
-        if hasattr(event, 'tool_results') or isinstance(event, ToolResultMessage):
+        if hasattr(event, 'tool_results') or hasattr(event, 'tool_call_id') and hasattr(event, 'content'):
             return StreamingEventType.TOOL_RESULT
             
         # Check for handoffs
@@ -260,8 +258,6 @@ class NativeAutoGenStreamer:
         # Extract tool calls from different formats
         if hasattr(event, 'tool_calls'):
             tool_calls = event.tool_calls
-        elif isinstance(event, ToolCallMessage):
-            tool_calls = [{"id": event.tool_call_id, "function": {"name": event.tool_name, "arguments": event.arguments}}]
         
         for tool_call in tool_calls:
             tool_id = tool_call.get('id', str(uuid4()))
@@ -298,8 +294,9 @@ class NativeAutoGenStreamer:
         # Extract tool results from different formats
         if hasattr(event, 'tool_results'):
             tool_results = event.tool_results
-        elif isinstance(event, ToolResultMessage):
-            tool_results = [{"tool_call_id": event.tool_call_id, "content": event.content}]
+        # Fallback: single tool result-like object
+        elif hasattr(event, 'tool_call_id') and hasattr(event, 'content') and not hasattr(event, 'tool_name'):
+            tool_results = [{"tool_call_id": getattr(event, 'tool_call_id', 'unknown'), "content": getattr(event, 'content', str(event))}]
         
         for tool_result in tool_results:
             tool_id = tool_result.get('tool_call_id', 'unknown')
@@ -431,11 +428,11 @@ class NativeAutoGenStreamer:
                 )
         
         # Handle ToolCallMessage
-        elif isinstance(message, ToolCallMessage):
+        elif hasattr(message, 'tool_name') or hasattr(message, 'tool_call_id'):
             if enable_tools:
-                tool_name = getattr(message, 'tool_name', 'unknown_tool')
-                arguments = getattr(message, 'arguments', {})
-                tool_call_id = getattr(message, 'tool_call_id', str(uuid4()))
+                tool_name = getattr(message, 'tool_name', getattr(message, 'name', 'unknown_tool'))
+                arguments = getattr(message, 'arguments', getattr(message, 'args', {}))
+                tool_call_id = getattr(message, 'tool_call_id', getattr(message, 'id', str(uuid4())))
                 
                 # Track active tool
                 active_tools[tool_call_id] = {
@@ -457,8 +454,8 @@ class NativeAutoGenStreamer:
                     timestamp=datetime.utcnow(),
                 )
         
-        # Handle ToolResultMessage
-        elif isinstance(message, ToolResultMessage):
+        # Handle tool result-like messages
+        elif hasattr(message, 'tool_call_id') and hasattr(message, 'content') and not hasattr(message, 'tool_name'):
             if enable_tools:
                 tool_call_id = getattr(message, 'tool_call_id', 'unknown')
                 content = getattr(message, 'content', str(message))

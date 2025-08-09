@@ -12,7 +12,8 @@ pydantic-settings==2.7.0
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
 alembic==1.14.0
-psycopg2-binary==2.9.9
+# Use modern psycopg3 binary wheels to avoid building from source on CI images
+psycopg[binary]==3.2.9
 
 # ================================
 # 🚀 CACHE & SESSION STORE
@@ -59,6 +60,8 @@ python-dotenv==1.0.1
 python-multipart==0.0.19
 email-validator==2.2.0
 pytz==2024.2
+structlog==24.4.0
+prometheus-client==0.21.1
 
 # ================================
 # 🧪 DEVELOPMENT & TESTING

@@ -19,6 +19,9 @@ except ImportError:
     pb = None
     pb_grpc = None
 
+from typing import Dict
+import math
+
 class VectorSearchClient:
     """Client for making authenticated calls to Convergio vector service."""
     
@@ -212,3 +215,15 @@ def search_similar(query_vector: list, limit: int = 5) -> str:
         results_summary.append(f"{i+1}. {item['text'][:50]}... (score: {item['similarity_score']:.3f})")
     
     return f"Found {result['total_results']} results: " + "; ".join(results_summary)
+
+
+def calculate_similarity(vector_a: list, vector_b: list) -> float:
+    """Compute cosine similarity between two vectors (safe fallback)."""
+    if not vector_a or not vector_b or len(vector_a) != len(vector_b):
+        return 0.0
+    dot = sum((float(a) * float(b) for a, b in zip(vector_a, vector_b)))
+    norm_a = math.sqrt(sum((float(a) * float(a) for a in vector_a)))
+    norm_b = math.sqrt(sum((float(b) * float(b) for b in vector_b)))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)

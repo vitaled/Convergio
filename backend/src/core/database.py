@@ -183,31 +183,36 @@ async def execute_query(query: str, params: dict = None) -> list:
         return result.fetchall()
 
 
-async def check_database_health() -> dict:
-    """Check database health and connection pool status"""
+async def check_database_health(session: Optional[AsyncSession] = None) -> dict:
+    """Check database health and connection pool status.
+    If an AsyncSession is provided, it will be used; otherwise a new session
+    from the global session factory will be created.
+    """
     
     try:
-        async with get_async_session() as session:
-            # Test query
+        if session is None:
+            async with get_async_session() as _session:
+                result = await _session.execute(text("SELECT version(), current_database(), current_user"))
+                db_info = result.fetchone()
+        else:
             result = await session.execute(text("SELECT version(), current_database(), current_user"))
             db_info = result.fetchone()
-            
-            # Get connection pool stats
-            pool = async_engine.pool
-            
-            return {
-                "status": "healthy",
-                "database": db_info[1] if db_info else "unknown",
-                "user": db_info[2] if db_info else "unknown", 
-                "version": db_info[0].split()[0] if db_info else "unknown",
-                "pool": {
-                    "size": pool.size(),
-                    "checked_in": pool.checkedin(),
-                    "overflow": pool.overflow(), 
-                    "checked_out": pool.checkedout(),
-                }
-            }
-            
+        
+        pool = async_engine.pool if async_engine is not None else None
+        pool_stats = {
+            "size": pool.size() if pool else 0,
+            "checked_in": pool.checkedin() if pool else 0,
+            "overflow": pool.overflow() if pool else 0,
+            "checked_out": pool.checkedout() if pool else 0,
+        }
+        
+        return {
+            "status": "healthy",
+            "database": db_info[1] if db_info else "unknown",
+            "user": db_info[2] if db_info else "unknown",
+            "version": db_info[0].split()[0] if db_info and isinstance(db_info[0], str) else "unknown",
+            "pool": pool_stats,
+        }
     except Exception as e:
         logger.error("❌ Database health check failed", error=str(e))
         return {

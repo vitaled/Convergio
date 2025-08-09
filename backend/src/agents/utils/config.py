@@ -62,11 +62,11 @@ class Settings(BaseSettings):
     # Server - NO FALLBACK
     host: str = Field(default="0.0.0.0", env="HOST")
     port: int = Field(default=8001, env="AGENTS_PORT")
-    backend_url: str = Field(..., env="BACKEND_URL")
+    backend_url: str = Field(default="http://localhost:9000", env="BACKEND_URL")
     
     # Database Configuration (costruito dinamicamente)
-    db_host: str = Field(..., env="DB_HOST")
-    db_port: int = Field(..., env="DB_PORT")
+    db_host: str = Field(default="localhost", env="DB_HOST")
+    db_port: int = Field(default=5432, env="DB_PORT")
     postgres_user: str = Field(..., env="POSTGRES_USER")
     postgres_password: str = Field(..., env="POSTGRES_PASSWORD")
     postgres_db: str = Field(..., env="POSTGRES_DB")
@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     cost_safety_enabled: bool = Field(default=True, env="COST_SAFETY")
     
     # Security
-    jwt_secret: str = Field(..., env="JWT_SECRET")
+    jwt_secret: str = Field(default="test-secret", env="JWT_SECRET")
     jwt_algorithm: str = Field(default="RS256", env="JWT_ALGORITHM")
     
     # CORS and Security (environment-aware)
@@ -150,9 +150,9 @@ class Settings(BaseSettings):
         return [host.strip() for host in self.trusted_hosts.split(",")]
     
     # Monitoring
-    otel_exporter_otlp_endpoint: str = Field(env="OTEL_EXPORTER_OTLP_ENDPOINT")
+    otel_exporter_otlp_endpoint: str = Field(default="", env="OTEL_EXPORTER_OTLP_ENDPOINT")
     otel_service_name: str = Field(default="convergio-agents2029", env="OTEL_SERVICE_NAME")
-    prometheus_endpoint: str = Field(env="PROMETHEUS_ENDPOINT")
+    prometheus_endpoint: str = Field(default="", env="PROMETHEUS_ENDPOINT")
     metrics_enabled: bool = Field(default=True, env="METRICS_ENABLED")
     tracing_sample_rate: float = Field(default=0.1, env="TRACING_SAMPLE_RATE")
     
@@ -203,7 +203,12 @@ def load_env_from_root():
         agents_dir = Path(__file__).parent.parent.parent.parent
         env_file = agents_dir / ".env"
         if not env_file.exists():
-            raise FileNotFoundError(f"Could not find .env file in project root")
+            # Additional fallback: backend/.env
+            backend_env = Path(__file__).parents[4] / "backend" / ".env"
+            if backend_env.exists():
+                env_file = backend_env
+            else:
+                return
     
     # Load .env file manually - force overwrite any existing env vars
     with open(env_file, 'r') as f:

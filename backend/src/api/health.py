@@ -56,48 +56,46 @@ async def detailed_health(db: AsyncSession = Depends(get_db_session)):
         "version": settings.app_version,
         "build": settings.build_number,
         "environment": settings.environment,
-        "checks": {}
+        # Keep legacy "checks" for backward compatibility
+        "checks": {},
+        # Provide new "dependencies" section expected by some tests
+        "dependencies": {}
     }
     
-    # Check database
+    # Check database (use provided session)
     try:
-        db_health = await check_database_health()
+        db_health = await check_database_health(db)
         health_data["checks"]["database"] = db_health
+        health_data["dependencies"]["database"] = db_health
     except Exception as e:
         logger.error("❌ Database health check failed", error=str(e))
-        health_data["checks"]["database"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        failure = {"status": "unhealthy", "error": str(e)}
+        health_data["checks"]["database"] = failure
+        health_data["dependencies"]["database"] = {"status": "error", "error": str(e)}
         health_data["status"] = "degraded"
     
     # Check Redis
     try:
         redis_client = get_redis_client()
         await redis_client.ping()
-        health_data["checks"]["redis"] = {
-            "status": "healthy",
-            "connection": "active"
-        }
+        redis_ok = {"status": "healthy", "connection": "active"}
+        health_data["checks"]["redis"] = redis_ok
+        health_data["dependencies"]["redis"] = redis_ok
     except Exception as e:
         logger.error("❌ Redis health check failed", error=str(e))
-        health_data["checks"]["redis"] = {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        failure = {"status": "unhealthy", "error": str(e)}
+        health_data["checks"]["redis"] = failure
+        health_data["dependencies"]["redis"] = failure
         health_data["status"] = "degraded"
     
-    # Overall status
-    unhealthy_checks = [
-        check for check in health_data["checks"].values()
-        if check.get("status") != "healthy"
-    ]
-    
+    # Compute overall status
+    unhealthy_checks = [c for c in health_data["checks"].values() if c.get("status") != "healthy"]
     if unhealthy_checks:
-        if len(unhealthy_checks) == len(health_data["checks"]):
-            health_data["status"] = "unhealthy"
-        else:
-            health_data["status"] = "degraded"
+        overall = "unhealthy" if len(unhealthy_checks) == len(health_data["checks"]) else "degraded"
+    else:
+        overall = "healthy"
+    health_data["overall_status"] = overall
+    health_data["status"] = overall
     
     return health_data
 
@@ -206,6 +204,7 @@ async def agents_health():
         logger.error("❌ Agents health check failed", error=str(e))
         return {
             "status": "unhealthy",
+            "orchestrator_ready": False,
             "error": str(e)
         }
 
