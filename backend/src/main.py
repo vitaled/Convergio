@@ -52,6 +52,10 @@ logger = structlog.get_logger()
 # Rate limiting
 limiter = Limiter(key_func=get_remote_address)
 
+# Compatibility aliases for tests expecting legacy names
+init_database = init_db
+close_database = close_db
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan management - startup and shutdown events"""
