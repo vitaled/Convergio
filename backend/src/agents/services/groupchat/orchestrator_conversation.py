@@ -11,9 +11,10 @@ import structlog
 from autogen_agentchat.messages import TextMessage, HandoffMessage
 
 from .metrics import extract_final_response, extract_agents_used, estimate_cost, serialize_chat_history
-from .rag import build_memory_context as default_build_memory_context
+from .rag import build_memory_context as default_build_memory_context, AdvancedRAGProcessor
 from .context import enhance_message_with_context
 from .types import GroupChatResult
+from .per_turn_rag import PerTurnRAGInjector, RAGEnhancedGroupChat, initialize_per_turn_rag
 from ...utils.tracing import start_span
 from ...security.ai_security_guardian import SecurityDecision
 

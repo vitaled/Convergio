@@ -32,9 +32,11 @@ from .groupchat.metrics import (
     serialize_chat_history,
 )
 from .groupchat.setup import create_groupchat
-from .groupchat.rag import build_memory_context
+from .groupchat.rag import build_memory_context, AdvancedRAGProcessor
 from .groupchat.context import enhance_message_with_context
 from .groupchat.orchestrator_conversation import orchestrate_conversation_impl, direct_agent_conversation_impl
+from .groupchat.per_turn_rag import PerTurnRAGInjector, initialize_per_turn_rag
+from .groupchat.turn_by_turn_selector import IntelligentSpeakerSelector as TurnSelector
 from ..utils.config import get_settings
 from ..utils.tracing import start_span
 from ..security.ai_security_guardian import AISecurityGuardian, SecurityDecision
@@ -73,6 +75,13 @@ class ModernGroupChatOrchestrator:
         # Model client
         self.model_client: OpenAIChatCompletionClient = None
         
+        # RAG components
+        self.rag_processor: Optional[AdvancedRAGProcessor] = None
+        self.per_turn_rag_injector: Optional[PerTurnRAGInjector] = None
+        
+        # Speaker selection components
+        self.intelligent_selector: Optional[TurnSelector] = None
+        
         # Configuration
         self.agents_directory = agents_directory or "agents/src/agents"
         self._initialized = False
@@ -90,6 +99,12 @@ class ModernGroupChatOrchestrator:
             
             # Create business agents
             await self._create_business_agents()
+            
+            # Initialize RAG components if enabled
+            await self._initialize_rag_components()
+            
+            # Initialize speaker selection if enabled
+            await self._initialize_speaker_selection()
             
             # Setup GroupChat
             await self._setup_group_chat()
@@ -133,6 +148,44 @@ class ModernGroupChatOrchestrator:
             logger.error("❌ Failed to create business agents", error=str(e))
             raise
     
+    async def _initialize_rag_components(self) -> None:
+        """Initialize RAG components for per-turn context injection."""
+        try:
+            if self.settings.rag_in_loop_enabled and self.memory_system:
+                # Initialize RAG processor
+                self.rag_processor = AdvancedRAGProcessor(
+                    memory_system=self.memory_system,
+                    settings=self.settings
+                )
+                
+                # Initialize per-turn RAG injector
+                self.per_turn_rag_injector = initialize_per_turn_rag(
+                    rag_processor=self.rag_processor,
+                    memory_system=self.memory_system,
+                    settings=self.settings
+                )
+                
+                logger.info("📚 RAG components initialized for per-turn injection")
+            else:
+                logger.info("📚 RAG disabled or memory system not available")
+        except Exception as e:
+            logger.error("❌ Failed to initialize RAG components", error=str(e))
+            # Non-critical, continue without RAG
+    
+    async def _initialize_speaker_selection(self) -> None:
+        """Initialize intelligent speaker selection."""
+        try:
+            if self.settings.speaker_policy_enabled:
+                # Initialize intelligent selector
+                self.intelligent_selector = TurnSelector()
+                
+                logger.info("🎯 Intelligent speaker selection initialized")
+            else:
+                logger.info("🎯 Speaker selection using default policy")
+        except Exception as e:
+            logger.error("❌ Failed to initialize speaker selection", error=str(e))
+            # Non-critical, continue with default selection
+    
     async def _setup_group_chat(self) -> None:
         """Setup the main GroupChat with all agents."""
         try:
@@ -146,10 +199,15 @@ class ModernGroupChatOrchestrator:
                 logger.info("🗣️ Speaker policy disabled, using all agents", total=len(key_agents))
 
             # Create SelectorGroupChat using settings-driven max_turns
+            # Use enhanced GroupChat with turn-by-turn features if enabled
             self.group_chat = create_groupchat(
                 participants=key_agents,
                 model_client=self.model_client,
                 max_turns=self.settings.autogen_max_turns,
+                rag_injector=self.per_turn_rag_injector,
+                enable_per_turn_rag=(self.settings.rag_in_loop_enabled and self.per_turn_rag_injector is not None),
+                enable_turn_by_turn_selection=(self.settings.speaker_policy_enabled and self.intelligent_selector is not None),
+                intelligent_selector=self.intelligent_selector
             )
             
             logger.info("👥 GroupChat setup complete", 
