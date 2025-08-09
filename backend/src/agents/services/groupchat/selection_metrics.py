@@ -38,3 +38,26 @@ def reset_selection_metrics() -> None:
         _reason_counter.clear()
         _picked_counter.clear()
 
+
+def get_selection_history(conversation_id: str = None, limit: int = 100) -> list:
+    """Get selection history for a conversation or recent selections.
+    
+    Args:
+        conversation_id: Optional conversation ID to filter by
+        limit: Maximum number of entries to return
+        
+    Returns:
+        List of selection history entries
+    """
+    # For now, return a simple list based on current metrics
+    # In production, this would query from a proper storage system
+    with _lock:
+        history = []
+        for reason, count in _reason_counter.most_common(limit):
+            history.append({
+                "reason": reason,
+                "count": count,
+                "conversation_id": conversation_id
+            })
+        return history
+

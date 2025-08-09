@@ -10,7 +10,7 @@ import structlog
 
 from autogen_agentchat.teams import SelectorGroupChat
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.messages import TextMessage, AgentMessage
+from autogen_agentchat.messages import TextMessage, ChatMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from .selection_policy import (
@@ -67,7 +67,7 @@ class TurnByTurnSelectorGroupChat(SelectorGroupChat):
     
     async def select_speaker(
         self,
-        messages: Sequence[AgentMessage]
+        messages: Sequence[ChatMessage]
     ) -> AssistantAgent:
         """
         Override speaker selection to use intelligent policy per turn.
@@ -130,7 +130,7 @@ class TurnByTurnSelectorGroupChat(SelectorGroupChat):
     def _build_selection_context(
         self,
         message_content: str,
-        messages: Sequence[AgentMessage]
+        messages: Sequence[ChatMessage]
     ) -> SelectionContext:
         """Build comprehensive context for selection decision"""
         

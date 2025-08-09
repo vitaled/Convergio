@@ -198,6 +198,36 @@ def embed_text(text: str) -> str:
     
     return f"Embedded text with {result['dimensions']} dimensions using {result['model']}"
 
+def calculate_similarity(vector1: list, vector2: list) -> float:
+    """Calculate cosine similarity between two vectors.
+    
+    Args:
+        vector1: First embedding vector
+        vector2: Second embedding vector
+        
+    Returns:
+        Cosine similarity score between 0 and 1
+    """
+    import numpy as np
+    
+    # Convert to numpy arrays
+    v1 = np.array(vector1)
+    v2 = np.array(vector2)
+    
+    # Calculate cosine similarity
+    dot_product = np.dot(v1, v2)
+    norm1 = np.linalg.norm(v1)
+    norm2 = np.linalg.norm(v2)
+    
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    
+    similarity = dot_product / (norm1 * norm2)
+    
+    # Ensure result is between 0 and 1
+    return max(0.0, min(1.0, similarity))
+
+
 def search_similar(query_vector: list, limit: int = 5) -> str:
     """Search for similar vectors and return result as string."""
     client = get_vector_client()
