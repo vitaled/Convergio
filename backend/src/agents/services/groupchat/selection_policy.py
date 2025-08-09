@@ -797,5 +797,26 @@ def selection_rationale(message_text: str, participants: List[AssistantAgent]) -
         elif any(k in text for k in ["strategy", "decision", "plan"]):
             return {"reason": "strategy_keywords", "picked": "ali_chief_of_staff"}
         else:
-            return {"reason": "default_first", "picked": participants[0].name if participants else "unknown"}
+            # If no clear best, pick based on domain heuristics
+            picked = "unknown"
+            reasons = []
+            
+            # Prefer CFO for budget/cost topics
+            if any(k in text for k in ["budget", "cost", "revenue", "roi", "finance"]):
+                if any(p.name == "amy_cfo" for p in participants):
+                    picked = "amy_cfo"
+                    reasons.append("finance_keywords")
+            
+            # Prefer Chief of Staff for strategy/coordination
+            if picked == "unknown" and any(k in text for k in ["strategy", "plan", "roadmap", "coordinate", "team"]):
+                if any(p.name == "ali_chief_of_staff" for p in participants):
+                    picked = "ali_chief_of_staff"
+                    reasons.append("strategy_keywords")
+            
+            # Final fallback: choose first participant deterministically
+            if picked == "unknown" and participants:
+                picked = participants[0].name
+                reasons.append("first_participant_fallback")
+            
+            return {"reason": "fallback_analysis", "picked": picked, "confidence": "0.0", "method": "fallback"}
 
