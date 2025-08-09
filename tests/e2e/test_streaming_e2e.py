@@ -68,7 +68,8 @@ class StreamingMetrics:
 class StreamingE2ETest:
     """End-to-end streaming test harness"""
     
-    def __init__(self, ws_url: str = "ws://localhost:8000/ws/agents/stream"):
+    def __init__(self, ws_url: str = ""):
+        # Default to real API route if not provided
         self.ws_url = ws_url
         self.protocol = StreamingProtocol()
         
@@ -86,14 +87,13 @@ class StreamingE2ETest:
         start_time = time.time()
         first_chunk_received = False
         
+        # Build correct WS URL if not provided
+        ws_url = self.ws_url or f"ws://localhost:9000/api/v1/agents/ws/streaming/{user_id}/{agent_name}"
         try:
-            async with websockets.connect(self.ws_url) as websocket:
+            async with websockets.connect(ws_url) as websocket:
                 # Send initial message
                 init_message = {
-                    "type": "start",
                     "message": message,
-                    "agent_name": agent_name,
-                    "user_id": user_id,
                     "context": {
                         "include_tools": include_tools,
                         "test_mode": True
@@ -107,14 +107,14 @@ class StreamingE2ETest:
                 async for raw_message in websocket:
                     try:
                         chunk_start = time.time()
-                        data = json.loads(raw_message)
+                        frame = json.loads(raw_message)
+                        # Parse streaming response according to protocol {type,event,data}
+                        event, data = self.protocol.parse_frame(frame)
+                        if isinstance(data, dict) and data.get("session_id"):
+                            metrics.session_id = data.get("session_id")
                         
-                        # Parse streaming response
-                        if "session_id" in data:
-                            metrics.session_id = data["session_id"]
-                        
-                        if "chunk_type" in data:
-                            chunk_type = data["chunk_type"]
+                        if event:
+                            chunk_type = event
                             metrics.total_chunks += 1
                             
                             # Track first token latency
@@ -128,26 +128,36 @@ class StreamingE2ETest:
                                 metrics.text_chunks += 1
                             elif chunk_type == "tool_call":
                                 metrics.tool_call_events += 1
+                                tool_info = {}
+                                try:
+                                    tool_info = json.loads(data.get("content", "{}")) if isinstance(data, dict) else {}
+                                except Exception:
+                                    tool_info = {}
                                 metrics.tool_calls.append({
-                                    "tool": data.get("metadata", {}).get("tool_name"),
-                                    "args": data.get("metadata", {}).get("arguments"),
+                                    "tool": (tool_info or {}).get("tool_name"),
+                                    "args": (tool_info or {}).get("arguments"),
                                     "timestamp": chunk_start
                                 })
-                                logger.info(f"Tool call: {data.get('metadata', {}).get('tool_name')}")
+                                logger.info(f"Tool call: {(tool_info or {}).get('tool_name')}")
                             elif chunk_type == "tool_result":
                                 metrics.tool_result_events += 1
+                                tool_res = {}
+                                try:
+                                    tool_res = json.loads(data.get("content", "{}")) if isinstance(data, dict) else {}
+                                except Exception:
+                                    tool_res = {}
                                 metrics.tool_results.append({
-                                    "tool": data.get("metadata", {}).get("tool_name"),
-                                    "result": data.get("content", "")[:100],
+                                    "tool": (tool_res or {}).get("tool_id"),
+                                    "result": (tool_res or {}).get("result", "")[:100],
                                     "timestamp": chunk_start
                                 })
-                                logger.info(f"Tool result: {data.get('metadata', {}).get('tool_name')}")
+                                logger.info(f"Tool result: {(tool_res or {}).get('tool_id')}")
                             elif chunk_type == "handoff":
                                 metrics.handoff_events += 1
-                                logger.info(f"Handoff: {data.get('metadata', {}).get('from_agent')} -> {data.get('metadata', {}).get('to_agent')}")
+                                logger.info("Handoff event received")
                             elif chunk_type == "error":
                                 metrics.error_events += 1
-                                logger.error(f"Error event: {data.get('content')}")
+                                logger.error(f"Error event: {data}")
                             elif chunk_type == "heartbeat":
                                 metrics.heartbeat_events += 1
                             elif chunk_type == "final":
@@ -160,7 +170,7 @@ class StreamingE2ETest:
                             metrics.chunk_latencies.append(chunk_latency)
                         
                         # Check for completion
-                        if data.get("type") == "complete" or data.get("chunk_type") == "final":
+                        if frame.get("event") == "final" or (isinstance(data, dict) and data.get("chunk_type") == "final"):
                             break
                             
                     except json.JSONDecodeError as e:

@@ -5,7 +5,6 @@ _book/
 _build/
 _static/
 _templates/
-!ExecutionPlan-example.md
 ._*
 .aws/
 .azure/
@@ -222,7 +221,6 @@ _templates/
 # dotenv environment variables file
 # DynamoDB Local files
 # Embeddings cache
-# Ensure ExecutionPlan files are permanently excluded
 # Environments
 # Flask stuff (if used)
 # Frontend builds
@@ -357,9 +355,6 @@ embeddings_cache/
 env.bak/
 env/
 ENV/
-# ExecutionPlan files - all variants ignored
-ExecutionPlan*
-!ExecutionPlan-example.*
 faiss_index/
 frontend.log
 frontend/.env
@@ -447,3 +442,26 @@ wheels/
 yarn-debug.log*
 yarn-error.log*
 yarn.lock.bak
+
+dev-debug.log
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# IDE stuff
+.claude/
+.cursor/
+.taskmaster
+.windsurf
+.roberdan
+
+# Task files
+tasks.json
+tasks/ 

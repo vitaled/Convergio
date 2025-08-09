@@ -496,11 +496,12 @@ async def start_streaming_conversation(request: StreamingConversationRequest):
             orchestrator = await get_agent_orchestrator()
             
             # Debug streaming: capture orchestrator interactions with detailed logging
-            logger.info(f"🐛 Debug streaming enabled for agent {agent_name}")
+            dbg_agent = (request.context or {}).get("agent_name", "ali_chief_of_staff")
+            logger.info(f"🐛 Debug streaming enabled for agent {dbg_agent}")
             
             # Process debug message with enhanced logging
             debug_response = await orchestrator.process_agent_message(
-                agent_name=agent_name,
+                agent_name=dbg_agent,
                 message=request.message,
                 conversation_id=conversation_id,
                 debug_mode=True

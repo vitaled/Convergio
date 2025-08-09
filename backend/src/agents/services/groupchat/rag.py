@@ -14,6 +14,14 @@ from autogen_agentchat.messages import TextMessage
 
 from ...memory.autogen_memory_system import AutoGenMemorySystem, MemoryType, MemoryEntry
 from ...utils.config import get_settings
+from .rag_enhancements import (
+    DynamicThreshold,
+    PerAgentFilter,
+    SemanticDeduplicator,
+    IntelligentRAGCache,
+    RAGQualityMonitor,
+    get_agent_filter
+)
 
 logger = structlog.get_logger()
 
@@ -35,9 +43,17 @@ class RAGContext:
 class AdvancedRAGProcessor:
     """Advanced RAG processing with multi-factor scoring and context optimization"""
     
-    def __init__(self, memory_system: Optional[AutoGenMemorySystem] = None):
+    def __init__(self, memory_system: Optional[AutoGenMemorySystem] = None, settings: Optional[Any] = None):
+        # Accept optional settings for call sites that pass it; default to local get_settings
         self.memory_system = memory_system or AutoGenMemorySystem()
-        self.settings = get_settings()
+        self.settings = settings or get_settings()
+        
+        # Initialize enhancements
+        self.dynamic_threshold = DynamicThreshold()
+        self.semantic_deduplicator = SemanticDeduplicator()
+        self.cache = IntelligentRAGCache()
+        self.quality_monitor = RAGQualityMonitor()
+        self.agent_filters = {}
         
     async def build_memory_context(
         self, 
@@ -50,7 +66,10 @@ class AdvancedRAGProcessor:
         include_knowledge_base: bool = True,
         recency_weight: float = 0.3,
         importance_weight: float = 0.4,
-        relevance_weight: float = 0.3
+        relevance_weight: float = 0.3,
+        turn_number: int = 0,
+        use_cache: bool = True,
+        use_semantic_dedup: bool = True
     ) -> Optional[TextMessage]:
         """
         Build comprehensive memory context with multi-factor scoring
@@ -70,8 +89,22 @@ class AdvancedRAGProcessor:
         if not self.memory_system:
             logger.warning("No memory system available for RAG")
             return None
+        
+        # Check cache first
+        if use_cache and self.cache:
+            await self.cache.initialize()
+            cached_result = await self.cache.get(
+                user_id=user_id,
+                query=query,
+                agent_id=agent_id,
+                memory_types=["conversation", "knowledge"] if include_conversation_history and include_knowledge_base else None
+            )
+            if cached_result:
+                logger.info("Using cached RAG result", user_id=user_id)
+                return TextMessage(content=cached_result.get("content", ""), source="system")
             
         try:
+            start_time = datetime.utcnow()
             # Multi-type memory retrieval
             memory_types = []
             if include_conversation_history:
@@ -95,7 +128,15 @@ class AdvancedRAGProcessor:
                     context = await self._create_rag_context(
                         memory, query, recency_weight, importance_weight, relevance_weight
                     )
-                    if context.composite_score >= similarity_threshold:
+                    
+                    # Apply dynamic threshold
+                    agent_type = self._get_agent_type(agent_id) if agent_id else None
+                    dynamic_threshold_value = self.dynamic_threshold.calculate(
+                        turn_number=turn_number,
+                        agent_type=agent_type
+                    )
+                    
+                    if context.composite_score >= max(similarity_threshold, dynamic_threshold_value):
                         all_contexts.append(context)
             
             # Agent-specific context enhancement
@@ -105,8 +146,34 @@ class AdvancedRAGProcessor:
                 )
                 all_contexts.extend(agent_contexts)
             
-            # Sort by composite score and deduplicate
-            filtered_contexts = await self._deduplicate_and_rank(all_contexts, limit)
+            # Apply per-agent filtering if available
+            if agent_id:
+                agent_filter = get_agent_filter(agent_id)
+                if agent_filter:
+                    pre_filter_count = len(all_contexts)
+                    all_contexts = agent_filter.apply_filter(all_contexts)
+                    post_filter_count = len(all_contexts)
+                    
+                    # Track filter effectiveness
+                    if self.quality_monitor and pre_filter_count > 0:
+                        avg_score_pre = sum(c.composite_score for c in all_contexts[:pre_filter_count]) / pre_filter_count
+                        avg_score_post = sum(c.composite_score for c in all_contexts) / len(all_contexts) if all_contexts else 0
+                        await self.quality_monitor.track_agent_filter_effectiveness(
+                            agent_name=agent_id,
+                            pre_filter_count=pre_filter_count,
+                            post_filter_count=post_filter_count,
+                            avg_score_improvement=avg_score_post - avg_score_pre
+                        )
+            
+            # Apply semantic deduplication if enabled
+            if use_semantic_dedup and self.semantic_deduplicator:
+                all_contexts = await self.semantic_deduplicator.deduplicate(all_contexts)
+            else:
+                # Use standard deduplication
+                all_contexts = await self._deduplicate_and_rank(all_contexts, limit * 2)
+            
+            # Final ranking and limiting
+            filtered_contexts = sorted(all_contexts, key=lambda c: c.composite_score, reverse=True)[:limit]
             
             if not filtered_contexts:
                 logger.info(f"No relevant context found for query: {query[:50]}...")
@@ -117,14 +184,37 @@ class AdvancedRAGProcessor:
             
             # Log context quality metrics
             avg_score = sum(c.composite_score for c in filtered_contexts) / len(filtered_contexts)
+            latency_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            
+            # Track quality metrics
+            if self.quality_monitor:
+                await self.quality_monitor.track_retrieval(
+                    query=query,
+                    contexts_retrieved=len(filtered_contexts),
+                    avg_score=avg_score,
+                    latency_ms=latency_ms,
+                    cache_hit=False
+                )
+            
             logger.info(
                 "RAG context built",
                 contexts_count=len(filtered_contexts),
                 avg_composite_score=round(avg_score, 3),
                 query_length=len(query),
                 user_id=user_id,
-                agent_id=agent_id
+                agent_id=agent_id,
+                latency_ms=round(latency_ms, 2)
             )
+            
+            # Cache the result
+            if use_cache and self.cache:
+                await self.cache.set(
+                    user_id=user_id,
+                    query=query,
+                    result={"content": formatted_context.content},
+                    agent_id=agent_id,
+                    memory_types=[mt.value for mt in memory_types]
+                )
             
             return formatted_context
             
@@ -233,6 +323,18 @@ class AdvancedRAGProcessor:
             logger.warning("Failed to get agent-specific context", error=str(e), agent_id=agent_id)
             return []
     
+    def _get_agent_type(self, agent_id: str) -> Optional[str]:
+        """Get agent type for dynamic threshold calculation"""
+        agent_types = {
+            "ali_chief_of_staff": "strategic",
+            "amy_cfo": "financial",
+            "diana_performance_dashboard": "operational",
+            "luca_security_expert": "technical",
+            "wanda_workflow_orchestrator": "operational",
+            "domik_mckinsey_strategic_decision_maker": "strategic"
+        }
+        return agent_types.get(agent_id)
+    
     async def _deduplicate_and_rank(self, contexts: List[RAGContext], limit: int) -> List[RAGContext]:
         """Remove duplicates and rank by composite score"""
         
@@ -325,4 +427,3 @@ async def build_memory_context(
         limit=limit,
         similarity_threshold=similarity_threshold
     )
-

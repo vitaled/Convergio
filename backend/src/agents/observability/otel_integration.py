@@ -13,17 +13,32 @@ import structlog
 from opentelemetry import trace, metrics
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.metrics import MeterProvider, Counter, Histogram, UpDownCounter
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.trace import Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from opentelemetry.propagate import set_global_textmap
+
+# Optional instrumentation - these may not be installed
+try:
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    REQUESTS_INSTRUMENTATION_AVAILABLE = True
+except ImportError:
+    REQUESTS_INSTRUMENTATION_AVAILABLE = False
+
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FASTAPI_INSTRUMENTATION_AVAILABLE = True
+except ImportError:
+    FASTAPI_INSTRUMENTATION_AVAILABLE = False
+
+try:
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+    REDIS_INSTRUMENTATION_AVAILABLE = True
+except ImportError:
+    REDIS_INSTRUMENTATION_AVAILABLE = False
 
 from ..utils.config import get_settings
 
@@ -167,14 +182,16 @@ class OTELManager:
         
         try:
             # Instrument HTTP requests
-            RequestsInstrumentor().instrument()
+            if REQUESTS_INSTRUMENTATION_AVAILABLE:
+                RequestsInstrumentor().instrument()
             logger.info("🔧 Instrumented requests library")
         except Exception as e:
             logger.warning(f"Failed to instrument requests: {e}")
         
         try:
             # Instrument Redis
-            RedisInstrumentor().instrument()
+            if REDIS_INSTRUMENTATION_AVAILABLE:
+                RedisInstrumentor().instrument()
             logger.info("🔧 Instrumented Redis client")
         except Exception as e:
             logger.warning(f"Failed to instrument Redis: {e}")
@@ -623,7 +640,10 @@ def get_otel_manager() -> Optional[OTELManager]:
 def instrument_fastapi(app):
     """Instrument FastAPI application"""
     
-    FastAPIInstrumentor.instrument_app(app)
+    if FASTAPI_INSTRUMENTATION_AVAILABLE:
+        FastAPIInstrumentor.instrument_app(app)
+    else:
+        logger.warning("FastAPI instrumentation not available")
     logger.info("🔧 Instrumented FastAPI application")
     
     # Add metrics endpoint
