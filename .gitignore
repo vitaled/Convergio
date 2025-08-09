@@ -357,10 +357,9 @@ embeddings_cache/
 env.bak/
 env/
 ENV/
-ExecutionPlan.md
-ExecutionPlan*.md
-ExecutionPlanFinalGPT5.md
-ExecutionPlanGTP5.md
+# ExecutionPlan files - all variants ignored
+ExecutionPlan*
+!ExecutionPlan-example.*
 faiss_index/
 frontend.log
 frontend/.env
