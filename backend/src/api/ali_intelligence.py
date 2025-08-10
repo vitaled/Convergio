@@ -298,7 +298,7 @@ Please provide strategic analysis and recommendations. Consider:
                         'Content-Type': 'application/json'
                     },
                     json={
-                        'model': 'gpt-4',
+                        'model': get_settings().default_ai_model,
                         'messages': [
                             {'role': 'system', 'content': system_prompt},
                             {'role': 'user', 'content': user_prompt}

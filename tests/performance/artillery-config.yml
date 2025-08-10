@@ -1,0 +1,207 @@
+config:
+  target: "http://localhost:3001"
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    
+    # Ramp-up phase
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up load"
+    
+    # Sustained load phase
+    - duration: 120
+      arrivalRate: 50
+      name: "Sustained load"
+    
+    # Spike test phase
+    - duration: 30
+      arrivalRate: 100
+      name: "Spike test"
+    
+    # Cool down phase
+    - duration: 30
+      arrivalRate: 10
+      name: "Cool down"
+  
+  processor: "./processor.js"
+  variables:
+    baseUrl: "http://localhost:3001"
+  
+  plugins:
+    expect: {}
+    metrics-by-endpoint: {}
+  
+  ensure:
+    p95: 200  # 95th percentile should be under 200ms
+    p99: 500  # 99th percentile should be under 500ms
+    maxErrorRate: 1  # Error rate should be under 1%
+
+scenarios:
+  # Health check scenario
+  - name: "Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: status
+      
+      - get:
+          url: "/api/v1/status"
+          expect:
+            - statusCode: 200
+
+  # Agent Management scenario
+  - name: "Agent Operations"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/v1/agents"
+          expect:
+            - statusCode: 200
+            - contentType: json
+          capture:
+            - json: "$[0].id"
+              as: "agentId"
+      
+      - get:
+          url: "/api/v1/agents/{{ agentId }}"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/v1/agents/metrics"
+          expect:
+            - statusCode: 200
+
+  # Workflow Management scenario
+  - name: "Workflow Operations"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/v1/workflows"
+          expect:
+            - statusCode: 200
+            - contentType: json
+          capture:
+            - json: "$[0].id"
+              as: "workflowId"
+      
+      - get:
+          url: "/api/v1/workflows/{{ workflowId }}"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/v1/workflows/templates"
+          expect:
+            - statusCode: 200
+
+  # Cost Management scenario
+  - name: "Cost Monitoring"
+    weight: 15
+    flow:
+      - get:
+          url: "/api/v1/costs/current"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/v1/costs/limits"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/v1/costs/history?days=30"
+          expect:
+            - statusCode: 200
+
+  # User Management scenario
+  - name: "User Operations"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/v1/users/profile"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+      
+      - get:
+          url: "/api/v1/users/preferences"
+          headers:
+            Authorization: "Bearer {{ $randomString() }}"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+
+  # RAG Configuration scenario
+  - name: "RAG Configuration"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/v1/rag/config"
+          expect:
+            - statusCode: 200
+      
+      - get:
+          url: "/api/v1/rag/models"
+          expect:
+            - statusCode: 200
+
+  # Security scenario
+  - name: "Security Operations"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/v1/security/settings"
+          expect:
+            - statusCode:
+                - 200
+                - 401
+      
+      - get:
+          url: "/api/v1/security/audit-log"
+          query:
+            limit: 10
+            offset: 0
+          expect:
+            - statusCode:
+                - 200
+                - 401
+
+  # WebSocket Connection Test
+  - name: "WebSocket Test"
+    weight: 5
+    engine: "ws"
+    flow:
+      - connect:
+          target: "ws://localhost:3001/ws"
+      
+      - send:
+          payload:
+            type: "ping"
+            timestamp: "{{ $timestamp() }}"
+      
+      - think: 2
+      
+      - send:
+          payload:
+            type: "subscribe"
+            channel: "metrics"
+      
+      - think: 5
+      
+      - send:
+          payload:
+            type: "unsubscribe"
+            channel: "metrics"

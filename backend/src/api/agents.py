@@ -1233,6 +1233,10 @@ async def _execute_real_agent(
     try:
         # Get user's OpenAI API key
         user_openai_key = get_user_api_key(http_request, "openai")
+        # Resolve model preference: user session model -> settings default
+        from src.api.user_keys import get_user_default_model
+        settings_local = get_settings()
+        preferred_model = get_user_default_model(http_request) or settings_local.default_ai_model
         
         if not user_openai_key:
             # Return fallback response if no API key provided
@@ -1254,7 +1258,7 @@ async def _execute_real_agent(
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "gpt-4",
+                    "model": preferred_model,
                     "messages": [
                         {
                             "role": "system",
@@ -1284,7 +1288,7 @@ async def _execute_real_agent(
             "message": request.message,
             "response": ai_response,
             "context": request.context,
-            "model": "gpt-4",
+            "model": preferred_model,
             "usage": data.get("usage", {}),
             "messages": [
                 {

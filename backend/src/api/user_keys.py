@@ -25,6 +25,7 @@ class UserAPIKeys(BaseModel):
     """User API Keys model"""
     openai_api_key: Optional[str] = Field(None, description="OpenAI API Key")
     anthropic_api_key: Optional[str] = Field(None, description="Anthropic Claude API Key")
+    default_model: Optional[str] = Field(None, description="Preferred default OpenAI model for this session")
 
 class APIKeyStatus(BaseModel):
     """API Key validation status"""
@@ -74,6 +75,15 @@ async def store_user_api_keys(
             encrypted_keys['openai'] = encrypt_api_key(keys.openai_api_key)
         if keys.anthropic_api_key:
             encrypted_keys['anthropic'] = encrypt_api_key(keys.anthropic_api_key)
+        
+        # Store preferred model (validated)
+        if keys.default_model:
+            allowed = {"gpt-5", "gpt-5-mini", "gpt-5-nano"}
+            model = keys.default_model.strip()
+            if model in allowed:
+                encrypted_keys['model'] = model
+            else:
+                logger.warning(f"Ignoring unsupported model preference: {model}")
             
         user_keys_storage[session_id] = encrypted_keys
         
@@ -82,7 +92,8 @@ async def store_user_api_keys(
         return {
             "openai": bool(keys.openai_api_key),
             "anthropic": bool(keys.anthropic_api_key),
-            "stored": True
+            "stored": True,
+            "default_model": encrypted_keys.get('model')
         }
         
     except Exception as e:
@@ -109,6 +120,14 @@ async def get_api_keys_status(request: Request):
                 is_configured=bool(stored_keys.get('anthropic'))
             )
         }
+        
+        # Include preferred model if set
+        if stored_keys.get('model'):
+            status["model"] = {
+                "service": "OpenAI model",
+                "is_configured": True,
+                "value": stored_keys.get('model')
+            }
         
         return status
         
@@ -151,6 +170,18 @@ def get_user_api_key(request: Request, service: str) -> Optional[str]:
         
     except Exception as e:
         logger.error(f"❌ Failed to get API key for {service}: {e}")
+        return None
+
+# Preferred model helpers
+def get_user_default_model(request: Request) -> Optional[str]:
+    """Get user's preferred default model if configured for the session."""
+    try:
+        session_id = get_user_session_id(request)
+        stored = user_keys_storage.get(session_id, {})
+        model = stored.get('model')
+        return model
+    except Exception as e:
+        logger.error(f"❌ Failed to get user default model: {e}")
         return None
 
 # Test endpoints for validation

@@ -112,7 +112,7 @@ class Settings(BaseSettings):
     autogen_timeout_seconds: int = Field(default=300, env="AUTOGEN_TIMEOUT_SECONDS")
     autogen_cost_limit_usd: float = Field(default=50.0, env="AUTOGEN_COST_LIMIT_USD")
     autogen_redis_state_ttl: int = Field(default=3600, env="AUTOGEN_REDIS_STATE_TTL")
-    default_ai_model: str = Field(default="gpt-4o-mini", env="DEFAULT_AI_MODEL")
+    default_ai_model: str = Field(default="gpt-5-nano", env="DEFAULT_AI_MODEL")
     # RAG configuration
     rag_similarity_threshold: float = Field(default=0.5, env="RAG_SIMILARITY_THRESHOLD")
     rag_max_facts: int = Field(default=5, env="RAG_MAX_FACTS")

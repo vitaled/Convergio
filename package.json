@@ -7,7 +7,13 @@
     "comment": "Scripts will be added in the next steps"
   },
   "devDependencies": {
+    "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "concurrently": "^8.0.0",
+    "eslint-plugin-security": "^3.0.1",
+    "jest": "^30.0.5",
     "prettier": "^3.0.0",
-    "concurrently": "^8.0.0"
+    "snyk": "^1.1298.2",
+    "supertest": "^7.1.4"
   }
 }

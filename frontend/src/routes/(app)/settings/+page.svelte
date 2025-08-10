@@ -4,7 +4,8 @@
   // API Keys state
   let apiKeys = {
     openai_api_key: '',
-    anthropic_api_key: ''
+    anthropic_api_key: '',
+    default_model: ''
   };
 
   let keyStatus = {
@@ -32,11 +33,7 @@
   }
 
   async function saveApiKeys() {
-    if (!apiKeys.openai_api_key.trim()) {
-      alert('OpenAI API Key is required for the platform to function');
-      return;
-    }
-
+    // Allow saving model preference even if key is empty
     saving = true;
     try {
       const response = await fetch('http://localhost:9000/api/v1/user-keys', {
@@ -52,11 +49,9 @@
         setTimeout(() => showSuccess = false, 3000);
         await loadKeyStatus();
         
-        // Clear the form
-        apiKeys = {
-          openai_api_key: '',
-          anthropic_api_key: ''
-        };
+        // Clear only key fields; keep preferred model
+        apiKeys.openai_api_key = '';
+        apiKeys.anthropic_api_key = '';
       } else {
         alert('Failed to save API keys');
       }
@@ -161,6 +156,31 @@
     </div>
 
     <div class="p-4 space-y-4">
+      <!-- Default Model Selection -->
+      <div class="space-y-2">
+        <label for="default-model" class="block text-xs font-medium text-gray-700">
+          Default OpenAI Model
+          <span class="font-normal text-gray-500">(Used unless overridden)</span>
+        </label>
+        <div class="flex items-center space-x-2">
+          <select
+            id="default-model"
+            bind:value={apiKeys.default_model}
+            class="px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+            aria-describedby="model-help"
+          >
+            <option value="">Use backend default (gpt-5-nano)</option>
+            <option value="gpt-5">gpt-5</option>
+            <option value="gpt-5-mini">gpt-5-mini</option>
+            <option value="gpt-5-nano">gpt-5-nano</option>
+          </select>
+          <a href="https://platform.openai.com/docs/models" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 text-xs">Model docs</a>
+        </div>
+        <p id="model-help" class="text-xs text-gray-500">
+          Roberdan aggiungi qualche info in piu qui, tipo costi, speed, reasoning, etc come dal sito.
+        </p>
+      </div>
+
       <!-- OpenAI API Key -->
       <div class="space-y-2">
         <label for="openai-key" class="block text-xs font-medium text-gray-700">
@@ -175,7 +195,7 @@
             placeholder="sk-..."
             class="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
             aria-describedby="openai-help"
-            aria-required="true"
+            aria-required="false"
           />
           <div class="flex items-center space-x-2">
             {#if keyStatus.openai.is_configured}
@@ -255,7 +275,7 @@
         <div class="flex space-x-2">
           <button
             on:click={saveApiKeys}
-            disabled={saving || !apiKeys.openai_api_key.trim()}
+            disabled={saving}
             class="px-3 py-2 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white text-xs font-medium rounded transition-colors disabled:cursor-not-allowed"
             aria-describedby="save-help"
           >
@@ -265,7 +285,7 @@
               Save API Keys
             {/if}
           </button>
-          <div id="save-help" class="sr-only">OpenAI API key is required to save</div>
+          <div id="save-help" class="sr-only">You can save keys and/or default model</div>
         </div>
         
         {#if keyStatus.openai.is_configured || keyStatus.anthropic.is_configured}

@@ -140,7 +140,7 @@ class StreamingOrchestrator:
             
             # Create OpenAI client with streaming - using most economical available model
             client = OpenAIChatCompletionClient(
-                model="gpt-4o-mini",  # Most economical proven stable model
+                model=self.settings.default_ai_model,  # Use configured default model
                 api_key=settings.OPENAI_API_KEY,
             )
             

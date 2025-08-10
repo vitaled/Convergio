@@ -16,12 +16,45 @@
 
 ## 📚 Documentation
 
+### Business Documentation
 - Executive Summary: `docs/executive_summary.md`
 - Design Brief: `docs/design_brief.md`
+- Project Plan: `docs/project_plan.md`
+
+### Technical Documentation
+- **API Reference**: `docs/API_REFERENCE.md`
+- **Architecture**: `docs/ARCHITECTURE.md`
+- **Database Schema**: `docs/DATABASE_SCHEMA.md`
+- **Deployment Guide**: `docs/DEPLOYMENT.md`
 - Technical Gameplan: `docs/technical_gameplan.md`
 - Data Science Plan: `docs/data_science_plan.md`
-- Project Plan: `docs/project_plan.md`
-- Execution Plan: `ExecutionPlan.md`
+
+### Live Documentation
+- **Swagger UI**: http://localhost:9000/docs
+- **ReDoc**: http://localhost:9000/redoc
+
+---
+
+## 🧾 Logs & Reports
+
+- Performance tests and security audits write JSON reports to `logs/` (ignored by git).
+- Default locations:
+  - Performance quick test: `logs/performance-results-<timestamp>.json`
+  - Security audit: `logs/security-audit-<timestamp>.json`
+  - Shell performance suite: `logs/performance-results/` (tar + logs)
+- Configuration:
+  - Set `LOG_DIR` to override the base logs directory for Python tests.
+  - Set `RESULTS_DIR` to override `logs/performance-results` in `scripts/run-performance-tests.sh`.
+  - Directories are created automatically if missing.
+
+---
+
+## ⚙️ Model Configuration
+
+- Default backend model: `gpt-5-nano` (cheapest default). Override with env `DEFAULT_AI_MODEL` or per-session in the app.
+- Change per-session in the app under Settings → “Default OpenAI Model” (dropdown: gpt-5, gpt-5-mini, gpt-5-nano). The preference is stored per session and used for live OpenAI calls where applicable.
+- Official model reference: https://platform.openai.com/docs/models
+- Reminder for maintainers: "Roberdan aggiungi qualche info in piu qui, tipo costi, speed, reasoning, etc come dal sito".
 
 ---
 
@@ -178,6 +211,8 @@ cd Convergio
 # 2. Configura gli ambienti
 # Copia .env.example in .env sia in backend che in frontend
 # Inserisci la tua OpenAI API key e le credenziali del database
+# (Opzionale) Imposta il modello di default nel backend/.env con `DEFAULT_AI_MODEL`.
+# Di default usiamo `gpt-5-nano` (più economico). Puoi cambiarlo anche dalla pagina Settings del frontend.
 
 # 3. Avvia tutto in locale
 ./start.sh

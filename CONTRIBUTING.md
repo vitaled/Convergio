@@ -41,6 +41,7 @@ npm install
 # 4. Environment setup
 cp .env.example .env
 # Edit .env with your API keys and database credentials
+# Optional: set `DEFAULT_AI_MODEL` in backend/.env (default is `gpt-5-nano`) or change it per-session from the frontend Settings page.
 
 # 5. Start services
 # Terminal 1: Backend

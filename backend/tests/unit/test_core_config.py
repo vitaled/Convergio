@@ -24,7 +24,7 @@ class TestSettings:
         """Test DATABASE_URL property generation"""
         settings = Settings(
             POSTGRES_USER="test",
-            POSTGRES_PASSWORD="test",
+            POSTGRES_PASSWORD=os.getenv("TEST_POSTGRES_PASSWORD", "test_password"),
             POSTGRES_HOST="localhost",
             POSTGRES_PORT=5432,
             POSTGRES_DB="test_db"
@@ -48,7 +48,7 @@ class TestSettings:
             REDIS_HOST="localhost",
             REDIS_PORT=6379,
             REDIS_DB=1,
-            REDIS_PASSWORD="secret"
+            REDIS_PASSWORD=os.getenv("TEST_REDIS_PASSWORD", "test_password")
         )
         expected = "redis://:secret@localhost:6379/1"
         assert settings.REDIS_URL == expected

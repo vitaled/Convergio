@@ -29,6 +29,7 @@ from src.core.config import get_settings
 from src.core.database import init_db, close_db
 from src.core.redis import init_redis, close_redis
 from src.core.logging import setup_logging
+from src.core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
 
 # Import routers
 from src.api.talents import router as talents_router
@@ -141,6 +142,12 @@ def create_app() -> FastAPI:
     # ================================
     # 🛡️ SECURITY MIDDLEWARE STACK
     # ================================
+    
+    # Security Headers Middleware
+    app.add_middleware(SecurityHeadersMiddleware)
+    
+    # Rate Limiting Middleware
+    app.add_middleware(RateLimitMiddleware, calls=100, period=60)
     
     # CORS - Must be first - Fix credentials issue
     cors_origins = settings.cors_origins_list + ["http://localhost:4001", "http://127.0.0.1:4001"]

@@ -25,7 +25,7 @@ async def test_openai_simple():
         
         print("🔄 Testing direct OpenAI call...")
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5-nano",
             messages=[
                 {"role": "system", "content": "Respond in Italian briefly"},
                 {"role": "user", "content": "Ciao, come stai?"}
@@ -46,7 +46,7 @@ async def test_openai_simple():
             
             # Create client
             client = OpenAIChatCompletionClient(
-                model="gpt-4o-mini",
+                model="gpt-5-nano",
                 api_key=OPENAI_API_KEY,
             )
             

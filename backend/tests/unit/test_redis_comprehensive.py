@@ -430,7 +430,7 @@ class TestRedisURLParsing:
             REDIS_HOST="localhost",
             REDIS_PORT=6379,
             REDIS_DB=1,
-            REDIS_PASSWORD="secret123"
+            REDIS_PASSWORD=os.getenv("TEST_REDIS_PASSWORD", "test_password")
         )
         
         expected_url = "redis://:secret123@localhost:6379/1"

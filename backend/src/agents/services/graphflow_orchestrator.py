@@ -68,12 +68,12 @@ class GraphFlowOrchestrator:
                 agent_config = {
                     "name": step.agent_name,
                     "description": f"Agent for {step.step_type}",
-                    "model": "gpt-4"
+                    "model": self.settings.default_ai_model
                 }
             
             # Create AutoGen agent
             client = OpenAIChatCompletionClient(
-                model=agent_config.get("model", "gpt-4"),
+                model=agent_config.get("model", self.settings.default_ai_model),
                 api_key=settings.OPENAI_API_KEY
             )
             
