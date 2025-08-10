@@ -26,6 +26,7 @@
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Database Schema**: `docs/DATABASE_SCHEMA.md`
 - **Deployment Guide**: `docs/DEPLOYMENT.md`
+- **Agent Optimization**: `backend/docs/AGENT_OPTIMIZATION.md` ✨ NEW
 - Technical Gameplan: `docs/technical_gameplan.md`
 - Data Science Plan: `docs/data_science_plan.md`
 
