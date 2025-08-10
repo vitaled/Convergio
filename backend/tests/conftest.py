@@ -10,12 +10,7 @@ def _sanitize(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", name)
 
 
-@pytest.fixture
-def transcript_logger(request):
-    """
-    Provides a TranscriptLogger that writes to repo-root logs/ folder with
-    filename: <test_name>-<YYYYMMDD_HHMMSS>.log
-    """
+def _make_logger(request) -> TranscriptLogger:
     test_name = request.node.name or "test"
     ts = time.strftime("%Y%m%d_%H%M%S", time.gmtime())
     filename = f"{_sanitize(test_name)}-{ts}.log"
@@ -24,7 +19,24 @@ def transcript_logger(request):
     logs_dir = os.path.join(repo_root, "logs")
     os.makedirs(logs_dir, exist_ok=True)
     path = os.path.join(logs_dir, filename)
+    return TranscriptLogger(path, test_name)
 
-    logger = TranscriptLogger(path, test_name)
-    yield logger
+
+@pytest.fixture(autouse=True)
+def _auto_transcript_logger(request):
+    """Create a transcript for every test automatically."""
+    logger = _make_logger(request)
+    # Attach so other fixtures/tests can reuse
+    setattr(request.node, "_transcript_logger", logger)
+    yield
     logger.close("completed")
+
+
+@pytest.fixture
+def transcript_logger(request) -> TranscriptLogger:
+    """Return the per-test TranscriptLogger created by the autouse fixture."""
+    existing = getattr(request.node, "_transcript_logger", None)
+    if existing is not None:
+        return existing
+    # Fallback (should not happen): create one
+    return _make_logger(request)
