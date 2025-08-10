@@ -1,9 +1,15 @@
 import os
 import re
+import sys
 import time
 import pytest
 
-from .utils.transcript import TranscriptLogger
+# Ensure tests/utils is importable even when tests isn't a package
+_THIS_DIR = os.path.dirname(__file__)
+_UTILS_DIR = os.path.join(_THIS_DIR, "utils")
+if _UTILS_DIR not in sys.path:
+    sys.path.insert(0, _UTILS_DIR)
+from transcript import TranscriptLogger
 
 
 def _sanitize(name: str) -> str:
