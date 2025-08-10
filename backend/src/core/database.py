@@ -124,12 +124,21 @@ async def ensure_dev_schema() -> None:
                 """
             ))
             cols = {row[0] for row in res.fetchall()}
-            if "document_id" not in cols:
-                # Add as nullable to avoid failures on non-empty tables
-                await conn.execute(text(
-                    "ALTER TABLE public.document_embeddings ADD COLUMN IF NOT EXISTS document_id INTEGER"
-                ))
-                logger.info("🛠️ Added missing column", table="document_embeddings", column="document_id")
+            # Columns to ensure exist (add as nullable to avoid issues on existing rows)
+            ensure_columns = {
+                "document_id": "INTEGER",
+                "chunk_index": "INTEGER",
+                "chunk_text": "TEXT",
+                "embedding": "JSON",
+                "embed_metadata": "JSON",
+                "created_at": "TIMESTAMPTZ DEFAULT NOW()",
+            }
+            for col_name, col_type in ensure_columns.items():
+                if col_name not in cols:
+                    await conn.execute(text(
+                        f"ALTER TABLE public.document_embeddings ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                    logger.info("🛠️ Added missing column", table="document_embeddings", column=col_name)
 
             # Ensure FK constraint exists
             await conn.execute(text(
