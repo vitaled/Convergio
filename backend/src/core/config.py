@@ -4,8 +4,24 @@ Environment-based settings with validation and type safety
 """
 
 import os
-from functools import lru_cache
 from pathlib import Path
+
+# Proactively load environment from backend/.env and root .env if present
+try:
+    from dotenv import load_dotenv
+    project_root = Path(__file__).resolve().parents[2]
+    backend_env = project_root / "backend" / ".env"
+    root_env = project_root / ".env"
+    # Load root first, then backend to allow backend/.env to override if both exist
+    if root_env.exists():
+        load_dotenv(dotenv_path=root_env, override=False)
+    if backend_env.exists():
+        load_dotenv(dotenv_path=backend_env, override=True)
+except Exception:
+    # Dotenv not available or load failed; rely on process env
+    pass
+
+from functools import lru_cache
 from typing import List, Optional
 
 from pydantic import Field, validator, field_validator

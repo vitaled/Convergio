@@ -17,7 +17,7 @@ import httpx
 
 from src.core.database import get_db_session
 from src.core.redis import cache_get, cache_set
-from src.api.user_keys import get_user_api_key
+from src.api.user_keys import get_user_api_key, get_user_default_model
 from src.core.config import get_settings
 from src.models.talent import Talent
 from src.models.document import Document
@@ -260,6 +260,8 @@ class AliIntelligenceEngine:
             return self._generate_fallback_response(original_query, intent, vector_context, database_context)
         
         try:
+            # Resolve model preference: user session preferred model or global default
+            preferred_model = get_user_default_model(self.request) or settings.OPENAI_MODEL
             # Build comprehensive context
             system_prompt = f"""You are Ali, the Chief of Staff for platform.Convergio.io - an AI-native enterprise platform. You are the strategic coordinator and master orchestrator for a team of 40+ specialized AI agents.
 
@@ -298,7 +300,7 @@ Please provide strategic analysis and recommendations. Consider:
                         'Content-Type': 'application/json'
                     },
                     json={
-                        'model': get_settings().default_ai_model,
+                        'model': preferred_model,
                         'messages': [
                             {'role': 'system', 'content': system_prompt},
                             {'role': 'user', 'content': user_prompt}

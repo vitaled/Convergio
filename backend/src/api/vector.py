@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
@@ -17,6 +17,7 @@ import numpy as np
 from src.core.database import get_db_session
 from src.core.config import get_settings
 from src.models.document import Document, DocumentEmbedding
+from src.api.user_keys import get_user_api_key
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Vector Search"])
@@ -24,10 +25,18 @@ router = APIRouter(tags=["Vector Search"])
 # Real OpenAI configuration
 settings = get_settings()
 OPENAI_API_URL = "https://api.openai.com/v1"
-OPENAI_HEADERS = {
-    "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-    "Content-Type": "application/json"
-}
+
+def _openai_headers(request: Request) -> dict:
+    """Build OpenAI headers using user session key if present, otherwise fallback to settings."""
+    user_key = get_user_api_key(request, "openai") if request else None
+    api_key = user_key or settings.OPENAI_API_KEY
+    if not api_key:
+        # Let downstream error produce a clear 401 from OpenAI
+        api_key = ""
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
 
 
 # Request/Response models
@@ -83,6 +92,7 @@ class SimilaritySearchResponse(BaseModel):
 @router.post("/embeddings", response_model=EmbeddingResponse)
 async def generate_embeddings(
     request: EmbeddingRequest,
+    http_request: Request,
 ):
     """
     🧠 Generate text embeddings
@@ -95,7 +105,7 @@ async def generate_embeddings(
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{OPENAI_API_URL}/embeddings",
-                headers=OPENAI_HEADERS,
+                headers=_openai_headers(http_request),
                 json={
                     "input": request.text,
                     "model": request.model
@@ -138,7 +148,8 @@ async def generate_embeddings(
 @router.post("/documents/index", response_model=DocumentIndexResponse)
 async def index_document(
     request: DocumentIndexRequest,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    http_request: Request = None,
 ):
     """
     📚 Index document with vector embeddings
@@ -152,8 +163,7 @@ async def index_document(
             db,
             title=request.title,
             content=request.content,
-            metadata=request.metadata or {},
-            user_id=current_user.id
+            doc_metadata=request.metadata or {},
         )
         
         # Split document into chunks
@@ -171,7 +181,7 @@ async def index_document(
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         f"{OPENAI_API_URL}/embeddings",
-                        headers=OPENAI_HEADERS,
+                        headers=_openai_headers(http_request),
                         json={
                             "input": chunk,
                             "model": "text-embedding-ada-002"
@@ -192,7 +202,7 @@ async def index_document(
                     chunk_index=i,
                     chunk_text=chunk,
                     embedding=embedding,
-                    metadata={"chunk_size": len(chunk)}
+                    embed_metadata={"chunk_size": len(chunk)}
                 )
                 
                 embeddings_created += 1
@@ -204,8 +214,7 @@ async def index_document(
         logger.info("✅ Document indexed", 
                    document_id=document.id,
                    chunks=len(chunks),
-                   embeddings=embeddings_created,
-                   user_id=current_user.id)
+                   embeddings=embeddings_created)
         
         return DocumentIndexResponse(
             document_id=document.id,
@@ -225,7 +234,8 @@ async def index_document(
 @router.post("/search", response_model=SimilaritySearchResponse)
 async def similarity_search(
     request: SimilaritySearchRequest,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    http_request: Request = None,
 ):
     """
     🔍 Semantic similarity search
@@ -240,7 +250,7 @@ async def similarity_search(
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{OPENAI_API_URL}/embeddings",
-                headers=OPENAI_HEADERS,
+                headers=_openai_headers(http_request),
                 json={
                     "input": request.query,
                     "model": "text-embedding-ada-002"
@@ -254,14 +264,26 @@ async def similarity_search(
             data = response.json()
             query_embedding = data['data'][0]['embedding']
         
-        # Perform similarity search
-        results = await DocumentEmbedding.similarity_search(
-            db,
-            query_embedding=query_embedding,
-            top_k=request.top_k,
-            similarity_threshold=request.similarity_threshold,
-            filter_metadata=request.filter_metadata
-        )
+        # Perform similarity search in Python (no pgvector dependency)
+        from sqlalchemy import select
+        result = await db.execute(select(DocumentEmbedding).join(Document))
+        embeddings = result.scalars().all()
+        search_results_internal = []
+        import numpy as np
+        q = np.array(query_embedding)
+        for emb in embeddings:
+            try:
+                v = np.array(emb.embedding)
+                sim = float(np.dot(v, q) / (np.linalg.norm(v) * np.linalg.norm(q)))
+                if sim >= request.similarity_threshold:
+                    # Attach for later formatting
+                    setattr(emb, "similarity_score", sim)
+                    search_results_internal.append(emb)
+            except Exception:
+                continue
+        # Sort and take top_k
+        search_results_internal.sort(key=lambda e: getattr(e, "similarity_score", 0.0), reverse=True)
+        results = search_results_internal[: request.top_k]
         
         # Format results
         search_results = []
@@ -271,8 +293,8 @@ async def similarity_search(
                 chunk_id=result.id,
                 title=result.document.title,
                 content=result.chunk_text,
-                similarity_score=result.similarity_score,
-                metadata=result.metadata
+                similarity_score=getattr(result, "similarity_score", 0.0),
+                metadata=result.embed_metadata
             ))
         
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
@@ -280,8 +302,7 @@ async def similarity_search(
         logger.info("✅ Similarity search completed",
                    query=request.query[:50],
                    results_count=len(search_results),
-                   processing_time_ms=processing_time,
-                   user_id=current_user.id)
+                   processing_time_ms=processing_time)
         
         return SimilaritySearchResponse(
             query=request.query,
@@ -311,15 +332,8 @@ async def list_documents(
     """
     
     try:
-        documents = await Document.get_by_user(
-            db, 
-            user_id=current_user.id,
-            skip=skip,
-            limit=limit
-        )
-        
-        # Get actual total count for proper pagination
-        total_count = await Document.count_by_user(db, user_id=current_user.id)
+        documents = await Document.get_all(db, skip=skip, limit=limit)
+        total_count = await Document.count_total(db)
         
         return {
             "documents": [
@@ -327,7 +341,7 @@ async def list_documents(
                     "id": doc.id,
                     "title": doc.title,
                     "content_length": len(doc.content),
-                    "metadata": doc.metadata,
+                    "metadata": doc.doc_metadata,
                     "created_at": doc.created_at.isoformat(),
                     "embeddings_count": len(doc.embeddings) if doc.embeddings else 0
                 }
@@ -366,24 +380,18 @@ async def get_document(
                 detail="Document not found"
             )
         
-        if document.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied"
-            )
-        
         return {
             "id": document.id,
             "title": document.title,
             "content": document.content,
-            "metadata": document.metadata,
+        "metadata": document.doc_metadata,
             "created_at": document.created_at.isoformat(),
             "embeddings": [
                 {
                     "id": emb.id,
                     "chunk_index": emb.chunk_index,
                     "chunk_text": emb.chunk_text[:200] + "..." if len(emb.chunk_text) > 200 else emb.chunk_text,
-                    "metadata": emb.metadata
+            "metadata": emb.embed_metadata
                 }
                 for emb in document.embeddings
             ] if document.embeddings else []
@@ -419,12 +427,6 @@ async def delete_document(
                 detail="Document not found"
             )
         
-        if document.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied"
-            )
-        
         # Delete document (embeddings will be cascade deleted)
         await document.delete(db)
         
@@ -453,16 +455,8 @@ async def get_vector_stats(
     """
     
     try:
-        stats = await Document.get_user_stats(db, current_user.id)
-        
-        return {
-            "user_id": current_user.id,
-            "total_documents": stats.get("total_documents", 0),
-            "total_embeddings": stats.get("total_embeddings", 0),
-            "total_content_length": stats.get("total_content_length", 0),
-            "average_chunk_size": stats.get("average_chunk_size", 0),
-            "last_indexed": stats.get("last_indexed")
-        }
+        stats = await Document.get_stats(db)
+        return stats
         
     except Exception as e:
         logger.error("❌ Failed to get vector stats", error=str(e))

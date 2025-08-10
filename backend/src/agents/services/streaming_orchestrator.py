@@ -16,7 +16,7 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage, HandoffMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from src.core.config import settings
+from src.core.config import settings, get_settings
 from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
 from src.core.redis import get_redis_client
 from src.agents.services.streaming.response_types import StreamingResponse
@@ -37,6 +37,7 @@ class StreamingOrchestrator:
         self._initialized = False
         self._heartbeat_tasks: Dict[str, asyncio.Task] = {}
         self.heartbeat_interval_sec: float = 10.0
+        self.settings = get_settings()
         
     async def initialize(self):
         """Initialize streaming orchestrator"""

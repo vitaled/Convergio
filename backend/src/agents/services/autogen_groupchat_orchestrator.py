@@ -55,7 +55,8 @@ class ModernGroupChatOrchestrator:
                  state_manager: RedisStateManager, 
                  cost_tracker: CostTracker,
                  agents_directory: str = None,
-                 memory_system=None):
+                 memory_system=None,
+                 observers: Optional[list] = None):
         """Initialize Modern GroupChat Orchestrator."""
         self.state_manager = state_manager
         self.memory_system = memory_system
@@ -85,6 +86,8 @@ class ModernGroupChatOrchestrator:
         # Configuration
         self.agents_directory = agents_directory or "agents/src/agents"
         self._initialized = False
+        # Observers for telemetry
+        self.observers = observers or []
     
     async def initialize(self) -> None:
         """Initialize the modern GroupChat ecosystem."""

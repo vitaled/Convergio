@@ -2,6 +2,14 @@
 """
 Test OpenAI API diretta per verificare funzionalità
 """
+import pytest
+
+# Obsolete legacy test retained temporarily for history.
+# Replaced by backend/tests/integration/test_unified_real_e2e.py and related E2E tests.
+pytest.skip(
+    "Obsolete legacy test; superseded by unified real E2E. Skipped intentionally.",
+    allow_module_level=True,
+)
 
 import sys
 import asyncio
@@ -62,6 +70,13 @@ async def test_openai_direct():
         import traceback
         traceback.print_exc()
         return False
+    
+        # Obsolete legacy test retained temporarily for history.
+        # Replaced by backend/tests/integration/test_unified_real_e2e.py and related E2E tests.
+        pytest.skip(
+            "Obsolete legacy test; superseded by unified real E2E. Skipped intentionally.",
+            allow_module_level=True,
+        )
 
 if __name__ == "__main__":
     result = asyncio.run(test_openai_direct())

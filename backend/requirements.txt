@@ -77,3 +77,12 @@ psutil==7.0.0
 # 🔒 SECURITY
 # ================================
 slowapi==0.1.9
+
+# ================================
+# 📊 OBSERVABILITY & MONITORING
+# ================================
+prometheus-client>=0.21.0
+structlog>=24.4.0
+opentelemetry-api>=1.34.1
+opentelemetry-sdk>=1.34.1
+opentelemetry-exporter-otlp-proto-grpc>=1.34.1

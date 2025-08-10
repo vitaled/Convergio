@@ -89,8 +89,19 @@ async def orchestrate_conversation_impl(
 
     # Run groupchat
     logger.info("🔄 Running GroupChat conversation")
-    with start_span("groupchat.run", {"max_turns": orchestrator.settings.autogen_max_turns}):
-        chat_messages, full_response = await run_groupchat_stream_func(orchestrator.group_chat, task=enhanced_message)
+    run_metadata = {
+        "conversation_id": conversation_id,
+        "user_id": user_id,
+        "mode": "groupchat",
+        "context": context or {},
+    }
+    with start_span("groupchat.run", {"max_turns": orchestrator.settings.autogen_max_turns, **run_metadata}):
+        chat_messages, full_response = await run_groupchat_stream_func(
+            orchestrator.group_chat,
+            task=enhanced_message,
+            observers=getattr(orchestrator, "observers", None),
+            metadata=run_metadata,
+        )
 
     # Extract details
     response = extract_final_response(chat_messages)
@@ -134,6 +145,25 @@ async def orchestrate_conversation_impl(
             logger.warning("⚠️ Memory storage failed", error=str(e))
 
     duration = (datetime.now() - start_time).total_seconds()
+    # Notify observers end
+    try:
+        observers = getattr(orchestrator, "observers", None)
+        if observers:
+            summary = {
+                "total_messages": len(chat_messages),
+                "agents_used": agents_used,
+                "response_preview": (response[:120] if isinstance(response, str) else ""),
+                "duration_seconds": duration,
+                "cost_breakdown": cost_breakdown,
+                "turn_count": turn_count,
+            }
+            for obs in observers:
+                try:
+                    await obs.on_conversation_end(summary, run_metadata)
+                except Exception:
+                    pass
+    except Exception:
+        pass
     return GroupChatResult(
         response=response,
         agents_used=agents_used,
@@ -154,19 +184,38 @@ async def direct_agent_conversation_impl(
         agent = orchestrator.agents[agent_name]
         logger.info("🎯 Direct agent conversation starting", agent=agent_name, conversation_id=conversation_id, user_id=user_id)
         logger.info("🔄 Running direct agent conversation", agent=agent_name)
+        # Notify observers start
+        run_metadata = {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "mode": "direct-agent",
+            "agent_name": agent_name,
+            "context": context or {},
+        }
+        try:
+            observers = getattr(orchestrator, "observers", None)
+            if observers:
+                for obs in observers:
+                    await obs.on_conversation_start({**run_metadata, "task": message})
+        except Exception:
+            pass
 
         response_content = ""
-        async for response in agent.run_stream(task=message):
-            if hasattr(response, 'messages') and response.messages:
-                for msg in response.messages:
-                    if hasattr(msg, 'source') and msg.source == agent_name:
-                        if hasattr(msg, 'content') and msg.content:
-                            response_content = msg.content
-                            break
-            elif hasattr(response, 'content') and response.content:
-                response_content += response.content
-            elif isinstance(response, str):
-                response_content += response
+        try:
+            async for response in agent.run_stream(task=message):
+                if hasattr(response, 'messages') and response.messages:
+                    for msg in response.messages:
+                        if hasattr(msg, 'source') and msg.source == agent_name:
+                            if hasattr(msg, 'content') and msg.content:
+                                response_content = msg.content
+                                break
+                elif hasattr(response, 'content') and response.content:
+                    response_content += response.content
+                elif isinstance(response, str):
+                    response_content += response
+        except Exception as e:
+            logger.warning(f"Error during agent streaming: {e}")
+            response_content = ""
 
         if not response_content or response_content.strip() == "":
             agent_metadata = orchestrator.agent_metadata.get(agent_name, None)
@@ -174,6 +223,25 @@ async def direct_agent_conversation_impl(
             response_content = f"Ciao! Sono {agent_name} ({role}). Come posso aiutarti con: {message}"
 
         duration = datetime.now() - start_time
+        # Notify observers end
+        try:
+            observers = getattr(orchestrator, "observers", None)
+            if observers:
+                summary = {
+                    "total_messages": 1,
+                    "agents_used": ["user", agent_name],
+                    "response_preview": (response_content[:120] if isinstance(response_content, str) else ""),
+                    "duration_seconds": duration.total_seconds(),
+                    "cost_breakdown": {"total_cost": 0.01},
+                    "turn_count": 1,
+                }
+                for obs in observers:
+                    try:
+                        await obs.on_conversation_end(summary, run_metadata)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
         return GroupChatResult(
             response=response_content,
             agents_used=["user", agent_name],

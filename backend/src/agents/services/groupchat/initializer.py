@@ -17,10 +17,38 @@ logger = structlog.get_logger()
 
 def initialize_model_client() -> OpenAIChatCompletionClient:
     settings = get_settings()
+    
+    # GPT-5 model info for August 2025 release
+    model_info = None
+    if settings.default_ai_model in ["gpt-5", "gpt-5-mini", "gpt-5-nano"]:
+        # Pricing for GPT-5 models (August 2025)
+        model_info = {
+            "gpt-5": {
+                "prompt_price_per_1k": 0.00125,  # $1.25/million input
+                "completion_price_per_1k": 0.01,   # $10/million output
+                "vision": True  # GPT-5 supports vision
+            },
+            "gpt-5-mini": {
+                "prompt_price_per_1k": 0.001,     # Estimated
+                "completion_price_per_1k": 0.005,  # Estimated
+                "vision": True  # GPT-5-mini supports vision
+            },
+            "gpt-5-nano": {
+                "prompt_price_per_1k": 0.0005,    # Estimated cheapest tier
+                "completion_price_per_1k": 0.002,  # Estimated cheapest tier
+                "vision": False  # GPT-5-nano doesn't support vision
+            }
+        }.get(settings.default_ai_model, {
+            "prompt_price_per_1k": 0.0005,
+            "completion_price_per_1k": 0.002,
+            "vision": False
+        })
+    
     client = OpenAIChatCompletionClient(
         model=settings.default_ai_model,
         api_key=settings.openai_api_key,
         base_url=settings.openai_api_base or None,
+        model_info=model_info,
     )
     logger.info("Model client initialized", model=settings.default_ai_model)
     return client

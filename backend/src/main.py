@@ -64,6 +64,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize database
         logger.info("📊 Initializing database connection pool...")
         await init_db()
+        # Auto-create tables in development for smoother E2E/dev experience
+        try:
+            if get_settings().ENVIRONMENT == "development":
+                from sqlalchemy import text as _sql_text
+                from src.core.database import async_engine
+                async with async_engine.begin() as conn:
+                    # Create tables if not exist
+                    from src.core.database import Base
+                    await conn.run_sync(Base.metadata.create_all)
+                logger.info("🧱 Database tables ensured (development mode)")
+        except Exception as _e:
+            logger.warning(f"⚠️ Table auto-create skipped/failed: {_e}")
         
         # Initialize Redis
         logger.info("🚀 Initializing Redis connection pool...")  
@@ -180,6 +192,7 @@ def create_app() -> FastAPI:
     metrics_app = make_asgi_app()
     app.mount("/metrics", metrics_app)
     
+    
     # Request ID middleware
     @app.middleware("http")
     async def add_request_id(request: Request, call_next):
@@ -270,6 +283,7 @@ def create_app() -> FastAPI:
                     "request_id": request.headers.get("X-Request-ID")
                 }
             )
+    
     
     # ================================
     # 🏠 ROOT ENDPOINT

@@ -13,6 +13,7 @@ from .services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
 from .services.redis_state_manager import RedisStateManager  
 from .services.cost_tracker import CostTracker
 from .memory.autogen_memory_system import AutoGenMemorySystem
+from .observability.otel_observer import OtelAutoGenObserver
 
 logger = structlog.get_logger()
 
@@ -54,7 +55,8 @@ class RealAgentOrchestrator:
                 state_manager=self.state_manager,
                 cost_tracker=self.cost_tracker,
                 agents_directory="src/agents/definitions",  # All 50+ agents
-                memory_system=self.memory_system  # Add memory system
+                memory_system=self.memory_system,  # Add memory system
+                observers=[OtelAutoGenObserver()],
             )
             
             # Initialize services

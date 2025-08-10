@@ -2,6 +2,14 @@
 """
 Test WebSocket streaming connection
 """
+import pytest
+
+# Obsolete legacy test retained temporarily for history.
+# Replaced by backend/tests/integration/test_unified_real_e2e.py and related E2E tests.
+pytest.skip(
+    "Obsolete legacy websocket test; superseded by unified real E2E. Skipped intentionally.",
+    allow_module_level=True,
+)
 
 import asyncio
 import json
