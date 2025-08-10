@@ -13,6 +13,8 @@ BACKEND_PORT="${BACKEND_PORT:-9000}"
 BASE_URL="${BACKEND_BASE_URL:-http://localhost:$BACKEND_PORT}"
 LOG_DIR="$ROOT_DIR/logs"
 mkdir -p "$LOG_DIR"
+# Reset previous failures log for a clean run
+: > "$LOG_DIR/ali_e2e_failures.log"
 
 # 1) Check OPENAI key
 if [[ -z "${OPENAI_API_KEY:-}" ]]; then
@@ -38,12 +40,21 @@ else
 fi
 
 # 3) Ensure backend running
-is_backend_up() { curl -sS "$BASE_URL/api/v1/agents/ecosystem" -m 3 -o /dev/null; }
+is_backend_up() { curl -sS "$BASE_URL/health" -m 3 -o /dev/null; }
 if ! is_backend_up; then
   echo "🚀 Avvio backend su port $BACKEND_PORT"
+  # Free the port if a previous uvicorn instance is stuck
+  if command -v lsof >/dev/null 2>&1; then
+    PIDS=$(lsof -t -i :"$BACKEND_PORT" -sTCP:LISTEN || true)
+    if [[ -n "$PIDS" ]]; then
+      echo "⚠️  Killing existing processes on port $BACKEND_PORT: $PIDS"
+      kill $PIDS || true
+      sleep 1
+    fi
+  fi
   (
     cd "$BACKEND_DIR"
-    uvicorn src.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload \
+  uvicorn src.main:app --host 0.0.0.0 --port "$BACKEND_PORT" \
       >"$LOG_DIR/backend_e2e_stdout.log" 2>"$LOG_DIR/backend_e2e_stderr.log" &
     echo $! >"$LOG_DIR/backend_e2e.pid"
   )
@@ -79,6 +90,7 @@ run_test() {
 run_test tests/integration/test_unified_real_e2e.py
 run_test tests/integration/test_ali_e2e_real_openai.py
 run_test tests/integration/test_real_e2e_ali_vector_openai.py
+run_test tests/integration/UseCaseBasedEnd2EndTest.py
 
 if [[ "$FAILED" -ne 0 ]]; then
   echo "❌ Alcuni test sono falliti. Controlla $LOG_DIR/ali_e2e_failures.log e i log del backend in $LOG_DIR."
