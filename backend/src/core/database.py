@@ -140,6 +140,26 @@ async def ensure_dev_schema() -> None:
                     ))
                     logger.info("🛠️ Added missing column", table="document_embeddings", column=col_name)
 
+            # Ensure embedding column is of type vector (convert if needed)
+            try:
+                res_types = await conn.execute(text(
+                    """
+                    SELECT data_type
+                    FROM information_schema.columns
+                    WHERE table_schema='public' AND table_name='document_embeddings' AND column_name='embedding'
+                    """
+                ))
+                row = res_types.fetchone()
+                if row and row[0] != 'vector':
+                    # Try to alter column type to vector; cast from JSON/text via pgvector
+                    # Note: assumes JSON array of floats stored as text; we recreate from text -> vector
+                    await conn.execute(text(
+                        "ALTER TABLE public.document_embeddings ALTER COLUMN embedding TYPE vector USING (to_vector(embedding::text))"
+                    ))
+                    logger.info("🔄 Converted embedding column to vector type")
+            except Exception as conv_e:
+                logger.warning("⚠️ Unable to convert embedding column to vector type", error=str(conv_e))
+
             # Ensure FK constraint exists
             await conn.execute(text(
                 """

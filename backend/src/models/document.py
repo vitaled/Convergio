@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import Integer, String, Text, JSON, Boolean, DateTime, func, text, ForeignKey
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
@@ -198,9 +199,8 @@ class DocumentEmbedding(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     
-    # Vector embedding (1536 dimensions for OpenAI text-embedding-ada-002)
-    # Note: pgvector will be added later - for now store as JSON
-    embedding: Mapped[List[float]] = mapped_column(JSON, nullable=False)
+    # Vector embedding (pgvector) - default 1536 dims for text-embedding-ada-002
+    embedding: Mapped[List[float]] = mapped_column(Vector, nullable=False)
     
     # Metadata
     embed_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON)
