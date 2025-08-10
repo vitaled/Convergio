@@ -1,132 +1,47 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Chart from 'chart.js/auto';
+  import { dashboardService, type DashboardMetrics } from '$lib/services/dashboardService';
+  import { aliService } from '$lib/services/aliService';
+  import DashboardMetricCard from '$lib/components/DashboardMetricCard.svelte';
+  import ProjectCard from '$lib/components/ProjectCard.svelte';
 
-  // Business KPIs 
-  let stats = {
-    revenue: 1094221,
-    customers: 1579,
-    growth: 23.5,
-    projects: 8
-  };
+  let dashboardData: DashboardMetrics | null = null;
+  let loading = true;
+  let error: string | null = null;
+  let timeRange = '7d';
 
-  // Sample projects (from CEO project management)
-  let projects = [
-    { 
-      id: 1, 
-      name: "Atlas Product Launch Q4", 
-      progress: 78, 
-      status: "in-progress", 
-      dueDate: "Dec 1, 2024",
-      type: "product_launch",
-      description: "Strategic product launch with full market penetration",
-      assigned_agents: ["Ali", "Davide", "Amy", "Sofia", "Baccio", "Luca"],
-      priority: "high",
-      budget: 150000,
-      revenue_target: 500000
-    },
-    { 
-      id: 2, 
-      name: "Brazil Market Analysis", 
-      progress: 45, 
-      status: "planning", 
-      dueDate: "Sep 15, 2024",
-      type: "market_analysis",
-      description: "Comprehensive Brazilian market entry feasibility study",
-      assigned_agents: ["Ali", "Domik", "Behice", "Fabio", "Amy", "Omri"],
-      priority: "high",
-      budget: 75000,
-      revenue_target: 1200000
-    },
-    { 
-      id: 3, 
-      name: "FitTech AI Series A Pitch", 
-      progress: 92, 
-      status: "review", 
-      dueDate: "Aug 20, 2024",
-      type: "investor_pitch",
-      description: "Series A funding round preparation and execution",
-      assigned_agents: ["Ali", "Sam", "Amy", "Riccardo", "Sofia", "Wiz"],
-      priority: "critical",
-      budget: 25000,
-      revenue_target: 5000000
+  function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  }
+
+  function formatNumber(num: number): string {
+    return new Intl.NumberFormat('en-US').format(num);
+  }
+
+  async function loadDashboardData() {
+    try {
+      loading = true;
+      error = null;
+      dashboardData = await dashboardService.getDashboardMetrics(timeRange);
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+      error = 'Failed to load dashboard data. Please try again.';
+    } finally {
+      loading = false;
     }
-  ];
+  }
 
-  let chartCanvas;
-
-  onMount(() => {
-    // Create revenue trend chart
-    const ctx = chartCanvas.getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-        datasets: [{
-          label: 'Revenue ($)',
-          data: [650000, 750000, 820000, 900000, 980000, 1050000, 1094221],
-          borderColor: 'rgb(234, 88, 12)',
-          backgroundColor: 'rgba(234, 88, 12, 0.1)',
-          tension: 0.4,
-          fill: true
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: false,
-            ticks: {
-              callback: function(value) {
-                return '$' + (value / 1000) + 'K';
-              }
-            }
-          }
-        }
-      }
-    });
+  onMount(async () => {
+    await loadDashboardData();
   });
 
-  function getStatusColor(status: string): string {
-    switch (status) {
-      case 'completed': 
-      case 'review': 
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300';
-      case 'in-progress': 
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300';
-      case 'planning': 
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
-      default: 
-        return 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300';
-    }
-  }
-
-  function getPriorityColor(priority: string): string {
-    switch (priority) {
-      case 'critical': return 'text-red-600 dark:text-red-400';
-      case 'high': return 'text-orange-600 dark:text-orange-400';
-      case 'medium': return 'text-yellow-600 dark:text-yellow-400';
-      default: return 'text-slate-600 dark:text-slate-400';
-    }
-  }
-
-  function getProjectIcon(type: string): string {
-    switch (type) {
-      case 'product_launch': return '🚀';
-      case 'market_analysis': return '🌎';
-      case 'investor_pitch': return '💼';
-      case 'strategic_planning': return '📈';
-      default: return '📊';
-    }
-  }
-
   async function createProject(projectType: string) {
-    const projectTemplates = {
+    const templates = {
       product_launch: {
         name: 'New Product Launch Initiative',
         description: 'End-to-end product launch with market strategy',
@@ -142,12 +57,11 @@
         description: 'Funding presentation and financial projections',
         timeline: '4 weeks'
       }
-    };
+    } as const;
 
-    const template = projectTemplates[projectType];
-    const projectName = prompt(`Project Name:`, template.name) || template.name;
-    const description = prompt(`Description:`, template.description) || template.description;
-
+    const template = templates[projectType as keyof typeof templates];
+    const projectName = prompt('Project Name:', template.name) || template.name;
+    const description = prompt('Description:', template.description) || template.description;
     if (!projectName) return;
 
     try {
@@ -157,44 +71,30 @@
         body: JSON.stringify({
           project_name: projectName,
           project_type: projectType,
-          description: description,
+          description,
           timeline: template.timeline,
           user_id: 'ceo'
         })
       });
-
       if (response.ok) {
         const result = await response.json();
-        alert(`✅ Project "${result.project_name}" created!\n\n👥 AI Team: ${result.agents_assigned?.slice(0, 3).join(', ')} + ${(result.agents_assigned?.length || 0) - 3} more\n\n🎯 Expected Deliverables:\n${result.expected_deliverables?.slice(0, 3).join('\n') || 'Strategic analysis and recommendations'}`);
+        alert(`✅ Project "${result.project_name}" created!`);
       } else {
         alert(`Project "${projectName}" queued for AI team assignment`);
       }
-    } catch (error) {
-      console.error('Failed to create project:', error);
+    } catch (e) {
+      console.error('Failed to create project:', e);
       alert(`Project "${projectName}" registered with AI team`);
     }
   }
 
   async function requestExecutiveBrief() {
     try {
-      const response = await fetch('http://localhost:9000/api/v1/agents/conversation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: 'Provide executive summary of all current projects, key metrics, and strategic recommendations for Q4',
-          user_id: 'dashboard',
-          context: { source: 'dashboard', role: 'ceo' }
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(`📊 Executive Brief from Ali (Chief of Staff):\n\n${result.response}`);
-      } else {
-        alert('Executive brief requested - AI team will prepare comprehensive summary');
-      }
-    } catch (error) {
-      alert('AI team briefing initiated - comprehensive report incoming');
+      const brief = await aliService.requestExecutiveBrief();
+      alert(`📋 Executive Brief from Ali (Chief of Staff):\n\n${brief}`);
+    } catch (e) {
+      console.error('Failed to get executive brief:', e);
+      alert('📋 AI team briefing initiated - comprehensive report incoming');
     }
   }
 </script>
@@ -215,85 +115,178 @@
       on:click={requestExecutiveBrief}
       class="inline-flex items-center px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium rounded transition-colors"
     >
-      <img src="/convergio_icons/document.svg" alt="" class="mr-1.5 h-3 w-3" />
+      <img src="/convergio_icons/download.svg" alt="" class="mr-1.5 h-3 w-3" />
       Brief
     </button>
   </div>
 
   <!-- Metrics Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- Revenue -->
-    <div class="bg-white border border-gray-200 rounded p-4 hover:shadow-sm transition-shadow">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center">
-          <div class="w-6 h-6 bg-green-100 rounded-md flex items-center justify-center mr-2">
-            <img src="/convergio_icons/dollar.svg" alt="" class="h-3 w-3 text-green-600" />
-          </div>
-          <span class="text-xs font-medium text-gray-600">Total Revenue</span>
+    {#if loading}
+      <!-- Loading state -->
+      {#each Array(4) as _, i}
+        <div class="bg-white border border-gray-200 rounded p-4 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded mb-2"></div>
+          <div class="h-6 bg-gray-200 rounded mb-1"></div>
+          <div class="h-3 bg-gray-200 rounded"></div>
         </div>
-        <span class="text-xs font-medium text-green-600 flex items-center">
-          +32.7% 
-          <img src="/convergio_icons/trending_up.svg" alt="" class="ml-1 h-3 w-3" />
-        </span>
-      </div>
-      <div class="text-xl font-bold text-gray-900">${stats.revenue.toLocaleString()}</div>
-      <p class="text-xs text-gray-500 mt-1">Trending up this month</p>
+      {/each}
+    {:else}
+      {#if dashboardData?.overview?.total_revenue !== undefined}
+        <DashboardMetricCard
+          title="Total Revenue"
+          value={dashboardData.overview.total_revenue}
+          change={dashboardData.overview.growth_rate}
+          changeType={dashboardData.overview.growth_rate >= 0 ? 'increase' : 'decrease'}
+          icon="/convergio_icons/cost_management.svg"
+          iconColor="text-green-600"
+          bgColor="bg-green-50"
+          formatValue={(val) => `$${formatNumber(Number(val))}`}
+          showChange={dashboardData?.overview?.growth_rate != null}
+        />
+      {/if}
+
+      <!-- Users -->
+      <DashboardMetricCard
+        title="Total Users"
+        value={dashboardData?.overview?.total_users ?? 'N/A'}
+        change={dashboardData?.overview?.growth_rate ?? 0}
+        changeType={(dashboardData?.overview?.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
+        showChange={dashboardData?.overview?.growth_rate != null}
+        icon="/convergio_icons/users.svg"
+        iconColor="text-blue-600"
+        bgColor="bg-blue-50"
+      />
+
+      <!-- Active Users -->
+      <DashboardMetricCard
+        title="Active Users"
+        value={dashboardData?.overview?.active_users ?? 'N/A'}
+        change={dashboardData?.overview?.growth_rate ?? 0}
+        changeType={(dashboardData?.overview?.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
+        showChange={dashboardData?.overview?.growth_rate != null}
+        icon="/convergio_icons/user.svg"
+        iconColor="text-purple-600"
+        bgColor="bg-purple-50"
+      />
+
+      <!-- System Health -->
+      <DashboardMetricCard
+        title="System Health"
+        value={dashboardData?.overview?.system_health ?? 'Healthy'}
+        change={dashboardData?.overview?.uptime_percentage ?? 0}
+        changeType="neutral"
+        icon="/convergio_icons/analytics.svg"
+        iconColor="text-orange-600"
+        bgColor="bg-orange-50"
+        formatValue={(val) => String(val)}
+        showChange={false}
+      />
+    {/if}
+  </div>
+
+  <!-- Performance & Cost Metrics -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Performance Metrics -->
+    <div class="bg-white border border-gray-200 rounded p-4">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Performance Metrics</h3>
+      {#if loading}
+        <div class="space-y-3 animate-pulse">
+          {#each Array(4) as _, i}
+            <div class="flex justify-between items-center">
+              <div class="h-3 bg-gray-200 rounded w-24"></div>
+              <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Agent Interactions</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.performance_metrics?.agent_interactions != null
+                ? formatNumber(dashboardData.performance_metrics.agent_interactions)
+                : '-'}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Avg Response Time</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.performance_metrics?.avg_response_time != null
+                ? `${dashboardData.performance_metrics.avg_response_time.toFixed(2)}s`
+                : '-'}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Success Rate</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.performance_metrics?.success_rate != null
+                ? `${dashboardData.performance_metrics.success_rate.toFixed(1)}%`
+                : '-'}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Peak Concurrent Users</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.performance_metrics?.peak_concurrent_users != null
+                ? formatNumber(dashboardData.performance_metrics.peak_concurrent_users)
+                : '-'}
+            </span>
+          </div>
+        </div>
+      {/if}
     </div>
 
-    <!-- Customers -->
-    <div class="bg-white border border-gray-200 rounded p-4 hover:shadow-sm transition-shadow">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center">
-          <div class="w-6 h-6 bg-blue-100 rounded-md flex items-center justify-center mr-2">
-            <img src="/convergio_icons/users.svg" alt="" class="h-3 w-3 text-blue-600" />
-          </div>
-          <span class="text-xs font-medium text-gray-600">New Customers</span>
+    <!-- Cost Summary -->
+    <div class="bg-white border border-gray-200 rounded p-4">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Cost Summary</h3>
+      {#if loading}
+        <div class="space-y-3 animate-pulse">
+          {#each Array(4) as _, i}
+            <div class="flex justify-between items-center">
+              <div class="h-3 bg-gray-200 rounded w-24"></div>
+              <div class="h-3 bg-gray-200 rounded w-16"></div>
+            </div>
+          {/each}
         </div>
-        <span class="text-xs font-medium text-red-600 flex items-center">
-          -45% 
-          <img src="/convergio_icons/trending_up.svg" alt="" class="ml-1 h-3 w-3 rotate-180" />
-        </span>
-      </div>
-      <div class="text-xl font-bold text-gray-900">{stats.customers.toLocaleString()}</div>
-      <p class="text-xs text-gray-500 mt-1">Down 25% this period</p>
-    </div>
-
-    <!-- Active Accounts -->
-    <div class="bg-white border border-gray-200 rounded p-4 hover:shadow-sm transition-shadow">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center">
-          <div class="w-6 h-6 bg-purple-100 rounded-md flex items-center justify-center mr-2">
-            <img src="/convergio_icons/target.svg" alt="" class="h-3 w-3 text-purple-600" />
+      {:else}
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Total Cost</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.cost_summary?.total_cost_usd != null
+                ? formatCurrency(dashboardData.cost_summary.total_cost_usd)
+                : '-'}
+            </span>
           </div>
-          <span class="text-xs font-medium text-gray-600">Active Accounts</span>
-        </div>
-        <span class="text-xs font-medium text-green-600 flex items-center">
-          +78.3% 
-          <img src="/convergio_icons/trending_up.svg" alt="" class="ml-1 h-3 w-3" />
-        </span>
-      </div>
-      <div class="text-xl font-bold text-gray-900">36,167</div>
-      <p class="text-xs text-gray-500 mt-1">Strong user retention</p>
-    </div>
-
-    <!-- Growth Rate -->
-    <div class="bg-white border border-gray-200 rounded p-4 hover:shadow-sm transition-shadow">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center">
-          <div class="w-6 h-6 bg-orange-100 rounded-md flex items-center justify-center mr-2">
-            <img src="/convergio_icons/trending_up.svg" alt="" class="h-3 w-3 text-orange-600" />
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Cost per Interaction</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.cost_summary?.cost_per_interaction != null
+                ? (dashboardData.cost_summary.cost_per_interaction).toFixed(4)
+                : '-'}
+            </span>
           </div>
-          <span class="text-xs font-medium text-gray-600">Growth Rate</span>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Budget Utilization</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.cost_summary?.budget_utilization != null
+                ? `${dashboardData.cost_summary.budget_utilization.toFixed(1)}%`
+                : '-'}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-gray-600">Top Model</span>
+            <span class="text-sm font-medium text-gray-900">
+              {dashboardData?.cost_summary?.top_models?.[0]?.model ?? 'N/A'}
+            </span>
+          </div>
         </div>
-        <span class="text-xs font-medium text-green-600 flex items-center">
-          +5.9% 
-          <img src="/convergio_icons/trending_up.svg" alt="" class="ml-1 h-3 w-3" />
-        </span>
-      </div>
-      <div class="text-xl font-bold text-gray-900">1.5%</div>
-      <p class="text-xs text-gray-500 mt-1">Steady performance</p>
+      {/if}
     </div>
   </div>
+
+  <!-- Charts removed: only show real backend data (no synthetic charts) -->
 
   <!-- Projects Section -->
   <div class="bg-white border border-gray-200 rounded">
@@ -318,30 +311,37 @@
     </div>
     
     <div class="p-0">
-      {#each projects as project}
-        <div class="px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="text-sm">{getProjectIcon(project.type)}</div>
-              <div>
-                <h4 class="text-sm font-medium text-gray-900">{project.name}</h4>
-                <p class="text-xs text-gray-500">{project.description}</p>
+      {#if loading}
+        <!-- Loading state for projects -->
+        {#each Array(3) as _, i}
+          <div class="px-4 py-3 border-b border-gray-100 last:border-b-0 animate-pulse">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-4 h-4 bg-gray-200 rounded"></div>
+                <div>
+                  <div class="h-4 bg-gray-200 rounded mb-1"></div>
+                  <div class="h-3 bg-gray-200 rounded w-32"></div>
+                </div>
               </div>
-            </div>
-            <div class="flex items-center space-x-3">
-              <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">
-                {project.status}
-              </span>
-              <div class="w-16 text-right">
-                <div class="text-xs font-medium text-gray-900">{project.progress}%</div>
-                <div class="w-16 h-1.5 bg-gray-200 rounded-full mt-1">
-                  <div class="h-full bg-gray-900 rounded-full" style="width: {project.progress}%"></div>
+              <div class="flex items-center space-x-3">
+                <div class="w-16 h-4 bg-gray-200 rounded"></div>
+                <div class="w-16">
+                  <div class="h-3 bg-gray-200 rounded mb-1"></div>
+                  <div class="w-16 h-1.5 bg-gray-200 rounded-full"></div>
                 </div>
               </div>
             </div>
           </div>
+        {/each}
+      {:else if dashboardData?.recent_projects && dashboardData.recent_projects.length > 0}
+        {#each dashboardData.recent_projects as project}
+          <ProjectCard {project} />
+        {/each}
+      {:else}
+        <div class="px-4 py-8 text-center text-gray-500">
+          <p>No projects available</p>
         </div>
-      {/each}
+      {/if}
     </div>
   </div>
 </div>

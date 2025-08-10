@@ -15,7 +15,7 @@ Timeline: Phase 2 development (Q2 2025)
 Dependencies: Agent definition standardization, advanced UI components
 -->
 
-<script>
+<script lang="ts">
 	// import { onMount } from 'svelte';
 	// import { writable } from 'svelte/store';
 	// import AgentEditor from '$lib/components/AgentEditor.svelte';

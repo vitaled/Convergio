@@ -1,5 +1,20 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { readFileSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Resolve repo root and read version from top-level VERSION file
+const __dirnameLocal = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirnameLocal, '..');
+let appVersion = '0.0.0';
+try {
+  const versionPath = path.resolve(repoRoot, 'VERSION');
+  appVersion = readFileSync(versionPath, 'utf8').trim();
+} catch (err) {
+  // Fallback to package.json version if VERSION file not found
+  appVersion = process.env.npm_package_version || '0.0.0';
+}
 
 export default defineConfig({
 	plugins: [sveltekit()],
@@ -40,9 +55,10 @@ export default defineConfig({
 		postcss: './postcss.config.js'
 	},
 	
-	define: {
-		// Environment variables
-		__BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-		__VERSION__: JSON.stringify(process.env.npm_package_version || '2030.1.0')
-	}
+  define: {
+    // Build-time constants
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __VERSION__: JSON.stringify(appVersion),
+    __APP_VERSION__: JSON.stringify(appVersion)
+  }
 });

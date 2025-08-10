@@ -14,7 +14,7 @@ Timeline: Phase 2 development (Q3 2025)
 Dependencies: Advanced orchestrator engine, agent communication protocols
 -->
 
-<script>
+<script lang="ts">
 	// import SwarmCoordinationDashboard from '$lib/components/SwarmCoordinationDashboard.svelte';
 </script>
 

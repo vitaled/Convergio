@@ -18,9 +18,8 @@
   // - Agent Management (Advanced CRUD operations)  
   // - Swarm Coordination (Multi-agent orchestration)
   
-  $: currentPath = $page.url.pathname;
-  
   let healthStatus: any = null;
+  const APP_VERSION: string = (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : (typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.0')) as unknown as string;
   
   onMount(async () => {
     try {
@@ -37,23 +36,23 @@
         healthStatus = await response.json();
       }
     } catch (error) {
-      // Use fallback version
-      healthStatus = { version: '1.0.0', build: 'unknown' };
+      // No fallback - show real error state
+      healthStatus = null;
+      console.error('Failed to get health status:', error);
     }
   });
   
+  // SEMPLICE: controlla se il path corrente inizia con l'href del menu
   function isActive(href: string): boolean {
-    // Handle exact match and base path matching
-    if (currentPath === href) {
-      return true;
+    const currentPath = $page.url.pathname;
+    
+    // Per la home page
+    if (href === '/') {
+      return currentPath === '/';
     }
     
-    // Handle nested routes - if we're on /dashboard/sub, still highlight /dashboard
-    if (href !== '/' && currentPath.startsWith(href + '/')) {
-      return true;
-    }
-    
-    return false;
+    // Per le altre pagine: controllo esatto del path
+    return currentPath === href;
   }
 </script>
 
@@ -69,24 +68,22 @@
             <img src="/convergio_logo.png" alt="Platform Convergio" class="h-8 w-auto" />
             <span class="text-gray-900 font-medium tracking-tight">platform.Convergio.io</span>
           </button>
-          <div class="hidden md:block h-4 w-px bg-gray-300"></div>
-          <div class="hidden md:block text-xs text-gray-500 tracking-wide">
-            v{healthStatus?.version || '1.0.0'} • {currentPath.replace('/', '') || 'home'}
-          </div>
         </div>
         
         <!-- Simple Navigation -->
         <nav class="hidden md:flex items-center space-x-6">
           {#each navItems as item}
-            <button
-              on:click={() => goto(item.href)}
-              class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors {isActive(item.href) 
-                ? 'bg-orange-100 text-orange-900 font-semibold' 
+            <a
+              href={item.href}
+              sveltekit:prefetch
+              aria-current={isActive(item.href) ? 'page' : undefined}
+              class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors {isActive(item.href)
+                ? 'bg-orange-100 text-orange-900 font-semibold'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}"
             >
               <img src={item.iconPath} alt="" class="h-3 w-3" />
               <span>{item.label}</span>
-            </button>
+            </a>
           {/each}
         </nav>
         
@@ -94,6 +91,11 @@
         <div class="flex items-center space-x-4">
           <!-- Cost Display -->
           <CostDisplay />
+          
+          <!-- Version -->
+          <div class="hidden md:block text-xs text-gray-500 tracking-wide">
+            v{APP_VERSION}
+          </div>
           
           <!-- Status Indicator -->
           <div class="flex items-center space-x-2 text-xs text-green-600">

@@ -14,7 +14,7 @@ Timeline: Phase 2 development (Q2 2025)
 Dependencies: Complete business data model, advanced analytics engine
 -->
 
-<script>
+<script lang="ts">
 	// import CEOSuperDashboard from '$lib/components/CEOSuperDashboard.svelte';
 </script>
 

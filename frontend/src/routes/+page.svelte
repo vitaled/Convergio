@@ -5,6 +5,7 @@
 
   let healthStatus: any = null;
   let loading = true;
+  const APP_VERSION: string = (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : (typeof __VERSION__ !== 'undefined' ? __VERSION__ : '0.0.0')) as unknown as string;
 
   onMount(async () => {
     try {
@@ -59,8 +60,8 @@
               <span class="text-gray-500">Starting...</span>
             {/if}
           </div>
-          <span class="text-xs text-gray-500 font-mono" title="Version: {healthStatus?.version || '1.0.0'} Build: {healthStatus?.build || 'unknown'}">
-            v{healthStatus?.version || '1.0.0'}
+          <span class="text-xs text-gray-500 font-mono" title="Version: {APP_VERSION} Build: {healthStatus?.build || 'unknown'}">
+            v{APP_VERSION}
           </span>
         </div>
       </div>

@@ -16,6 +16,6 @@ export const handleError: HandleClientError = ({ error, event }) => {
 	}
 
 	return {
-		message: error?.message || 'An unexpected error occurred'
+		message: (error as any)?.message || 'An unexpected error occurred'
 	};
 };
