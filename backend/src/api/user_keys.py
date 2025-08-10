@@ -33,6 +33,15 @@ class APIKeyStatus(BaseModel):
     is_configured: bool
     is_valid: Optional[bool] = None
     last_tested: Optional[str] = None
+    value: Optional[str] = None  # Optional value field for model or notes
+
+
+class UserKeysStoreResult(BaseModel):
+    """Response model for storing user keys"""
+    openai: bool
+    anthropic: bool
+    stored: bool
+    default_model: Optional[str] = None
 
 # In-memory storage for demo (in production, use Redis or database)
 user_keys_storage: Dict[str, Dict[str, str]] = {}
@@ -60,7 +69,7 @@ def decrypt_api_key(encrypted_key: str) -> str:
         logger.error(f"Failed to decrypt API key: {e}")
         return ""
 
-@router.post("/user-keys", response_model=Dict[str, bool])
+@router.post("/user-keys", response_model=UserKeysStoreResult)
 async def store_user_api_keys(
     keys: UserAPIKeys,
     request: Request
@@ -89,12 +98,12 @@ async def store_user_api_keys(
         
         logger.info(f"🔑 Stored API keys for session {session_id}: {list(encrypted_keys.keys())}")
         
-        return {
-            "openai": bool(keys.openai_api_key),
-            "anthropic": bool(keys.anthropic_api_key),
-            "stored": True,
-            "default_model": encrypted_keys.get('model')
-        }
+        return UserKeysStoreResult(
+            openai=bool(keys.openai_api_key),
+            anthropic=bool(keys.anthropic_api_key),
+            stored=True,
+            default_model=encrypted_keys.get('model')
+        )
         
     except Exception as e:
         logger.error(f"❌ Failed to store API keys: {e}")
@@ -123,11 +132,11 @@ async def get_api_keys_status(request: Request):
         
         # Include preferred model if set
         if stored_keys.get('model'):
-            status["model"] = {
-                "service": "OpenAI model",
-                "is_configured": True,
-                "value": stored_keys.get('model')
-            }
+            status["model"] = APIKeyStatus(
+                service="OpenAI model",
+                is_configured=True,
+                value=stored_keys.get('model')
+            )
         
         return status
         
