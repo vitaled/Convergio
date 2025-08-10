@@ -37,15 +37,24 @@ async def client():
 
 
 @pytest.mark.asyncio
-async def test_real_e2e_vector_and_ali(client):
+async def test_real_e2e_vector_and_ali(client, transcript_logger):
     # 0) Store OpenAI key for session if provided
     openai_key = os.environ.get("OPENAI_API_KEY")
     if openai_key:
         print("🔑 Storing user OpenAI API key for session...")
-        r = await client.post("/api/v1/user-keys", json={
-            "openai_api_key": openai_key,
-            "default_model": get_settings().OPENAI_MODEL,
-        })
+        payload = {"openai_api_key": openai_key, "default_model": get_settings().OPENAI_MODEL}
+        t0 = time.time()
+        r = await client.post("/api/v1/user-keys", json=payload)
+        dt = time.time() - t0
+        transcript_logger.http(
+            name="store_user_key",
+            method="POST",
+            url="http://localhost:9000/api/v1/user-keys",
+            request_json=payload,
+            status=r.status_code,
+            response_json=r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text,
+            duration_s=dt,
+        )
         assert r.status_code in (200, 201), f"Key store failed: {r.status_code} {r.text}"
         print("✅ Key stored =>", r.json())
     else:
@@ -65,7 +74,9 @@ async def test_real_e2e_vector_and_ali(client):
 
     print("\n📥 Indexing document...\n", json.dumps(doc_payload, ensure_ascii=False, indent=2))
     t0 = time.time()
+    t0 = time.time()
     idx = await client.post("/api/v1/vector/documents/index", json=doc_payload)
+    t_idx = time.time() - t0
     t_idx = time.time() - t0
     assert idx.status_code == 200, f"Index failed: {idx.status_code} {idx.text}"
     idx_data = idx.json()
@@ -76,7 +87,9 @@ async def test_real_e2e_vector_and_ali(client):
     search_payload = {"query": "AI orchestration and vector search", "top_k": 3, "similarity_threshold": 0.2}
     print("\n🔍 Similarity search...\n", json.dumps(search_payload, ensure_ascii=False, indent=2))
     t0 = time.time()
+    t0 = time.time()
     sr = await client.post("/api/v1/vector/search", json=search_payload)
+    t_search = time.time() - t0
     t_search = time.time() - t0
     assert sr.status_code == 200, f"Search failed: {sr.status_code} {sr.text}"
     srj = sr.json()
@@ -97,11 +110,45 @@ async def test_real_e2e_vector_and_ali(client):
 
     print("\n🧠 Calling Ali intelligence...\n", json.dumps(ali_payload, ensure_ascii=False, indent=2))
     t0 = time.time()
+    t0 = time.time()
     ali = await client.post("/api/v1/ali/intelligence", json=ali_payload)
+    t_ali = time.time() - t0
     t_ali = time.time() - t0
     assert ali.status_code == 200, f"Ali failed: {ali.status_code} {ali.text}"
 
     ali_data = ali.json()
+    # Write transcript entries
+    transcript_logger.http(
+        name="vector_index",
+        method="POST",
+        url="http://localhost:9000/api/v1/vector/documents/index",
+        request_json=doc_payload,
+        status=idx.status_code,
+        response_json=idx.json() if idx.headers.get("content-type", "").startswith("application/json") else idx.text,
+        duration_s=t_idx,
+    )
+    transcript_logger.http(
+        name="vector_search",
+        method="POST",
+        url="http://localhost:9000/api/v1/vector/search",
+        request_json=search_payload,
+        status=sr.status_code,
+        response_json={"total_results": srj.get("total_results"), "processing_time_ms": srj.get("processing_time_ms")},
+        duration_s=t_search,
+    )
+    transcript_logger.http(
+        name="ali_intelligence",
+        method="POST",
+        url="http://localhost:9000/api/v1/ali/intelligence",
+        request_json=ali_payload,
+        status=ali.status_code,
+        response_json={
+            "keys": list(ali_data.keys()),
+            "confidence_score": ali_data.get("confidence_score"),
+            "sources": ali_data.get("data_sources_used"),
+        },
+        duration_s=t_ali,
+    )
     print("\n📊 Ali response keys:", list(ali_data.keys()))
     print("confidence:", ali_data.get("confidence_score"), "sources:", ali_data.get("data_sources_used"))
     print("response preview:\n", ali_data.get("response", "")[:800])

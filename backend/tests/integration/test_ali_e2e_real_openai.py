@@ -42,7 +42,7 @@ async def client():
 
 
 @pytest.mark.asyncio
-async def test_ali_intelligence_real_openai(client):
+async def test_ali_intelligence_real_openai(client, transcript_logger):
     # Arrange: optionally store user key if available via env
     openai_key = os.environ.get("OPENAI_API_KEY")
 
@@ -50,7 +50,19 @@ async def test_ali_intelligence_real_openai(client):
     async with httpx.AsyncClient(base_url="http://localhost:9000") as setup_client:
         if openai_key:
             print("🔑 Storing user OpenAI API key for session...")
-            resp = await setup_client.post("/api/v1/user-keys", json={"openai_api_key": openai_key, "default_model": get_settings().OPENAI_MODEL})
+            payload = {"openai_api_key": openai_key, "default_model": get_settings().OPENAI_MODEL}
+            t0 = time.time()
+            resp = await setup_client.post("/api/v1/user-keys", json=payload)
+            dt = time.time() - t0
+            transcript_logger.http(
+                name="store_user_key",
+                method="POST",
+                url="http://localhost:9000/api/v1/user-keys",
+                request_json=payload,
+                status=resp.status_code,
+                response_json=resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text,
+                duration_s=dt,
+            )
             assert resp.status_code in (200, 201), f"Failed to store key: {resp.status_code} {resp.text}"
             print(f"✅ Key stored: {resp.json()}")
         else:
@@ -66,13 +78,28 @@ async def test_ali_intelligence_real_openai(client):
 
     print("🚀 Calling /api/v1/ali/intelligence with payload:\n", json.dumps(payload, ensure_ascii=False, indent=2))
     t0 = time.time()
+    t0 = time.time()
     response = await client.post("/api/v1/ali/intelligence", json=payload)
+    dt = time.time() - t0
     dt = time.time() - t0
 
     # Assert baseline
     assert response.status_code == 200, f"Unexpected status: {response.status_code} {response.text}"
 
     data = response.json()
+    transcript_logger.http(
+        name="ali_intelligence",
+        method="POST",
+        url="http://localhost:9000/api/v1/ali/intelligence",
+        request_json=payload,
+        status=response.status_code,
+        response_json={
+            "keys": list(data.keys()),
+            "confidence_score": data.get("confidence_score"),
+            "sources": data.get("data_sources_used"),
+        },
+        duration_s=dt,
+    )
 
     # Detailed logs
     print("\n📥 Response JSON (truncated fields for readability):")
