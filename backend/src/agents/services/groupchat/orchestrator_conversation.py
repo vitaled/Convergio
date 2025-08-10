@@ -38,14 +38,36 @@ async def orchestrate_conversation_impl(
     start_time = datetime.now()
     conversation_id = conversation_id or str(uuid.uuid4())
 
+    # Import message classifier
+    from .message_classifier import MessageClassifier
+    
+    # Classify the message to determine strategy
+    msg_type, msg_metadata = MessageClassifier.classify_message(message)
+    logger.info(f"📊 Message classified as: {msg_type}", metadata=msg_metadata)
+    
     # Direct agent conversation path
     if context and 'agent_name' in context and context['agent_name']:
         agent_name = context['agent_name']
         if agent_name in orchestrator.agents:
             logger.info("🎯 Direct agent conversation requested", agent=agent_name)
             return await direct_agent_conversation_impl(orchestrator, agent_name, message, user_id, conversation_id, context)
+    
+    # Handle simple messages with single agent
+    if msg_metadata.get('single_agent', False) and msg_type in ['greeting', 'simple_query']:
+        # Use Ali (Chief of Staff) for simple responses
+        agent_name = 'ali_chief_of_staff'
+        if agent_name in orchestrator.agents:
+            logger.info(f"🎯 Simple {msg_type} - routing to {agent_name}")
+            return await direct_agent_conversation_impl(
+                orchestrator, agent_name, message, user_id, conversation_id, 
+                {**context, 'message_type': msg_type} if context else {'message_type': msg_type}
+            )
 
-    logger.info("🎯 Starting GroupChat conversation", conversation_id=conversation_id, user_id=user_id, message_length=len(message))
+    logger.info("🎯 Starting GroupChat conversation", 
+                conversation_id=conversation_id, 
+                user_id=user_id, 
+                message_type=msg_type,
+                message_length=len(message))
 
     # Cost & Safety gating
     if orchestrator.settings.cost_safety_enabled and orchestrator.cost_tracker is not None:
@@ -95,12 +117,27 @@ async def orchestrate_conversation_impl(
         "mode": "groupchat",
         "context": context or {},
     }
-    with start_span("groupchat.run", {"max_turns": orchestrator.settings.autogen_max_turns, **run_metadata}):
+    # Use message metadata to configure conversation
+    effective_max_turns = min(
+        msg_metadata.get('max_turns', 10),
+        getattr(orchestrator.settings, 'autogen_max_turns', 10)
+    )
+    
+    # Get appropriate termination markers for message type
+    term_markers = MessageClassifier.get_termination_phrases(msg_type)
+    
+    # Shorter timeout for simple messages
+    timeout_seconds = 30 if msg_type in ['greeting', 'simple_query'] else getattr(orchestrator.settings, 'autogen_timeout_seconds', 120)
+    
+    with start_span("groupchat.run", {"max_turns": effective_max_turns, "msg_type": msg_type, **run_metadata}):
         chat_messages, full_response = await run_groupchat_stream_func(
             orchestrator.group_chat,
             task=enhanced_message,
             observers=getattr(orchestrator, "observers", None),
-            metadata=run_metadata,
+            metadata={**run_metadata, "message_type": msg_type},
+            hard_timeout_seconds=timeout_seconds,
+            termination_markers=term_markers,
+            max_events=max(1, effective_max_turns * 2),
         )
 
     # Extract details

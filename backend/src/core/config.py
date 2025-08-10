@@ -9,7 +9,9 @@ from pathlib import Path
 # Proactively load environment from backend/.env and root .env if present
 try:
     from dotenv import load_dotenv
-    project_root = Path(__file__).resolve().parents[2]
+    # Resolve repository root (…/convergio)
+    # __file__ = …/backend/src/core/config.py → parents[3] = repo root
+    project_root = Path(__file__).resolve().parents[3]
     backend_env = project_root / "backend" / ".env"
     root_env = project_root / ".env"
     # Load root first, then backend to allow backend/.env to override if both exist
@@ -56,7 +58,8 @@ class Settings(BaseSettings):
     def app_version(self) -> str:
         """Get application version from VERSION file"""
         try:
-            version_file = Path(__file__).parent.parent.parent / "VERSION"
+            # Read VERSION at repository root
+            version_file = Path(__file__).resolve().parents[3] / "VERSION"
             if version_file.exists():
                 return version_file.read_text().strip()
             return self.PROJECT_VERSION
@@ -68,7 +71,19 @@ class Settings(BaseSettings):
     def build_number(self) -> str:
         """Get build number"""
         try:
-            # Try to get git info for build number
+            # Prefer explicit environment variable
+            env_build = os.environ.get("BUILD") or os.environ.get("BUILD_NUMBER")
+            if env_build:
+                return str(env_build).strip()
+            # Prefer BUILD file at repo root; fall back to VERSION
+            repo_root = Path(__file__).resolve().parents[3]
+            build_file = repo_root / "BUILD"
+            if build_file.exists():
+                return build_file.read_text().strip()
+            version_file = repo_root / "VERSION"
+            if version_file.exists():
+                return version_file.read_text().strip()
+            # Last resort: short git SHA or dev-build
             import subprocess
             result = subprocess.run(
                 ["git", "rev-parse", "--short", "HEAD"],
@@ -310,7 +325,8 @@ settings = get_settings()
 
 def get_project_root() -> Path:
     """Get project root directory"""
-    return Path(__file__).parent.parent.parent
+    # __file__ = …/backend/src/core/config.py → parents[3] = repo root
+    return Path(__file__).resolve().parents[3]
 
 
 def ensure_directories(settings: Settings) -> None:

@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan management - startup and shutdown events"""
     
     # 🚀 STARTUP
-    logger.info("🚀 Starting Convergio Unified Backend", version="2.0.0")
+    logger.info("🚀 Starting Convergio Unified Backend", version=get_settings().app_version)
     
     try:
         # Initialize database
@@ -147,7 +147,7 @@ def create_app() -> FastAPI:
         **Security**: Rate limiting + CORS
         **Scalability**: Horizontal scaling + Background tasks + WebSockets
         """,
-        version="2.0.0",
+    version=settings.app_version,
         docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
         redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
         openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,

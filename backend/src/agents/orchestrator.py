@@ -38,8 +38,18 @@ class RealAgentOrchestrator:
         try:
             logger.info("🚀 Initializing REAL Agent System (Complete Migration)")
             
-            # Get Redis client from Convergio core
-            redis_client = get_redis_client()
+            # Ensure Redis is initialized
+            try:
+                redis_client = get_redis_client()
+            except RuntimeError as e:
+                if "Redis not initialized" in str(e):
+                    logger.info("🔄 Redis not initialized, initializing now...")
+                    from src.core.redis import init_redis
+                    await init_redis()
+                    redis_client = get_redis_client()
+                else:
+                    raise
+            
             redis_url = self.settings.REDIS_URL
             
             # Initialize REAL components from agents service

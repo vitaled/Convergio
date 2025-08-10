@@ -44,10 +44,38 @@ def setup_logging() -> None:
         level=getattr(logging, settings.LOG_LEVEL),
     )
     
-    # Disable noisy loggers in production
+    # 🤖 ENABLE DETAILED AI CONVERSATION LOGGING
+    # Force DEBUG level for OpenAI and AutoGen conversation logging
+    openai_logger = logging.getLogger("openai")
+    openai_logger.setLevel(logging.DEBUG)
+    autogen_logger = logging.getLogger("autogen")  
+    autogen_logger.setLevel(logging.DEBUG)
+    httpx_logger = logging.getLogger("httpx")
+    httpx_logger.setLevel(logging.DEBUG)
+    
+    # Create detailed conversation handler
+    conversation_handler = logging.StreamHandler(sys.stdout)
+    conversation_handler.setLevel(logging.DEBUG)
+    conversation_formatter = logging.Formatter(
+        '🤖 %(name)s [%(levelname)s] %(asctime)s - %(message)s'
+    )
+    conversation_handler.setFormatter(conversation_formatter)
+    
+    # Add handlers to AI loggers
+    for ai_logger in [openai_logger, autogen_logger, httpx_logger]:
+        if not ai_logger.handlers:  # Avoid duplicate handlers
+            ai_logger.addHandler(conversation_handler)
+            ai_logger.propagate = False  # Prevent duplicate messages
+    
+    # Disable noisy loggers in production (but keep AI logging)
     if settings.ENVIRONMENT == "production":
         logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
         logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    else:
+        # In development, ensure all AI conversation details are logged
+        logging.getLogger("openai._base_client").setLevel(logging.DEBUG)
+        logging.getLogger("autogen_core").setLevel(logging.DEBUG)
+        logging.getLogger("autogen_ext").setLevel(logging.DEBUG)
 
 
 def get_logger(name: str = None) -> structlog.BoundLogger:

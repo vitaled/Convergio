@@ -399,7 +399,7 @@ class RAGEnhancedGroupChat(SelectorGroupChat):
         # Track conversation history
         conversation_history = []
         
-        async for message in super().run_stream(task):
+        async for message in super().run_stream(task=task):
             self.turn_count += 1
             
             # If we have a RAG injector and the message is from an agent

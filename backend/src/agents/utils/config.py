@@ -110,6 +110,7 @@ class Settings(BaseSettings):
     # AutoGen Configuration
     autogen_max_turns: int = Field(default=10, env="AUTOGEN_MAX_TURNS")
     autogen_timeout_seconds: int = Field(default=300, env="AUTOGEN_TIMEOUT_SECONDS")
+    conversation_termination_markers: str = Field(default="final answer,final response,conclusion,end_of_conversation", env="CONVERSATION_TERMINATION_MARKERS")
     autogen_cost_limit_usd: float = Field(default=50.0, env="AUTOGEN_COST_LIMIT_USD")
     autogen_redis_state_ttl: int = Field(default=3600, env="AUTOGEN_REDIS_STATE_TTL")
     default_ai_model: str = Field(default="gpt-5-nano", env="DEFAULT_AI_MODEL")
@@ -164,6 +165,14 @@ class Settings(BaseSettings):
     debug_mode: bool = Field(default=False, env="DEBUG_MODE")
     debug: bool = Field(default=False, env="DEBUG")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
+    
+    # AutoGen Configuration - with smarter defaults
+    autogen_max_turns: int = Field(default=5, env="AUTOGEN_MAX_TURNS")  # Reduced from 10
+    autogen_timeout_seconds: int = Field(default=60, env="AUTOGEN_TIMEOUT_SECONDS")  # Reduced from 120
+    conversation_termination_markers: str = Field(
+        default="final answer,conclusion,summary,recommendation,completed,done",
+        env="CONVERSATION_TERMINATION_MARKERS"
+    )
     
     # Local AI Models (Ollama/Qwen) - Optional fields with defaults
     ollama_host: str = Field(default="", env="OLLAMA_HOST")

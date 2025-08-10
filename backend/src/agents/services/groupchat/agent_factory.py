@@ -10,6 +10,7 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from ..agent_loader import DynamicAgentLoader, AgentMetadata
+from .agent_instructions import optimize_agent_prompt
 
 
 logger = structlog.get_logger()
@@ -22,7 +23,9 @@ def create_business_agents(
     agents: Dict[str, AssistantAgent] = {}
 
     for agent_id, metadata in loader.agent_metadata.items():
-        system_message = loader._build_system_message(metadata)
+        original_prompt = loader._build_system_message(metadata)
+        # Optimize prompts for conciseness
+        system_message = optimize_agent_prompt(original_prompt)
         tools = _select_tools_for_agent(agent_id)
         agent = AssistantAgent(
             name=agent_id,
@@ -31,7 +34,7 @@ def create_business_agents(
             tools=tools,
         )
         agents[agent_id] = agent
-    logger.info("Business agents created", count=len(agents))
+    logger.info("Business agents created with optimized prompts", count=len(agents))
     return agents
 
 

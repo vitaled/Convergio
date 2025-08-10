@@ -10,6 +10,7 @@ from typing import List, Optional
 from datetime import datetime
 from autogen_agentchat.agents import AssistantAgent
 from .per_turn_rag import RAGEnhancedGroupChat, PerTurnRAGInjector
+from ...utils.config import get_settings
 from .turn_by_turn_selector import TurnByTurnSelectorGroupChat, IntelligentSpeakerSelector
 from .selection_policy import IntelligentSpeakerSelector as PolicySelector
 
@@ -24,6 +25,8 @@ def create_groupchat(
     intelligent_selector: Optional[PolicySelector] = None,
 ) -> SelectorGroupChat:
     """Create a GroupChat with optional per-turn RAG injection and intelligent selection"""
+    settings = get_settings()
+    max_turns = max_turns or getattr(settings, 'autogen_max_turns', 10)
     
     # Determine which GroupChat variant to use based on features
     if enable_turn_by_turn_selection:
@@ -51,7 +54,7 @@ def create_groupchat(
             )
         else:
             # Just turn-by-turn selection
-            return TurnByTurnSelectorGroupChat(
+            gc = TurnByTurnSelectorGroupChat(
                 participants=participants,
                 model_client=model_client,
                 allow_repeated_speaker=False,
@@ -59,23 +62,33 @@ def create_groupchat(
                 selector=intelligent_selector,
                 enable_intelligent_selection=True
             )
+            # Attach timeout if the class supports it
+            if hasattr(gc, 'timeout_seconds'):
+                setattr(gc, 'timeout_seconds', getattr(settings, 'autogen_timeout_seconds', 120))
+            return gc
     
     elif enable_per_turn_rag and rag_injector:
         # Just RAG enhancement
-        return RAGEnhancedGroupChat(
+        gc = RAGEnhancedGroupChat(
             participants=participants,
             model_client=model_client,
             allow_repeated_speaker=False,
             max_turns=max_turns,
             rag_injector=rag_injector
         )
+        if hasattr(gc, 'timeout_seconds'):
+            setattr(gc, 'timeout_seconds', getattr(settings, 'autogen_timeout_seconds', 120))
+        return gc
     else:
         # Standard SelectorGroupChat
-        return SelectorGroupChat(
+        gc = SelectorGroupChat(
             participants=participants,
             model_client=model_client,
             allow_repeated_speaker=False,
             max_turns=max_turns,
         )
+        if hasattr(gc, 'timeout_seconds'):
+            setattr(gc, 'timeout_seconds', getattr(settings, 'autogen_timeout_seconds', 120))
+        return gc
 
 

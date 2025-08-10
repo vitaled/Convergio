@@ -13,12 +13,6 @@ from autogen_core.tools import BaseTool
 from pydantic import BaseModel
 import httpx
 
-from .backend_api_client import (
-    query_talents_count, 
-    query_engagements_summary, 
-    query_dashboard_stats, 
-    query_skills_overview
-)
 from .vector_search_client import search_similar, embed_text
 
 logger = structlog.get_logger()
@@ -39,21 +33,30 @@ class TalentsQueryTool(BaseTool):
             description="Query talent information from the Convergio database. Returns talent count, departments, skills overview."
         )
     
-    async def run(self, args: TalentsQueryArgs) -> str:
+    async def run(self, args: TalentsQueryArgs, cancellation_token=None) -> str:
         """
         Query talent information
         
         Args:
             args: Query arguments containing query_type
+            cancellation_token: Optional cancellation token for AutoGen
         """
         try:
             if args.query_type == "count":
-                result = await query_talents_count()
-                return f"Total talents: {result.get('total', 0)}"
+                async with httpx.AsyncClient() as client:
+                    r = await client.get("http://localhost:9000/api/v1/talents")
+                    r.raise_for_status()
+                    talents = r.json()
+                    total = len(talents) if isinstance(talents, list) else len(talents.get("data", []))
+                    return f"Total talents: {total}"
             
             elif args.query_type == "skills":
-                result = await query_skills_overview()
-                return f"Skills overview: {json.dumps(result, indent=2)}"
+                async with httpx.AsyncClient() as client:
+                    r = await client.get("http://localhost:9000/api/v1/skills")
+                    if r.status_code != 200:
+                        return "Skills endpoint not available"
+                    data = r.json()
+                    return f"Skills overview: {json.dumps(data, indent=2)}"
             
             elif args.query_type == "all":
                 # Get comprehensive talent information
@@ -93,12 +96,13 @@ class VectorSearchTool(BaseTool):
             description="Perform semantic search across Convergio knowledge base using vector embeddings"
         )
     
-    async def run(self, args: VectorSearchArgs) -> str:
+    async def run(self, args: VectorSearchArgs, cancellation_token=None) -> str:
         """
         Perform vector search
         
         Args:
             args: Search arguments containing query and top_k
+            cancellation_token: Optional cancellation token for AutoGen
         """
         try:
             # Embed the query
@@ -136,30 +140,51 @@ class EngagementAnalyticsTool(BaseTool):
             description="Analyze engagement data, business metrics, and dashboard statistics"
         )
     
-    async def run(self, args: EngagementAnalyticsArgs) -> str:
+    async def run(self, args: EngagementAnalyticsArgs, cancellation_token=None) -> str:
         """
         Analyze engagements and business metrics
         
         Args:
             args: Analysis arguments containing analysis_type
+            cancellation_token: Optional cancellation token for AutoGen
         """
         try:
             if args.analysis_type == "summary":
-                result = await query_engagements_summary()
-                return f"Engagement summary: {json.dumps(result, indent=2)}"
+                async with httpx.AsyncClient() as client:
+                    r = await client.get("http://localhost:9000/api/v1/engagements")
+                    r.raise_for_status()
+                    data = r.json()
+                    engagements = data if isinstance(data, list) else data.get("data", [])
+                    total = len(engagements)
+                    active = sum(1 for e in engagements if str(e.get("status", "")).lower() in ["active", "in_progress", "ongoing"])
+                    completed = sum(1 for e in engagements if str(e.get("status", "")).lower() in ["completed", "finished", "done"])
+                    return json.dumps({
+                        "total_engagements": total,
+                        "active_engagements": active,
+                        "completed_engagements": completed
+                    }, indent=2)
             
             elif args.analysis_type == "dashboard":
-                result = await query_dashboard_stats()
-                return f"Dashboard stats: {json.dumps(result, indent=2)}"
+                async with httpx.AsyncClient() as client:
+                    r = await client.get("http://localhost:9000/api/v1/dashboard/stats")
+                    if r.status_code != 200:
+                        return "Dashboard stats endpoint not available"
+                    return f"Dashboard stats: {json.dumps(r.json(), indent=2)}"
             
             elif args.analysis_type == "trends":
                 # Get trend data from multiple sources
-                summary = await query_engagements_summary()
-                dashboard = await query_dashboard_stats()
+                async with httpx.AsyncClient() as client:
+                    sr = await client.get("http://localhost:9000/api/v1/engagements")
+                    summary_data = []
+                    if sr.status_code == 200:
+                        data = sr.json()
+                        summary_data = data if isinstance(data, list) else data.get("data", [])
+                    dr = await client.get("http://localhost:9000/api/v1/dashboard/stats")
+                    dashboard_data = dr.json() if dr.status_code == 200 else {}
                 
                 trends = {
-                    "engagement_trends": summary,
-                    "performance_metrics": dashboard,
+                    "engagement_trends": summary_data,
+                    "performance_metrics": dashboard_data,
                     "analysis_date": datetime.now().isoformat(),
                     "key_insights": [
                         "Engagement metrics collected",
@@ -194,12 +219,13 @@ class BusinessIntelligenceTool(BaseTool):
         self.analytics_tool = EngagementAnalyticsTool()
         self.vector_tool = VectorSearchTool()
     
-    async def run(self, args: BusinessIntelligenceArgs) -> str:
+    async def run(self, args: BusinessIntelligenceArgs, cancellation_token=None) -> str:
         """
         Generate business intelligence report
         
         Args:
             args: Business intelligence arguments containing focus_area
+            cancellation_token: Optional cancellation token for AutoGen
         """
         try:
             report = {
@@ -210,17 +236,17 @@ class BusinessIntelligenceTool(BaseTool):
             }
             
             if args.focus_area == "overview" or args.focus_area == "talents":
-                talents_data = await self.talents_tool.run(TalentsQueryArgs(query_type="all"))
+                talents_data = await self.talents_tool.run(TalentsQueryArgs(query_type="all"), cancellation_token)
                 report["talent_analysis"] = talents_data
             
             if args.focus_area == "overview" or args.focus_area == "performance":
-                performance_data = await self.analytics_tool.run(EngagementAnalyticsArgs(analysis_type="dashboard"))
+                performance_data = await self.analytics_tool.run(EngagementAnalyticsArgs(analysis_type="dashboard"), cancellation_token)
                 report["performance_metrics"] = performance_data
             
             if args.focus_area == "insights":
                 # Generate insights using vector search
                 insights_query = f"business insights {args.focus_area} performance metrics trends"
-                insights = await self.vector_tool.run(VectorSearchArgs(query=insights_query))
+                insights = await self.vector_tool.run(VectorSearchArgs(query=insights_query), cancellation_token)
                 report["ai_insights"] = insights
             
             return json.dumps(report, indent=2)
