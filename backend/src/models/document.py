@@ -20,8 +20,8 @@ class Document(Base):
     
     __tablename__ = "documents"
     
-    # Primary key
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    # Primary key with auto-increment
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     
     # Document fields
     title: Mapped[str] = mapped_column(String(500), nullable=False, index=True)
@@ -189,8 +189,8 @@ class DocumentEmbedding(Base):
     
     __tablename__ = "document_embeddings"
     
-    # Primary key
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    # Primary key with auto-increment
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
     
     # Foreign key to Document
     document_id: Mapped[int] = mapped_column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
