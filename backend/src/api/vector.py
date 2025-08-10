@@ -264,37 +264,47 @@ async def similarity_search(
             data = response.json()
             query_embedding = data['data'][0]['embedding']
         
-        # Perform similarity search in Python (no pgvector dependency)
-        from sqlalchemy import select
-        result = await db.execute(select(DocumentEmbedding).join(Document))
-        embeddings = result.scalars().all()
-        search_results_internal = []
+        # Perform similarity search using pgvector
+        from sqlalchemy import select, text
         import numpy as np
-        q = np.array(query_embedding)
-        for emb in embeddings:
-            try:
-                v = np.array(emb.embedding)
-                sim = float(np.dot(v, q) / (np.linalg.norm(v) * np.linalg.norm(q)))
-                if sim >= request.similarity_threshold:
-                    # Attach for later formatting
-                    setattr(emb, "similarity_score", sim)
-                    search_results_internal.append(emb)
-            except Exception:
-                continue
-        # Sort and take top_k
-        search_results_internal.sort(key=lambda e: getattr(e, "similarity_score", 0.0), reverse=True)
-        results = search_results_internal[: request.top_k]
+        
+        # Convert query embedding to PostgreSQL vector format
+        query_vector_str = '[' + ','.join(str(x) for x in query_embedding) + ']'
+        
+        # Use pgvector's cosine similarity operator (<=>)
+        # Lower score means higher similarity in cosine distance
+        query = text("""
+            SELECT 
+                de.id,
+                de.document_id,
+                de.chunk_index,
+                de.chunk_text,
+                de.embed_metadata,
+                d.title,
+                1 - (de.embedding <=> cast(:query_vector as vector)) as similarity_score
+            FROM document_embeddings de
+            JOIN documents d ON de.document_id = d.id
+            WHERE 1 - (de.embedding <=> cast(:query_vector as vector)) >= :threshold
+            ORDER BY similarity_score DESC
+            LIMIT :limit
+        """)
+        
+        result = await db.execute(
+            query,
+            {"query_vector": query_vector_str, "threshold": request.similarity_threshold, "limit": request.top_k}
+        )
+        results = result.fetchall()
         
         # Format results
         search_results = []
-        for result in results:
+        for row in results:
             search_results.append(SimilaritySearchResult(
-                document_id=result.document_id,
-                chunk_id=result.id,
-                title=result.document.title,
-                content=result.chunk_text,
-                similarity_score=getattr(result, "similarity_score", 0.0),
-                metadata=result.embed_metadata
+                document_id=row.document_id,
+                chunk_id=row.id,
+                title=row.title,
+                content=row.chunk_text,
+                similarity_score=float(row.similarity_score),
+                metadata=row.embed_metadata
             ))
         
         processing_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
