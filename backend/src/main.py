@@ -74,6 +74,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
                     from src.core.database import Base
                     await conn.run_sync(Base.metadata.create_all)
                 logger.info("🧱 Database tables ensured (development mode)")
+                # Ensure specific dev schema consistency (lightweight auto-migrations)
+                from src.core.database import ensure_dev_schema
+                await ensure_dev_schema()
         except Exception as _e:
             logger.warning(f"⚠️ Table auto-create skipped/failed: {_e}")
         

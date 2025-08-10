@@ -101,6 +101,62 @@ async def init_db() -> None:
         raise
 
 
+async def ensure_dev_schema() -> None:
+    """Lightweight dev-only auto-migration for known schema drift issues.
+
+    - Adds document_embeddings.document_id column if missing
+    - Adds FK constraint to documents(id) if missing
+    """
+    settings = get_settings()
+    if settings.ENVIRONMENT != "development":
+        return
+    global async_engine
+    if not async_engine:
+        return
+    try:
+        async with async_engine.begin() as conn:
+            # Check existing columns
+            res = await conn.execute(text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'document_embeddings'
+                """
+            ))
+            cols = {row[0] for row in res.fetchall()}
+            if "document_id" not in cols:
+                # Add as nullable to avoid failures on non-empty tables
+                await conn.execute(text(
+                    "ALTER TABLE public.document_embeddings ADD COLUMN IF NOT EXISTS document_id INTEGER"
+                ))
+                logger.info("🛠️ Added missing column", table="document_embeddings", column="document_id")
+
+            # Ensure FK constraint exists
+            await conn.execute(text(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints
+                        WHERE table_schema='public' AND table_name='document_embeddings'
+                          AND constraint_type='FOREIGN KEY'
+                          AND constraint_name='document_embeddings_document_id_fkey'
+                    ) THEN
+                        ALTER TABLE public.document_embeddings
+                        ADD CONSTRAINT document_embeddings_document_id_fkey
+                        FOREIGN KEY (document_id)
+                        REFERENCES public.documents(id)
+                        ON DELETE CASCADE;
+                    END IF;
+                END $$;
+                """
+            ))
+            logger.info("🔗 Ensured FK for document_embeddings.document_id -> documents.id")
+    except Exception as e:
+        # Non-fatal in dev, but log
+        logger.warning("⚠️ Dev schema ensure failed", error=str(e))
+
+
 async def close_db() -> None:
     """Close database connections"""
     
