@@ -253,7 +253,7 @@ class AliIntelligenceEngine:
         
         # Try user's API key first, then fallback to development environment key
         user_api_key = get_user_api_key(self.request, "openai")
-        api_key = user_api_key or settings.OPENAI_API_KEY
+        api_key = user_api_key or getattr(settings, 'openai_api_key', None) or getattr(settings, 'OPENAI_API_KEY', None)
         
         if not api_key:
             # Fallback response without API key
@@ -261,7 +261,7 @@ class AliIntelligenceEngine:
         
         try:
             # Resolve model preference: user session preferred model or global default
-            preferred_model = get_user_default_model(self.request) or settings.OPENAI_MODEL
+            preferred_model = get_user_default_model(self.request) or getattr(settings, 'default_ai_model', 'gpt-4o-mini')
             # Build comprehensive context
             system_prompt = f"""You are Ali, the Chief of Staff for platform.Convergio.io - an AI-native enterprise platform. You are the strategic coordinator and master orchestrator for a team of 40+ specialized AI agents.
 

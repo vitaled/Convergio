@@ -311,6 +311,79 @@ class AutoGenMemorySystem:
             logger.warning("Failed to load user preferences", user_id=user_id, error=str(e))
             return {}
     
+    async def retrieve_by_type(self,
+                             user_id: str,
+                             memory_type: MemoryType,
+                             query: str = None,
+                             limit: int = 5,
+                             agent_id: str = None) -> List[MemoryEntry]:
+        """Retrieve memories by type - required by RAG system"""
+        
+        try:
+            # Get memories based on type
+            if memory_type == MemoryType.CONVERSATION:
+                # Use existing retrieve_relevant_context method
+                if query:
+                    return await self.retrieve_relevant_context(
+                        query=query,
+                        user_id=user_id, 
+                        agent_id=agent_id,
+                        limit=limit
+                    )
+                else:
+                    # Return recent conversation memories
+                    return await self._get_recent_memories(user_id, memory_type, limit, agent_id)
+            
+            elif memory_type == MemoryType.KNOWLEDGE:
+                # Search knowledge base
+                knowledge_memories = []
+                knowledge_keys = await self.redis.keys(f"{self.KNOWLEDGE_PREFIX}:{user_id}:*")
+                
+                for key in knowledge_keys[:limit]:
+                    memory_data = await self.redis.hgetall(key)
+                    if memory_data:
+                        try:
+                            memory_entry = self._deserialize_memory_entry(memory_data)
+                            if not agent_id or memory_entry.agent_id == agent_id:
+                                knowledge_memories.append(memory_entry)
+                        except Exception as e:
+                            logger.warning("Failed to deserialize knowledge memory", key=key, error=str(e))
+                
+                return knowledge_memories[:limit]
+            
+            elif memory_type == MemoryType.RELATIONSHIPS:
+                # Return relationship memories (simplified - just return conversation memories for now)
+                return await self._get_recent_memories(user_id, MemoryType.CONVERSATION, limit, agent_id)
+            
+            elif memory_type == MemoryType.PREFERENCES:
+                # Convert user preferences to memory entries
+                preferences = await self.get_user_preferences(user_id)
+                if not preferences:
+                    return []
+                
+                pref_memory = MemoryEntry(
+                    id=f"preferences_{user_id}",
+                    memory_type=MemoryType.PREFERENCES,
+                    content=json.dumps(preferences),
+                    agent_id=agent_id or "system",
+                    user_id=user_id,
+                    conversation_id="preferences",
+                    importance_score=0.8,
+                    metadata={"type": "user_preferences"}
+                )
+                return [pref_memory]
+            
+            else:
+                # Default case - return recent memories
+                return await self._get_recent_memories(user_id, memory_type, limit, agent_id)
+                
+        except Exception as e:
+            logger.error("Failed to retrieve memories by type", 
+                        memory_type=memory_type.value,
+                        user_id=user_id,
+                        error=str(e))
+            return []
+    
     async def cleanup_old_memories(self) -> int:
         """Clean up old memories based on retention policy"""
         
@@ -468,6 +541,46 @@ class AutoGenMemorySystem:
         
         await self.redis.hset(conversation_key, mapping=summary_data)
         await self.redis.expire(conversation_key, timedelta(days=self.memory_retention_days))
+    
+    async def _get_recent_memories(self, 
+                                 user_id: str, 
+                                 memory_type: MemoryType, 
+                                 limit: int, 
+                                 agent_id: str = None) -> List[MemoryEntry]:
+        """Get recent memories of a specific type"""
+        
+        memories = []
+        
+        # Get conversation memories
+        if memory_type == MemoryType.CONVERSATION:
+            conversation_keys = await self.redis.keys(f"{self.CONVERSATION_PREFIX}:{user_id}:*")
+        else:
+            # For other types, just use conversation keys for now
+            conversation_keys = await self.redis.keys(f"{self.CONVERSATION_PREFIX}:{user_id}:*")
+        
+        for key in conversation_keys:
+            try:
+                memory_data = await self.redis.hgetall(key)
+                if not memory_data:
+                    continue
+                
+                memory_entry = self._deserialize_memory_entry(memory_data)
+                
+                # Filter by agent if specified
+                if agent_id and memory_entry.agent_id != agent_id:
+                    continue
+                
+                # Filter by memory type
+                if memory_entry.memory_type == memory_type:
+                    memories.append(memory_entry)
+                    
+            except Exception as e:
+                logger.warning("Failed to process memory", key=key, error=str(e))
+        
+        # Sort by creation time (most recent first)
+        memories.sort(key=lambda m: m.created_at, reverse=True)
+        
+        return memories[:limit]
 
 
 # Global memory system instance - initialized lazily

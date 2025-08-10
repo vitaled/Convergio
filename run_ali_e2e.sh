@@ -87,10 +87,25 @@ run_test() {
   fi
 }
 
-run_test tests/integration/test_unified_real_e2e.py
-run_test tests/integration/test_ali_e2e_real_openai.py
-run_test tests/integration/test_real_e2e_ali_vector_openai.py
-run_test tests/integration/UseCaseBasedEnd2EndTest.py
+# Choose which tests to run: if E2E_ONLY is set, run just that file; otherwise run the full suite in order
+if [[ -n "${E2E_ONLY:-}" ]]; then
+  TESTS=("$E2E_ONLY")
+else
+  TESTS=(
+    tests/integration/test_real_e2e_ali_vector_openai.py
+    tests/integration/test_ali_e2e_real_openai.py
+    tests/integration/test_unified_real_e2e.py
+    tests/integration/UseCaseBasedEnd2EndTest.py
+  )
+fi
+
+for t in "${TESTS[@]}"; do
+  run_test "$t"
+  # Stop immediately on first failure if running sequentially one-by-one
+  if [[ "$FAILED" -ne 0 ]]; then
+    break
+  fi
+done
 
 if [[ "$FAILED" -ne 0 ]]; then
   echo "❌ Alcuni test sono falliti. Controlla $LOG_DIR/ali_e2e_failures.log e i log del backend in $LOG_DIR."

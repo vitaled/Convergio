@@ -46,7 +46,7 @@ async def test_unified_real_e2e_end_to_end(caplog, transcript_logger):
     openai_key = os.getenv("OPENAI_API_KEY")
     if openai_key:
         async with httpx.AsyncClient() as client:
-            payload = {"openai": openai_key}
+            payload = {"openai_api_key": openai_key}
             t0 = asyncio.get_event_loop().time()
             resp = await client.post(
                 f"{BASE_URL}/api/v1/user-keys",
@@ -165,7 +165,7 @@ async def test_unified_real_e2e_end_to_end(caplog, transcript_logger):
         assert isinstance(convo.get("agents_used", []), list)
         assert isinstance(convo.get("turn_count", 0), int)
 
-        transcript_logger.http(
+    transcript_logger.http(
             name="agents_conversation",
             method="POST",
             url=f"{BASE_URL}/api/v1/agents/conversation",
@@ -175,6 +175,8 @@ async def test_unified_real_e2e_end_to_end(caplog, transcript_logger):
                 "agents_used": convo.get("agents_used"),
                 "turn_count": convo.get("turn_count"),
                 "duration_seconds": convo.get("duration_seconds"),
+        "agent_iterations": convo.get("agent_iterations"),
+        "conversation_log": convo.get("conversation_log"),
             },
             duration_s=dt,
         )

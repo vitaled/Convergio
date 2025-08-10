@@ -14,6 +14,7 @@ from pydantic import BaseModel
 import httpx
 
 from .vector_search_client import search_similar, embed_text
+from .web_search_tool import WebSearchTool, WebBrowseTool, get_web_tools
 
 logger = structlog.get_logger()
 
@@ -262,4 +263,6 @@ CONVERGIO_TOOLS = [
     VectorSearchTool(),
     EngagementAnalyticsTool(),
     BusinessIntelligenceTool(),
+    WebSearchTool(),  # Web search for current information
+    WebBrowseTool(),  # Web browsing for content extraction
 ]

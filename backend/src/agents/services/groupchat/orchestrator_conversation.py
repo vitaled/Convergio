@@ -17,6 +17,7 @@ from .types import GroupChatResult
 from .per_turn_rag import PerTurnRAGInjector, RAGEnhancedGroupChat, initialize_per_turn_rag
 from ...utils.tracing import start_span
 from ...security.ai_security_guardian import SecurityDecision
+from ..agent_intelligence import AgentIntelligence
 
 
 logger = structlog.get_logger()
@@ -256,8 +257,20 @@ async def direct_agent_conversation_impl(
 
         if not response_content or response_content.strip() == "":
             agent_metadata = orchestrator.agent_metadata.get(agent_name, None)
-            role = agent_metadata.role if agent_metadata else 'Agent'
-            response_content = f"Ciao! Sono {agent_name} ({role}). Come posso aiutarti con: {message}"
+            # Use real AI intelligence for the agent
+            agent_ai = AgentIntelligence(agent_name, agent_metadata)
+            
+            # Try to get request object from context for API keys
+            request = context.get('request') if context else None
+            
+            # Generate intelligent response using AI
+            response_content = await agent_ai.generate_intelligent_response(
+                message=message,
+                context=context,
+                request=request
+            )
+            
+            logger.info(f"✨ Generated intelligent response for {agent_name}")
 
         duration = datetime.now() - start_time
         # Notify observers end

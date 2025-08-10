@@ -358,7 +358,50 @@ async def create_project(request: ProjectRequest):
             created_at=datetime.utcnow(),
             messages=[]
         )
-        
+        # Persist lightweight project info in Redis for dashboard listing
+        try:
+            projects = await cache_get("projects:list") or []
+        except Exception:
+            projects = []
+
+        # Compute a naive due date from timeline if possible
+        due_date_iso = None
+        try:
+            tl = (request.timeline or "").strip().lower()
+            weeks = 0
+            if tl.endswith("weeks"):
+                weeks = int(tl.split(" ")[0])
+            elif tl.endswith("week"):
+                weeks = int(tl.split(" ")[0])
+            if weeks > 0:
+                due_date_iso = (datetime.utcnow() + timedelta(weeks=weeks)).isoformat()
+        except Exception:
+            pass
+        if not due_date_iso:
+            due_date_iso = (datetime.utcnow() + timedelta(days=30)).isoformat()
+
+        project_record = {
+            "id": project_id,
+            "name": request.project_name,
+            "project_name": request.project_name,
+            "project_type": request.project_type,
+            "type": request.project_type,
+            "description": request.description,
+            "status": "initiated",
+            "progress": 0,
+            "priority": "medium",
+            "budget": request.budget or 0,
+            "revenue_target": 0,
+            "assigned_agents": required_agents,
+            "agents_assigned": required_agents,
+            "dueDate": due_date_iso,
+            "timeline": request.timeline or "TBD",
+        }
+        projects = [p for p in projects if isinstance(p, dict)]
+        projects.insert(0, project_record)
+        projects = projects[:20]
+        await cache_set("projects:list", projects, ttl=2592000)
+
         return {
             "project_id": project_id,
             "project_name": request.project_name,
@@ -467,6 +510,19 @@ def get_expected_deliverables(project_type: str) -> List[str]:
         "Financial assessment",
         "Implementation recommendations"
     ])
+
+
+@router.get("/projects")
+async def list_projects():
+    """List recently created projects stored in Redis."""
+    try:
+        projects = await cache_get("projects:list") or []
+        if not isinstance(projects, list):
+            projects = []
+        return {"projects": projects}
+    except Exception as e:
+        logger.error("❌ Failed to list projects", error=str(e))
+        return {"projects": []}
 
 
 class StreamingConversationRequest(BaseModel):
@@ -655,9 +711,11 @@ async def start_conversation(request: ConversationRequest, http_request: Request
         
     except Exception as e:
         logger.error("❌ Conversation failed completely", error=str(e))
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to start conversation with agents"
+            detail=f"Failed to start conversation with agents: {str(e)}"
         )
 
 
@@ -1019,7 +1077,21 @@ async def _stream_real_autogen_conversation(
                 
                 await asyncio.sleep(1)  # Brief thinking simulation
                 
-                # Send agent completion status
+                # Get actual agent response from result
+                agent_response = ""
+                if hasattr(result, 'response') and result.response:
+                    # Extract agent-specific content from the response
+                    agent_response = result.response
+                else:
+                    # Fallback: Generate intelligent response for this specific agent
+                    from src.agents.services.agent_intelligence import AgentIntelligence
+                    agent_ai = AgentIntelligence(agent_name, None)
+                    agent_response = await agent_ai.generate_intelligent_response(
+                        message=message,
+                        context=context
+                    )
+                
+                # Send agent completion status with real response
                 await websocket.send_text(json.dumps({
                     "type": "agent_response",
                     "agent_id": agent_info["id"], 
@@ -1027,7 +1099,7 @@ async def _stream_real_autogen_conversation(
                     "agent_role": agent_info["role"],
                     "status": "completed",
                     "color": agent_info["color"],
-                    "content": f"✅ {agent_info['name']} has provided {agent_info['specialty']} analysis",
+                    "content": agent_response,
                     "turn": i + 1,
                     "timestamp": datetime.utcnow().isoformat()
                 }))

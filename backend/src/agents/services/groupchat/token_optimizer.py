@@ -95,15 +95,21 @@ class TokenOptimizer:
         return truncated + "..."
     
     @staticmethod
-    def optimize_model_params() -> Dict[str, Any]:
-        """Return optimized model parameters for token reduction"""
-        return {
+    def optimize_model_params(model_name: str = "") -> Dict[str, Any]:
+        """Return optimized model parameters for token reduction
+        
+        Args:
+            model_name: The model name to optimize for (e.g., 'gpt-4', 'gpt-3.5')
+        """
+        base_params = {
             "temperature": 0.3,  # Lower temperature for more focused responses
-            "max_tokens": 150,   # Limit response length
             "top_p": 0.9,       # Nucleus sampling for quality
             "frequency_penalty": 0.5,  # Reduce repetition
             "presence_penalty": 0.3,   # Encourage conciseness
+            "max_tokens": 150,  # Limit response length for all models
         }
+        
+        return base_params
     
     @staticmethod
     def should_use_cheaper_model(message_type: str) -> bool:

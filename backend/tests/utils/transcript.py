@@ -1,7 +1,8 @@
 import os
 import json
+from copy import deepcopy
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Mapping
 
 
 def _now() -> str:
@@ -49,15 +50,17 @@ class TranscriptLogger:
             self._write_line(f"- Duration: {duration_s:.2f}s")
         if request_json is not None:
             try:
+                safe_request = self._redact(request_json)
                 self._write_line("- Request:")
-                self._write_line(self._indent(json.dumps(request_json, ensure_ascii=False, indent=2)))
+                self._write_line(self._indent(json.dumps(safe_request, ensure_ascii=False, indent=2)))
             except Exception:
                 self._write_line("- Request: [unserializable]")
         self._write_line(f"- Status: {status}")
         if response_json is not None:
             try:
+                safe_response = self._redact(response_json)
                 self._write_line("- Response:")
-                self._write_line(self._indent(json.dumps(response_json, ensure_ascii=False, indent=2)))
+                self._write_line(self._indent(json.dumps(safe_response, ensure_ascii=False, indent=2)))
             except Exception:
                 self._write_line("- Response: [unserializable]")
         self._write_line("")
@@ -78,3 +81,46 @@ class TranscriptLogger:
     def _indent(s: str, n: int = 2) -> str:
         pad = " " * n
         return "\n".join(pad + line for line in s.splitlines())
+
+    def _redact(self, obj: Any) -> Any:
+        """Recursively redact secrets from mappings/lists/strings."""
+        secret_keys = {
+            "openai_api_key", "openai", "api_key", "apikey", "authorization",
+            "bearer", "token", "password", "secret", "access_token", "refresh_token"
+        }
+
+        def redact_str(val: str) -> str:
+            if len(val) <= 8:
+                return "***"
+            # keep first 4 and last 2 chars
+            return val[:4] + "***" + val[-2:]
+
+        def walk(x: Any) -> Any:
+            try:
+                if isinstance(x, str):
+                    lx = x.lower()
+                    if "sk-" in lx or "api_key" in lx or "bearer " in lx:
+                        return redact_str(x)
+                    return x
+                if isinstance(x, Mapping):
+                    y = {}
+                    for k, v in x.items():
+                        if str(k).lower() in secret_keys:
+                            if isinstance(v, str):
+                                y[k] = redact_str(v)
+                            else:
+                                y[k] = "***"
+                        else:
+                            y[k] = walk(v)
+                    return y
+                elif isinstance(x, list):
+                    return [walk(i) for i in x]
+                else:
+                    return x
+            except Exception:
+                return "***"
+
+        try:
+            return walk(deepcopy(obj))
+        except Exception:
+            return "***"

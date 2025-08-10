@@ -44,6 +44,7 @@ class DashboardAnalyticsResponse(BaseModel):
     recent_activities: List[Dict[str, Any]]
     cost_summary: Dict[str, Any]
     user_engagement: Dict[str, Any]
+    recent_projects: List[Dict[str, Any]] = []
 
 
 @router.get("/dashboard", response_model=DashboardAnalyticsResponse)
@@ -63,7 +64,7 @@ async def get_dashboard_analytics(
         start_date = datetime.utcnow() - timedelta(days=days)
         
         # Check cache first
-        cache_key = f"dashboard_analytics:{current_user.id}:{time_range}"
+        cache_key = f"dashboard_analytics:public:{time_range}"
         cached_data = await cache_get(cache_key)
         if cached_data:
             return DashboardAnalyticsResponse(**cached_data)
@@ -76,7 +77,7 @@ async def get_dashboard_analytics(
         agent_stats = await _get_agent_interaction_stats(start_date)
         
         # Get cost data (from agents cost tracker)
-        cost_data = await _get_cost_summary(current_user.id, start_date)
+        cost_data = await _get_cost_summary(start_date)
         
         # Compile dashboard data
         dashboard_data = {
@@ -93,7 +94,7 @@ async def get_dashboard_analytics(
                 "success_rate": agent_stats["success_rate"],
                 "peak_concurrent_users": agent_stats["peak_users"]
             },
-            "recent_activities": await _get_recent_activities(current_user.id, limit=10),
+            "recent_activities": await _get_recent_activities(limit=10),
             "cost_summary": {
                 "total_cost_usd": cost_data["total_cost"],
                 "cost_per_interaction": cost_data["cost_per_interaction"],
@@ -104,14 +105,14 @@ async def get_dashboard_analytics(
                 "daily_active_users": agent_stats["daily_active"],
                 "session_duration_avg": agent_stats["avg_session_duration"],
                 "feature_usage": agent_stats["feature_usage"]
-            }
+            },
+            "recent_projects": await _get_recent_projects()
         }
         
         # Cache for 5 minutes
-        await cache_set(cache_key, dashboard_data, ttl=300)
+        await cache_set(cache_key, dashboard_data, ttl=60)
         
         logger.info("📊 Dashboard analytics generated",
-                   user_id=current_user.id,
                    time_range=time_range,
                    total_users=total_users)
         
@@ -270,7 +271,7 @@ async def _get_agent_interaction_stats(start_date: datetime) -> Dict[str, Any]:
     return stats
 
 
-async def _get_cost_summary(user_id: int, start_date: datetime) -> Dict[str, Any]:
+async def _get_cost_summary(start_date: datetime) -> Dict[str, Any]:
     """Get cost summary from agents cost tracker."""
     
     try:
@@ -282,29 +283,45 @@ async def _get_cost_summary(user_id: int, start_date: datetime) -> Dict[str, Any
     except:
         pass
     
-    # Fallback data
+    # On failure, return zeros (no mock values)
     return {
-        "total_cost": 24.56,
-        "cost_per_interaction": 0.019,
-        "budget_utilization": 0.23,
-        "top_models": ["gpt-4", "gpt-3.5-turbo"]
+        "total_cost": 0.0,
+        "cost_per_interaction": 0.0,
+        "budget_utilization": 0.0,
+        "top_models": []
     }
 
 
-async def _get_recent_activities(user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
-    """Get recent user activities."""
-    
-    # Mock data for now - could be replaced with real activity tracking
-    return [
-        {
-            "id": f"activity_{i}",
-            "type": "agent_interaction",
-            "description": f"Consulted with {['Ali Chief of Staff', 'Luca Security Expert', 'Amy CFO'][i % 3]}",
-            "timestamp": (datetime.utcnow() - timedelta(hours=i)).isoformat(),
-            "status": "completed"
-        }
-        for i in range(limit)
-    ]
+async def _get_recent_activities(limit: int = 10) -> List[Dict[str, Any]]:
+    """Get recent activities from cache if available, otherwise empty list."""
+    try:
+        activities = await cache_get("recent_activities")
+        if isinstance(activities, list):
+            return activities[:limit]
+    except Exception:
+        pass
+    return []
+
+
+@router.get("/revenue")
+async def get_revenue(time_range: str = Query("7d")):
+    """Return revenue trend strictly from cache/state if available, else empty arrays."""
+    try:
+        # Expected to be maintained by an external job via cache
+        series = await cache_get(f"revenue_series:{time_range}")
+        if isinstance(series, dict) and "labels" in series and "data" in series:
+            return series
+    except Exception:
+        pass
+    return {"labels": [], "data": []}
+
+
+async def _get_recent_projects() -> List[Dict[str, Any]]:
+    try:
+        projects = await cache_get("projects:list") or []
+        return projects if isinstance(projects, list) else []
+    except Exception:
+        return []
 
 
 def _calculate_growth_rate(active: int, total: int) -> float:

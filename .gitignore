@@ -372,7 +372,6 @@ ipython_config.py
 jspm_packages/
 lerna-debug.log*
 lib-cov
-lib/
 lib64/
 local_settings.py
 log/
