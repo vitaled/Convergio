@@ -11,17 +11,28 @@
   let isProactive = true; // Ali is proactive by default
   let proactiveTimer: NodeJS.Timeout;
   
-  // Messages
-  let messages = [
-    {
-      id: 1,
-      type: 'ai',
-      content: "Hello! I'm Ali, your Chief of Staff and strategic coordinator. I help you navigate the entire Convergio ecosystem - from project orchestration to data analysis. How can I assist you today?",
-      timestamp: new Date()
-    }
-  ];
+  // Messages - start empty, Ali will respond intelligently when asked
+  let messages: any[] = [];
+  let messagesContainer: HTMLElement;
   
   let newMessage = '';
+
+  // Auto-scroll function
+  function scrollToBottom() {
+    if (messagesContainer) {
+      setTimeout(() => {
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }
+
+  // Watch messages changes to auto-scroll
+  $: if (messages.length > 0) {
+    scrollToBottom();
+  }
 
   onMount(async () => {
     // Check environment and key configuration
@@ -66,16 +77,8 @@
   }
 
   function showProactiveHint() {
-    // Add a subtle proactive message
-    if (messages.length === 1) {
-      messages = [...messages, {
-        id: Date.now(),
-        type: 'ai',
-        content: "💡 I'm here and ready to help! I can assist with strategic planning, data analysis, team coordination, or any business question you have. What would you like to explore today?",
-        timestamp: new Date()
-      }];
-      isProactive = true;
-    }
+    // Skip proactive hints - let Ali be quiet until asked
+    return;
   }
 
   async function sendMessage() {
@@ -278,7 +281,7 @@
       </div>
 
       <!-- Messages -->
-      <div class="flex-1 overflow-y-auto p-3 space-y-3" role="log" aria-label="Chat conversation with Ali" aria-live="polite">
+      <div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-3 space-y-3" role="log" aria-label="Chat conversation with Ali" aria-live="polite">
         {#each messages as message}
           <div class="flex {message.type === 'user' ? 'justify-end' : 'justify-start'}">
             <div class="max-w-xs">
@@ -294,9 +297,7 @@
                       <circle cx="12" cy="12" r="8" fill="none" stroke="#1e3a8a" stroke-width="3" stroke-linecap="round" stroke-dasharray="45 5" style="transform: rotate(-10deg);" />
                     </svg>
                     <span class="font-medium text-xs text-gray-900">Ali</span>
-                    {#if message.agents_used && message.agents_used.length > 1}
-                      <span class="text-xs text-gray-500" aria-label="Using team coordination">• Team coordination</span>
-                    {/if}
+                    <span class="text-xs text-gray-500">• Chief of Staff</span>
                   </div>
                   <div class="text-gray-900">{message.content}</div>
                 </div>

@@ -113,7 +113,7 @@ class Settings(BaseSettings):
     conversation_termination_markers: str = Field(default="final answer,final response,conclusion,end_of_conversation", env="CONVERSATION_TERMINATION_MARKERS")
     autogen_cost_limit_usd: float = Field(default=50.0, env="AUTOGEN_COST_LIMIT_USD")
     autogen_redis_state_ttl: int = Field(default=3600, env="AUTOGEN_REDIS_STATE_TTL")
-    default_ai_model: str = Field(default="gpt-5-nano", env="DEFAULT_AI_MODEL")
+    default_ai_model: str = Field(default="gpt-4o-mini", env="DEFAULT_AI_MODEL")
     # RAG configuration
     rag_similarity_threshold: float = Field(default=0.5, env="RAG_SIMILARITY_THRESHOLD")
     rag_max_facts: int = Field(default=5, env="RAG_MAX_FACTS")
@@ -170,7 +170,7 @@ class Settings(BaseSettings):
     autogen_max_turns: int = Field(default=5, env="AUTOGEN_MAX_TURNS")  # Reduced from 10
     autogen_timeout_seconds: int = Field(default=60, env="AUTOGEN_TIMEOUT_SECONDS")  # Reduced from 120
     conversation_termination_markers: str = Field(
-        default="final answer,conclusion,summary,recommendation,completed,done",
+        default="final answer,conclusion,summary,recommendation,completed",
         env="CONVERSATION_TERMINATION_MARKERS"
     )
     
@@ -220,6 +220,12 @@ def load_env_from_root():
             line = line.strip()
             if line and not line.startswith('#') and '=' in line:
                 key, value = line.split('=', 1)
+                # Strip quotes from value if present
+                value = value.strip()
+                if value.startswith('"') and value.endswith('"'):
+                    value = value[1:-1]
+                elif value.startswith("'") and value.endswith("'"):
+                    value = value[1:-1]
                 # Force overwrite environment variables from .env file
                 os.environ[key] = value
 

@@ -46,13 +46,70 @@ def _select_tools_for_agent(agent_id: str):
             EngagementAnalyticsTool,
             VectorSearchTool,
             TalentsQueryTool,
+            WebSearchTool,
+            WebBrowseTool,
         )
+        
+        # Ali gets ALL tools including web access
         if agent_id == "ali_chief_of_staff":
             return CONVERGIO_TOOLS
+        
+        # Project Manager needs full Convergio database access
+        if agent_id == "davide-project-manager":
+            return [
+                BusinessIntelligenceTool(), 
+                EngagementAnalyticsTool(),
+                TalentsQueryTool(),
+                VectorSearchTool(),
+                WebSearchTool(),  # For project research
+            ]
+        
+        # Financial agents need web search for market data
         if agent_id in ["diana_performance_dashboard", "amy_cfo"]:
-            return [BusinessIntelligenceTool(), EngagementAnalyticsTool()]
+            return [
+                BusinessIntelligenceTool(), 
+                EngagementAnalyticsTool(),
+                TalentsQueryTool(),  # Access to talent data
+                WebSearchTool(),  # For current market data
+            ]
+        
+        # Market/Strategy agents need web search and database access
+        if any(term in agent_id.lower() for term in ["market", "strategy", "mckinsey", "investor"]):
+            return [
+                BusinessIntelligenceTool(), 
+                VectorSearchTool(),
+                TalentsQueryTool(),  # Access to talent data
+                WebSearchTool(),  # For market research
+                WebBrowseTool(),  # For reading articles
+            ]
+        
+        # Data/Analysis agents get full database access
         if "data" in agent_id.lower() or "analysis" in agent_id.lower():
-            return [VectorSearchTool(), TalentsQueryTool()]
+            return [
+                BusinessIntelligenceTool(), 
+                EngagementAnalyticsTool(),
+                VectorSearchTool(), 
+                TalentsQueryTool(),
+                WebSearchTool(),  # For research
+            ]
+        
+        # Technical agents need documentation and database access
+        if any(term in agent_id.lower() for term in ["tech", "architect", "security", "dev"]):
+            return [
+                BusinessIntelligenceTool(), 
+                VectorSearchTool(),
+                TalentsQueryTool(),  # Access to talent data
+                WebSearchTool(),  # For technical docs
+                WebBrowseTool(),  # For reading documentation
+            ]
+        
+        # Default: Give all agents basic database access + web search
+        return [
+            TalentsQueryTool(),  # All agents can query talent data
+            VectorSearchTool(),  # All agents can search knowledge base
+            WebSearchTool()      # All agents can search web
+        ]
+        
     except Exception as e:
         logger.warning("Tool selection failed", agent_id=agent_id, error=str(e))
     return []

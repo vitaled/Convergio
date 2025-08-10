@@ -3,6 +3,7 @@
   import AgentIcons from '$lib/components/AgentIcons.svelte';
   import AgentStatus from '$lib/components/AgentStatus.svelte';
   import ConversationManager from '$lib/components/ConversationManager.svelte';
+  import MarkdownRenderer from '$lib/components/MarkdownRenderer.svelte';
   import { conversationManager, currentAgentId } from '$lib/stores/conversationStore';
 
   interface Agent {
@@ -17,7 +18,7 @@
   }
 
   interface Message {
-    id: number;
+    id: number | string;
     type: string;
     content: string;
     timestamp: Date;
@@ -451,11 +452,29 @@
   let messages: Message[] = [];
   let selectedAgent = featuredAgents[0];
   let isLoading = false;
+  let messagesContainer: HTMLElement;
   
   // View Mode variables
   let isOversightMode = false;
   let oversightIterations: any[] = [];
   let websocket: WebSocket | null = null;
+
+  // Auto-scroll function
+  function scrollToBottom() {
+    if (messagesContainer) {
+      setTimeout(() => {
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }
+
+  // Watch messages changes to auto-scroll
+  $: if (messages.length > 0) {
+    scrollToBottom();
+  }
 
   function selectAgent(agent: Agent) {
     selectedAgent = agent;
@@ -468,24 +487,19 @@
     }
     
     // Load existing conversation or create welcome message
-    const conversation = conversationManager.getConversation(agent.key || agent.name.toLowerCase());
+    const conversation = conversationManager.getConversation?.(agent.key || agent.name.toLowerCase());
     if (conversation && conversation.messages.length > 0) {
       // Convert conversation messages to local format
       messages = conversation.messages.map(msg => ({
         id: msg.id,
-        type: msg.role === 'user' ? 'user' : 'ai',
+        type: msg.type === 'user' ? 'user' : 'ai',
         content: msg.content,
-        timestamp: new Date(msg.timestamp),
-        agents_used: msg.agents_used
+        timestamp: msg.timestamp,
+        agents_used: []
       }));
     } else {
-      // Create welcome message
-      messages = [{
-        id: Date.now(),
-        type: 'ai',
-        content: `Hello! I'm ${agent.name}, your ${agent.role}. ${agent.description}. How can I assist you with ${capitalizeSpecialty(agent.specialty).toLowerCase()} today?`,
-        timestamp: new Date()
-      }];
+      // Start with empty conversation - agent will introduce itself intelligently if needed
+      messages = [];
     }
   }
 
@@ -504,10 +518,12 @@
     // Save user message to conversation store
     if (selectedAgent.key) {
       conversationManager.addMessage(selectedAgent.key, {
-        id: userMessage.id,
-        role: 'user',
+        agentId: selectedAgent.key,
+        agentName: selectedAgent.name,
         content: userMessage.content,
-        timestamp: userMessage.timestamp.toISOString()
+        timestamp: userMessage.timestamp,
+        type: 'user',
+        status: 'sent'
       });
     }
     
@@ -575,11 +591,12 @@
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.type === 'ai') {
           conversationManager.addMessage(selectedAgent.key, {
-            id: lastMessage.id,
-            role: 'assistant',
+            agentId: selectedAgent.key,
+            agentName: selectedAgent.name,
             content: lastMessage.content,
-            timestamp: lastMessage.timestamp.toISOString(),
-            agents_used: lastMessage.agents_used
+            timestamp: lastMessage.timestamp,
+            type: 'agent',
+            status: 'sent'
           });
         }
       }
@@ -825,7 +842,7 @@
         </div>
 
         <!-- Messages / Oversight Timeline -->
-        <div class="flex-1 overflow-y-auto p-6 space-y-4">
+        <div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-6 space-y-4">
           
           {#if !isOversightMode || selectedAgent.name !== 'Ali'}
             <!-- Executive Mode: Regular Messages -->
@@ -835,18 +852,20 @@
                   {#if message.type === 'user'}
                     <div class="bg-blue-500 text-white p-4 rounded-xl rounded-br-sm">
                       <div class="font-medium mb-1 opacity-75 text-sm">You</div>
-                      <div class="text-sm leading-relaxed">{message.content}</div>
+                      <div class="text-sm leading-relaxed">
+                        <MarkdownRenderer content={message.content} />
+                      </div>
                     </div>
                   {:else}
                     <div class="bg-gray-50 p-4 rounded-xl rounded-bl-sm border">
                       <div class="flex items-center space-x-2 mb-2">
                         <AgentIcons agentName={selectedAgent.name} size="w-4 h-4" />
                         <span class="font-medium text-gray-900 text-sm">{selectedAgent.name}</span>
-                        {#if message.agents_used && message.agents_used.length > 1}
-                          <span class="text-xs text-blue-600">• Team coordination</span>
-                        {/if}
+                        <span class="text-xs text-blue-600">• {selectedAgent.role}</span>
                       </div>
-                      <div class="text-gray-800 text-sm leading-relaxed">{message.content}</div>
+                      <div class="text-gray-800 text-sm leading-relaxed">
+                        <MarkdownRenderer content={message.content} />
+                      </div>
                     </div>
                   {/if}
                 </div>
@@ -885,7 +904,9 @@
                     </div>
                     <div class="flex-1 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
                       <div class="font-medium text-blue-900 text-sm mb-1">Your Request</div>
-                      <div class="text-blue-800 text-sm">{userMessage.content}</div>
+                      <div class="text-blue-800 text-sm">
+                        <MarkdownRenderer content={userMessage.content} />
+                      </div>
                     </div>
                   </div>
                 </div>
