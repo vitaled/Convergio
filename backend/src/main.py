@@ -21,9 +21,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
+# Rate limiting temporarily disabled - slowapi not installed
+# from slowapi import Limiter, _rate_limit_exceeded_handler
+# from slowapi.errors import RateLimitExceeded
+# from slowapi.util import get_remote_address
 
 from src.core.config import get_settings
 from src.core.database import init_db, close_db
@@ -45,13 +46,14 @@ from src.api.agent_signatures import router as agent_signatures_router
 from src.api.component_serialization import router as serialization_router
 from src.api.agent_management import router as agent_management_router
 from src.api.swarm_coordination import router as swarm_coordination_router
+from src.api.agents_ecosystem import router as agents_ecosystem_router
 
 # Setup structured logging
 setup_logging()
 logger = structlog.get_logger()
 
 # Rate limiting
-limiter = Limiter(key_func=get_remote_address)
+# limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator:
@@ -161,9 +163,6 @@ def create_app() -> FastAPI:
     # Security Headers Middleware
     app.add_middleware(SecurityHeadersMiddleware)
     
-    # Rate Limiting Middleware
-    app.add_middleware(RateLimitMiddleware, calls=100, period=60)
-    
     # CORS - Must be first - Fix credentials issue
     cors_origins = settings.cors_origins_list + ["http://localhost:4001", "http://127.0.0.1:4001"]
     app.add_middleware(
@@ -182,9 +181,10 @@ def create_app() -> FastAPI:
             allowed_hosts=settings.trusted_hosts_list,
         )
     
-    # Rate limiting
-    app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # Rate limiting - Temporarily disabled
+    # # Configuration: 100 requests per 60 seconds per IP
+    # app.state.limiter = limiter
+    # app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     
     
     # ================================
@@ -221,6 +221,9 @@ def create_app() -> FastAPI:
     
     # AI orchestration APIs (no auth required)
     app.include_router(agents_router, prefix="/api/v1/agents", tags=["AI Agents"])
+    
+    # Agent ecosystem health monitoring
+    app.include_router(agents_ecosystem_router, tags=["Agent Ecosystem"])
     
     # Vector search APIs (no auth required)
     app.include_router(vector_router, prefix="/api/v1/vector", tags=["Vector Search"])

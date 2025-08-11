@@ -14,7 +14,7 @@ from pydantic import BaseModel
 import httpx
 
 from .vector_search_client import search_similar, embed_text
-from .web_search_tool import WebSearchTool, WebBrowseTool, get_web_tools
+from .web_search_tool import WebSearchTool, WebBrowseTool, get_web_tools, WebSearchArgs, WebBrowseArgs
 
 logger = structlog.get_logger()
 
@@ -106,21 +106,28 @@ class VectorSearchTool(BaseTool):
             cancellation_token: Optional cancellation token for AutoGen
         """
         try:
-            # Embed the query
-            query_embedding = await embed_text(args.query)
-            
-            # Search for similar content
-            results = await search_similar(query_embedding, top_k=args.top_k)
-            
+            # Embed the query and get raw vector
+            query_vector = await embed_text(args.query)
+            if not query_vector:
+                return "Embedding failed or unavailable"
+
+            # Search for similar content and format structured results
+            search_result = await search_similar(query_vector, limit=args.top_k)
+            if search_result.get("error"):
+                return f"Vector search error: {search_result['error']}"
+
+            results = search_result.get("results", [])
             if not results:
                 return f"No relevant results found for: {args.query}"
-            
+
             formatted_results = []
-            for i, result in enumerate(results, 1):
-                formatted_results.append(f"{i}. {result.get('content', 'No content')[:200]}...")
-            
+            for i, item in enumerate(results[:args.top_k], 1):
+                text = item.get("text") or item.get("content") or ""
+                score = item.get("similarity_score")
+                formatted_results.append(f"{i}. {text[:200]}... (score: {score})")
+
             return f"Vector search results for '{args.query}':\n" + "\n".join(formatted_results)
-            
+
         except Exception as e:
             logger.error("❌ VectorSearchTool error", error=str(e))
             return f"Error performing vector search: {str(e)}"

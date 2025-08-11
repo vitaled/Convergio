@@ -77,14 +77,19 @@ class AgentIntelligence:
     ) -> Optional[str]:
         """Fetch relevant data from Convergio DB/Vector"""
         try:
+            # If fake data is disabled, do not fabricate internal data
+            if not getattr(settings, 'fake_internal_data_enabled', False):
+                return None
+
             # TODO: Implement actual DB/Vector queries
-            # For now, return sample data based on keywords
-            if 'msft' in message.lower() or 'microsoft' in message.lower():
-                return "Internal data: MSFT stock analysis from our portfolio shows 15% allocation, with YTD performance of +23.5%"
-            elif 'revenue' in message.lower():
-                return "Internal data: Q4 revenue $52.9B, up 18% YoY. Cloud revenue $25.9B, up 29%"
-            elif 'cost' in message.lower():
-                return "Internal data: Operating expenses $14.9B, R&D investment $6.5B, efficiency ratio improved by 12%"
+            # Temporary: controlled synthetic placeholders when explicitly enabled
+            ml = message.lower()
+            if 'msft' in ml or 'microsoft' in ml:
+                return "[placeholder] MSFT portfolio allocation 15%, YTD +23.5%"
+            if 'revenue' in ml:
+                return "[placeholder] Q4 revenue $52.9B (+18% YoY); Cloud $25.9B (+29%)"
+            if 'cost' in ml:
+                return "[placeholder] Opex $14.9B; R&D $6.5B; efficiency +12%"
             return None
         except Exception as e:
             logger.error(f"Failed to fetch internal data: {e}")
@@ -119,7 +124,9 @@ class AgentIntelligence:
                 
             if not api_key:
                 logger.warning(f"No API key available for agent {self.agent_name}")
-                return self._generate_smart_fallback(message, context)
+                if getattr(settings, 'smart_fallback_enabled', False):
+                    return self._generate_smart_fallback(message, context)
+                return "AI response unavailable: missing API key and smart fallback is disabled"
             
             # Get agent-specific system prompt with internal data
             system_prompt = self._build_agent_system_prompt(internal_data)
@@ -155,11 +162,15 @@ class AgentIntelligence:
                     return result['choices'][0]['message']['content']
                 else:
                     logger.error(f"OpenAI API error: {response.status_code}")
-                    return self._generate_smart_fallback(message, context)
+                    if getattr(settings, 'smart_fallback_enabled', False):
+                        return self._generate_smart_fallback(message, context)
+                    return f"AI response error: {response.status_code} (smart fallback disabled)"
                     
         except Exception as e:
             logger.error(f"Failed to generate AI response for {self.agent_name}: {e}")
-            return self._generate_smart_fallback(message, context)
+            if getattr(settings, 'smart_fallback_enabled', False):
+                return self._generate_smart_fallback(message, context)
+            return f"AI response failed: {e} (smart fallback disabled)"
     
     def _generate_clarification_request(self, message: str) -> str:
         """Generate a clarification request when intent is unclear"""

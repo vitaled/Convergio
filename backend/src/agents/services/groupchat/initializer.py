@@ -36,63 +36,36 @@ if not openai_logger.handlers:
 
 
 def initialize_model_client() -> OpenAIChatCompletionClient:
+    """Initialize model client using centralized AI client manager"""
+    from src.agents.ai_clients import get_autogen_client
+    
     settings = get_settings()
     
-    # Build client params
-    # Note: temperature, top_p, max_tokens should be passed when creating agents, not to the client
-    client_params = {
-        "model": settings.default_ai_model,  # This should be a string like "gpt-4o-mini"
-        "api_key": settings.openai_api_key,
-    }
-    
-    # Only add model_info for non-standard models
-    # gpt-4o-mini is a standard OpenAI model, so we shouldn't need model_info
-    # If AutoGen doesn't recognize it, we can add model_info
-    if "gpt-4o-mini" in settings.default_ai_model:
-        # Try without model_info first for standard OpenAI models
-        pass
-    else:
-        # For custom or unrecognized models, provide model info
-        model_info = {
-            "vision": False,
-            "function_calling": True,
-            "json_output": True,
-            "family": "openai",
-            "structured_output": True,
-        }
-        client_params["model_info"] = model_info
-    
-    # Only add base_url if it's actually set
-    if settings.openai_api_base and settings.openai_api_base.strip():
-        client_params["base_url"] = settings.openai_api_base
-    
-    # Debug logging - show actual model value to catch quote issues
-    logger.info("🔍 Creating OpenAIChatCompletionClient", 
-                model=client_params.get("model"),
-                model_repr=repr(client_params.get("model")),  # Show repr to see quotes
-                has_base_url="base_url" in client_params,
-                params_keys=list(client_params.keys()))
-    
     try:
-        client = OpenAIChatCompletionClient(**client_params)
-    except ValueError as e:
-        logger.error("❌ OpenAIChatCompletionClient creation failed", 
-                    error=str(e),
-                    model=client_params.get("model"))
-        # Try again without optional params for debugging
-        minimal_params = {
+        # Use centralized client manager
+        client = get_autogen_client(provider="openai", model=settings.default_ai_model)
+        
+        logger.info("🔍 Model client initialized via AI Client Manager", 
+                   model=settings.default_ai_model,
+                   provider="openai")
+        
+        return client
+        
+    except Exception as e:
+        logger.error("❌ Failed to initialize model client", error=str(e))
+        
+        # Fallback to direct initialization
+        logger.info("🔄 Falling back to direct client initialization")
+        
+        client_params = {
             "model": settings.default_ai_model,
             "api_key": settings.openai_api_key,
         }
-        logger.info("🔄 Retrying with minimal params", params=minimal_params)
-        client = OpenAIChatCompletionClient(**minimal_params)
-    
-    # Enable detailed conversation logging
-    logger.info("🔍 CONVERSATION LOGGING ENABLED", 
-               model=settings.default_ai_model,
-               debug_level="FULL_OPENAI_CONVERSATIONS")
-    
-    return client
+        
+        if settings.openai_api_base and settings.openai_api_base.strip():
+            client_params["base_url"] = settings.openai_api_base
+        
+        return OpenAIChatCompletionClient(**client_params)
 
 
 def initialize_agent_loader(agents_directory: str) -> tuple[DynamicAgentLoader, Dict[str, AgentMetadata]]:

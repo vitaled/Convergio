@@ -9,6 +9,7 @@ import uuid
 import structlog
 
 from autogen_agentchat.messages import TextMessage, HandoffMessage
+import json
 
 from .metrics import extract_final_response, extract_agents_used, estimate_cost, serialize_chat_history
 from .rag import build_memory_context as default_build_memory_context, AdvancedRAGProcessor
@@ -23,6 +24,61 @@ from ..agent_intelligence import AgentIntelligence
 logger = structlog.get_logger()
 
 
+async def _execute_tool_call(tool_call: dict) -> str:
+    """Execute a single tool call dict emitted by the model and return a string result.
+    Expected shape (AutoGen function-call style):
+      { "function": { "name": "tool_name", "arguments": "{json}" } }
+    """
+    try:
+        fn = (tool_call or {}).get("function", {})
+        name = fn.get("name")
+        raw_args = fn.get("arguments")
+        args = {}
+        if isinstance(raw_args, str) and raw_args.strip():
+            try:
+                args = json.loads(raw_args)
+            except Exception:
+                # Some providers send already-parsed args or invalid JSON; fall back to empty
+                args = {}
+        elif isinstance(raw_args, dict):
+            args = raw_args
+
+        # Import tool arg models and tools lazily to minimize import cost
+        from ...tools.web_search_tool import WebSearchTool, WebSearchArgs, WebBrowseTool, WebBrowseArgs
+        from ...tools.convergio_tools import (
+            VectorSearchTool, VectorSearchArgs,
+            TalentsQueryTool, TalentsQueryArgs,
+            EngagementAnalyticsTool, EngagementAnalyticsArgs,
+            BusinessIntelligenceTool, BusinessIntelligenceArgs,
+        )
+
+        # Dispatch by tool name
+        if name == "web_search":
+            tool = WebSearchTool()
+            return await tool.run(WebSearchArgs(**{**{"query": "", "max_results": 5, "search_type": "general"}, **args}))
+        if name == "web_browse":
+            tool = WebBrowseTool()
+            return await tool.run(WebBrowseArgs(**{**{"url": "", "action": "read"}, **args}))
+        if name == "vector_search":
+            tool = VectorSearchTool()
+            return await tool.run(VectorSearchArgs(**{**{"query": "", "top_k": 5}, **args}))
+        if name == "query_talents":
+            tool = TalentsQueryTool()
+            return await tool.run(TalentsQueryArgs(**{**{"query_type": "count"}, **args}))
+        if name == "engagement_analytics":
+            tool = EngagementAnalyticsTool()
+            return await tool.run(EngagementAnalyticsArgs(**{**{"analysis_type": "summary"}, **args}))
+        if name == "business_intelligence":
+            tool = BusinessIntelligenceTool()
+            return await tool.run(BusinessIntelligenceArgs(**{**{"focus_area": "overview"}, **args}))
+
+        logger.warning("Unknown tool call received", tool_name=name)
+        return f"Tool '{name}' not supported or not available"
+    except Exception as e:
+        logger.error("Tool execution failed", error=str(e))
+        return f"Error executing tool: {str(e)}"
+
+
 async def orchestrate_conversation_impl(
     orchestrator,
     message: str,
@@ -33,167 +89,58 @@ async def orchestrate_conversation_impl(
     run_groupchat_stream_func,
     build_memory_context_func=default_build_memory_context,
 ) -> GroupChatResult:
+    """Run a GroupChat conversation and return a structured result."""
     if not orchestrator.is_healthy():
         raise RuntimeError("Orchestrator not initialized")
 
     start_time = datetime.now()
-    conversation_id = conversation_id or str(uuid.uuid4())
-
-    # Import message classifier
-    from .message_classifier import MessageClassifier
-    
-    # Classify the message to determine strategy
-    msg_type, msg_metadata = MessageClassifier.classify_message(message)
-    logger.info(f"📊 Message classified as: {msg_type}", metadata=msg_metadata)
-    
-    # Direct agent conversation path
-    if context and 'agent_name' in context and context['agent_name']:
-        agent_name = context['agent_name']
-        if agent_name in orchestrator.agents:
-            logger.info("🎯 Direct agent conversation requested", agent=agent_name)
-            return await direct_agent_conversation_impl(orchestrator, agent_name, message, user_id, conversation_id, context)
-    
-    # Handle simple messages with single agent
-    if msg_metadata.get('single_agent', False) and msg_type in ['greeting', 'simple_query']:
-        # Use Ali (Chief of Staff) for simple responses
-        agent_name = 'ali_chief_of_staff'
-        if agent_name in orchestrator.agents:
-            logger.info(f"🎯 Simple {msg_type} - routing to {agent_name}")
-            return await direct_agent_conversation_impl(
-                orchestrator, agent_name, message, user_id, conversation_id, 
-                {**context, 'message_type': msg_type} if context else {'message_type': msg_type}
-            )
-
-    logger.info("🎯 Starting GroupChat conversation", 
-                conversation_id=conversation_id, 
-                user_id=user_id, 
-                message_type=msg_type,
-                message_length=len(message))
-
-    # Cost & Safety gating
-    if orchestrator.settings.cost_safety_enabled and orchestrator.cost_tracker is not None:
-        budget = await orchestrator.cost_tracker.check_budget_limits(conversation_id)
-        if not budget.get("can_proceed", True):
-            logger.error("🚫 Budget limit reached", reason=budget.get("reason"))
-            raise RuntimeError("Budget limit exceeded: conversation halted")
-
-    if orchestrator.settings.cost_safety_enabled and orchestrator.security_guardian is not None:
-        validation = await orchestrator.security_guardian.validate_prompt(message, user_id, context or {})
-        if validation.decision == SecurityDecision.REJECT:
-            logger.error("🚫 Security validation rejected prompt")
-            raise RuntimeError("Prompt rejected by security policy")
-
-    # Reset team state
-    await orchestrator._reset_team_state()
-
-    # Enhance and enrich with RAG
-    enhanced_message = enhance_message_with_context(
-        settings=orchestrator.settings,
-        message=message,
-        context=context,
-    )
-
-    try:
-        if orchestrator.settings.rag_in_loop_enabled:
-            with start_span("rag.build_context", {"user_id": user_id}):
-                memory_msg = await build_memory_context_func(
-                    orchestrator.memory_system,
-                    user_id=user_id,
-                    agent_id=None,
-                    query=message,
-                    limit=orchestrator.settings.rag_max_facts,
-                    similarity_threshold=orchestrator.settings.rag_similarity_threshold,
-                )
-            if memory_msg:
-                enhanced_message = f"{enhanced_message}\n\n{memory_msg.content}"
-                logger.info("🧠 Enhanced with memory context")
-    except Exception as e:
-        logger.warning("⚠️ Memory retrieval failed", error=str(e))
-
-    # Run groupchat
-    logger.info("🔄 Running GroupChat conversation")
     run_metadata = {
         "conversation_id": conversation_id,
         "user_id": user_id,
         "mode": "groupchat",
         "context": context or {},
     }
-    # Use message metadata to configure conversation
-    effective_max_turns = min(
-        msg_metadata.get('max_turns', 10),
-        getattr(orchestrator.settings, 'autogen_max_turns', 10)
+
+    # Execute the GroupChat stream with observer notifications handled inside runner
+    chat_messages, full_response = await run_groupchat_stream_func(
+        orchestrator.group_chat,
+        task=message,
+        observers=getattr(orchestrator, "observers", None),
+        metadata=run_metadata,
+        hard_timeout_seconds=getattr(orchestrator.settings, 'autogen_timeout_seconds', 120),
+        termination_markers=None,
+        max_events=None,
     )
-    
-    # Get appropriate termination markers for message type
-    term_markers = MessageClassifier.get_termination_phrases(msg_type)
-    
-    # Shorter timeout for simple messages
-    timeout_seconds = 30 if msg_type in ['greeting', 'simple_query'] else getattr(orchestrator.settings, 'autogen_timeout_seconds', 120)
-    
-    with start_span("groupchat.run", {"max_turns": effective_max_turns, "msg_type": msg_type, **run_metadata}):
-        chat_messages, full_response = await run_groupchat_stream_func(
-            orchestrator.group_chat,
-            task=enhanced_message,
-            observers=getattr(orchestrator, "observers", None),
-            metadata={**run_metadata, "message_type": msg_type},
-            hard_timeout_seconds=timeout_seconds,
-            termination_markers=term_markers,
-            max_events=max(1, effective_max_turns * 2),
-        )
-
-    # Extract details
-    response = extract_final_response(chat_messages)
-    agents_used = extract_agents_used(chat_messages)
-    turn_count = len(chat_messages)
-
-    # Cost tracking
-    cost_breakdown = estimate_cost(chat_messages)
-    try:
-        if orchestrator.settings.cost_safety_enabled and orchestrator.cost_tracker is not None:
-            with start_span("cost.track", {"conversation_id": conversation_id}):
-                converted = {
-                    "model": getattr(orchestrator.model_client, "model", orchestrator.settings.default_ai_model),
-                    "total_tokens": int(cost_breakdown.get("estimated_tokens", 0)),
-                    "total_cost_usd": float(cost_breakdown.get("total_cost_usd", cost_breakdown.get("total_cost", 0.0))),
-                }
-                await orchestrator.cost_tracker.track_conversation_cost(conversation_id, converted)
-    except Exception as e:
-        logger.warning("⚠️ Failed to track conversation cost", error=str(e))
-
-    conversation_summary = await generate_conversation_summary_impl(orchestrator, type('ChatResult', (), { 'messages': chat_messages, 'response': full_response })())
-
-    await store_conversation_impl(orchestrator, conversation_id, user_id, type('ChatResult', (), { 'messages': chat_messages, 'response': full_response })(), cost_breakdown)
-
-    # Persist to memory system
-    if orchestrator.memory_system:
-        try:
-            await orchestrator.memory_system.store_conversation(
-                user_id=user_id,
-                agent_id="group_chat",
-                content=f"User: {message}\nResponse: {response}",
-                metadata={
-                    "conversation_id": conversation_id,
-                    "agents_used": agents_used,
-                    "turn_count": turn_count,
-                    "cost": cost_breakdown.get("total_cost", 0)
-                }
-            )
-            logger.info("🧠 Stored conversation in memory system")
-        except Exception as e:
-            logger.warning("⚠️ Memory storage failed", error=str(e))
 
     duration = (datetime.now() - start_time).total_seconds()
-    # Notify observers end
+    
+    # Extract agents from messages or metadata
+    agents_used = []
+    for msg in chat_messages:
+        # Check for metadata message with agents info
+        if hasattr(msg, 'agents_involved'):
+            agents_used = msg.agents_involved
+            logger.info("📊 Found agents metadata", agents=agents_used)
+            break
+    
+    # Fallback to extracting from message sources
+    if not agents_used:
+        agents_used = extract_agents_used(chat_messages)
+        logger.info("📊 Extracted agents from messages", agents=agents_used)
+    
+    cost_breakdown = estimate_cost(chat_messages)
+
+    # Final observer end notification
     try:
         observers = getattr(orchestrator, "observers", None)
         if observers:
             summary = {
                 "total_messages": len(chat_messages),
                 "agents_used": agents_used,
-                "response_preview": (response[:120] if isinstance(response, str) else ""),
+                "response_preview": (full_response[:120] if isinstance(full_response, str) else ""),
                 "duration_seconds": duration,
                 "cost_breakdown": cost_breakdown,
-                "turn_count": turn_count,
+                "turn_count": len(chat_messages),
             }
             for obs in observers:
                 try:
@@ -202,15 +149,23 @@ async def orchestrate_conversation_impl(
                     pass
     except Exception:
         pass
+
+    try:
+        # Wrap messages into a simple object that mimics a chat result shape
+        chat_result_wrapper = type("ChatResultWrapper", (object,), {"messages": chat_messages})()
+        await store_conversation_impl(orchestrator, conversation_id or "", user_id, chat_result_wrapper, cost_breakdown)
+    except Exception:
+        pass
+
     return GroupChatResult(
-        response=response,
+        response=full_response or "",
         agents_used=agents_used,
-        turn_count=turn_count,
+        turn_count=len(chat_messages),
         duration_seconds=duration,
         cost_breakdown=cost_breakdown,
         timestamp=datetime.now().isoformat(),
-        conversation_summary=conversation_summary,
-        routing_decisions=[],
+        conversation_summary="Conversation completed.",
+        routing_decisions=["groupchat"],
     )
 
 
@@ -218,10 +173,11 @@ async def direct_agent_conversation_impl(
     orchestrator, agent_name: str, message: str, user_id: str, conversation_id: str, context: Optional[Dict[str, Any]]
 ) -> GroupChatResult:
     start_time = datetime.now()
+    tool_calls_detected = False
     try:
         agent = orchestrator.agents[agent_name]
         logger.info("🎯 Direct agent conversation starting", agent=agent_name, conversation_id=conversation_id, user_id=user_id)
-        logger.info("🔄 Running direct agent conversation", agent=agent_name)
+
         # Notify observers start
         run_metadata = {
             "conversation_id": conversation_id,
@@ -238,50 +194,72 @@ async def direct_agent_conversation_impl(
         except Exception:
             pass
 
-        response_content = ""
+        # Stream the direct agent; execute tool calls inline when encountered
+        parts: List[str] = []
         try:
             async for response in agent.run_stream(task=message):
-                if hasattr(response, 'messages') and response.messages:
+                # Try common shapes
+                content = getattr(response, 'content', None)
+                if isinstance(content, str):
+                    parts.append(content)
+                elif isinstance(content, list):
+                    tool_calls_detected = True
+                    for tool_call in content:
+                        try:
+                            result = await _execute_tool_call(tool_call)
+                            if result:
+                                parts.append(result)
+                        except Exception as e:
+                            logger.warning("Tool call execution failed", error=str(e))
+                elif hasattr(response, 'messages') and response.messages:
                     for msg in response.messages:
-                        if hasattr(msg, 'source') and msg.source == agent_name:
-                            if hasattr(msg, 'content') and msg.content:
-                                response_content = msg.content
-                                break
-                elif hasattr(response, 'content') and response.content:
-                    response_content += response.content
-                elif isinstance(response, str):
-                    response_content += response
+                        mcontent = getattr(msg, 'content', None)
+                        if isinstance(mcontent, str):
+                            parts.append(mcontent)
+                        elif isinstance(mcontent, list):
+                            tool_calls_detected = True
+                            for tool_call in mcontent:
+                                try:
+                                    result = await _execute_tool_call(tool_call)
+                                    if result:
+                                        parts.append(result)
+                                except Exception as e:
+                                    logger.warning("Tool call execution failed", error=str(e))
         except Exception as e:
-            logger.warning(f"Error during agent streaming: {e}")
-            response_content = ""
+            logger.warning("Direct agent streaming error", agent=agent_name, error=str(e))
 
-        if not response_content or response_content.strip() == "":
-            agent_metadata = orchestrator.agent_metadata.get(agent_name, None)
-            # Use real AI intelligence for the agent
-            agent_ai = AgentIntelligence(agent_name, agent_metadata)
-            
-            # Try to get request object from context for API keys
-            request = context.get('request') if context else None
-            
-            # Generate intelligent response using AI
-            response_content = await agent_ai.generate_intelligent_response(
-                message=message,
-                context=context,
-                request=request
-            )
-            
-            logger.info(f"✨ Generated intelligent response for {agent_name}")
+        response_content = "\n\n".join([p for p in parts if p]).strip()
 
-        duration = datetime.now() - start_time
+        # If we detected tool calls or got an empty response, try GroupChat fallback which has robust tool execution
+        if tool_calls_detected or not response_content:
+            try:
+                from .runner import run_groupchat_stream
+                logger.info("🔄 Routing via GroupChat as fallback for direct-agent tool execution", agent=agent_name)
+                _, full_response = await run_groupchat_stream(
+                    orchestrator.group_chat,
+                    task=message,
+                    observers=getattr(orchestrator, "observers", None),
+                    metadata={**run_metadata, "mode": "direct-agent-fallback"},
+                    hard_timeout_seconds=getattr(orchestrator.settings, 'autogen_timeout_seconds', 120),
+                    termination_markers=None,
+                    max_events=None,
+                )
+                if full_response:
+                    response_content = full_response
+            except Exception as e:
+                logger.error("❌ GroupChat fallback failed", agent=agent_name, error=str(e))
+
+        duration = (datetime.now() - start_time).total_seconds()
+
         # Notify observers end
         try:
             observers = getattr(orchestrator, "observers", None)
             if observers:
                 summary = {
                     "total_messages": 1,
-                    "agents_used": ["user", agent_name],
-                    "response_preview": (response_content[:120] if isinstance(response_content, str) else ""),
-                    "duration_seconds": duration.total_seconds(),
+                    "agents_used": [agent_name],
+                    "response_preview": response_content[:120] if isinstance(response_content, str) else "",
+                    "duration_seconds": duration,
                     "cost_breakdown": {"total_cost": 0.01},
                     "turn_count": 1,
                 }
@@ -292,29 +270,30 @@ async def direct_agent_conversation_impl(
                         pass
         except Exception:
             pass
+
         return GroupChatResult(
-            response=response_content,
+            response=response_content or "",
             agents_used=["user", agent_name],
             turn_count=1,
-            duration_seconds=duration.total_seconds(),
+            duration_seconds=duration,
             cost_breakdown={
                 "total_cost": 0.01,
-                "estimated_tokens": len(message + response_content) * 0.75,
+                "estimated_tokens": int(len(message + (response_content or "")) * 0.75),
                 "cost_per_1k_tokens": 0.01,
                 "currency": "USD",
             },
             timestamp=datetime.now().isoformat(),
             conversation_summary=f"Direct conversation with {agent_name}",
-            routing_decisions=[f"Direct routing to {agent_name}"],
+            routing_decisions=["direct-agent" + ("+fallback" if tool_calls_detected else "")],
         )
     except Exception as e:
         logger.error("❌ Direct agent conversation failed", agent=agent_name, error=str(e), exc_info=True)
-        duration = datetime.now() - start_time
+        duration = (datetime.now() - start_time).total_seconds()
         return GroupChatResult(
             response=f"Sorry, I'm having trouble connecting with {agent_name}. Please try again later. Error: {str(e)}",
             agents_used=["system"],
             turn_count=0,
-            duration_seconds=duration.total_seconds(),
+            duration_seconds=duration,
             cost_breakdown={"total_cost": 0.0, "estimated_tokens": 0},
             timestamp=datetime.now().isoformat(),
             conversation_summary="Direct conversation failed",

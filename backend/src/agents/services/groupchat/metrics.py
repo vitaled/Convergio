@@ -13,6 +13,12 @@ def extract_final_response(messages: List[Any]) -> str:
     last = messages[-1]
     if not hasattr(last, "content") or not last.content:
         raise ValueError("last message has no content")
+    
+    # NO FALLBACK! If tool calls are not executed, we fail properly
+    if isinstance(last.content, list):
+        # Tool calls detected but not executed - this is an ERROR
+        raise ValueError(f"Tool calls were not executed properly: {last.content}")
+    
     return last.content
 
 

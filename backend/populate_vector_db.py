@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""
+Populate vector database with sample data for testing
+"""
+
+import asyncio
+import json
+import os
+import sys
+sys.path.append(os.path.dirname(__file__))
+
+from datetime import datetime
+import httpx
+import structlog
+
+logger = structlog.get_logger()
+
+# Sample documents for vector database
+SAMPLE_DOCUMENTS = [
+    {
+        "text": "Microsoft Azure is a cloud computing platform offering over 200 products and services. It provides infrastructure as a service (IaaS), platform as a service (PaaS), and software as a service (SaaS). Azure supports various programming languages, tools, and frameworks, including both Microsoft-specific and third-party software.",
+        "metadata": {"source": "azure_overview", "category": "cloud", "company": "Microsoft"}
+    },
+    {
+        "text": "Microsoft reported Q4 FY2025 revenue of $76.4 billion, representing an 18% year-over-year growth. The strong performance was driven by cloud services, particularly Azure, which saw 39% revenue growth. Microsoft Cloud revenue reached $46.7 billion, up 27%.",
+        "metadata": {"source": "earnings_report", "category": "financial", "quarter": "Q4 FY2025"}
+    },
+    {
+        "text": "AutoGen is an open-source framework by Microsoft for building AI agent systems. It enables developers to create sophisticated multi-agent applications where AI agents can collaborate, use tools, and solve complex tasks. Version 0.7 introduces async architecture and improved tool execution.",
+        "metadata": {"source": "autogen_docs", "category": "technology", "framework": "AutoGen"}
+    },
+    {
+        "text": "Convergio is an advanced talent management and project orchestration platform. It leverages AI agents to streamline recruitment, project management, and business intelligence. The platform integrates with Microsoft technologies and uses AutoGen for agent orchestration.",
+        "metadata": {"source": "convergio_overview", "category": "platform", "product": "Convergio"}
+    },
+    {
+        "text": "The talent acquisition process involves identifying, attracting, and hiring skilled professionals. Key metrics include time-to-hire, quality of hire, and candidate experience. Modern platforms use AI to match candidates with opportunities based on skills, experience, and cultural fit.",
+        "metadata": {"source": "hr_best_practices", "category": "talent", "topic": "recruitment"}
+    },
+    {
+        "text": "Project management best practices include clear goal setting, stakeholder engagement, risk management, and continuous monitoring. Agile methodologies emphasize iterative development, customer collaboration, and responding to change. Tools like Kanban boards and sprint planning help teams stay organized.",
+        "metadata": {"source": "pm_guide", "category": "project_management", "methodology": "Agile"}
+    },
+    {
+        "text": "Business intelligence involves analyzing data to make informed business decisions. Key components include data warehousing, data mining, reporting, and predictive analytics. Modern BI tools provide real-time dashboards, self-service analytics, and AI-powered insights.",
+        "metadata": {"source": "bi_fundamentals", "category": "business_intelligence", "type": "overview"}
+    },
+    {
+        "text": "Amy CFO specializes in financial analysis and reporting. She can provide insights on revenue trends, cost optimization, and financial forecasting. Amy uses real-time market data and company metrics to deliver accurate financial intelligence.",
+        "metadata": {"source": "agent_profile", "category": "agent", "name": "Amy_CFO"}
+    },
+    {
+        "text": "Ali Chief of Staff coordinates between different departments and agents. Ali has access to all tools and can orchestrate complex workflows. Key responsibilities include strategic planning, cross-functional coordination, and executive support.",
+        "metadata": {"source": "agent_profile", "category": "agent", "name": "Ali_Chief_of_Staff"}
+    },
+    {
+        "text": "Vector databases use embedding vectors to enable semantic search. Unlike keyword search, vector search understands context and meaning. Applications include recommendation systems, similarity search, and retrieval-augmented generation (RAG) for LLMs.",
+        "metadata": {"source": "tech_guide", "category": "technology", "topic": "vector_search"}
+    }
+]
+
+async def create_embeddings():
+    """Create embeddings for sample documents"""
+    
+    try:
+        # Use the embedding endpoint directly
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i, doc in enumerate(SAMPLE_DOCUMENTS):
+                logger.info(f"Creating embedding {i+1}/{len(SAMPLE_DOCUMENTS)}")
+                
+                # Call the embedding API
+                response = await client.post(
+                    "http://localhost:9000/api/v1/embeddings",
+                    json={
+                        "text": doc["text"],
+                        "metadata": doc["metadata"]
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    logger.info(f"✅ Created embedding: {result.get('id', 'unknown')}")
+                else:
+                    logger.error(f"❌ Failed to create embedding: {response.status_code}")
+                    logger.error(f"Response: {response.text}")
+                
+                # Small delay to avoid overwhelming the service
+                await asyncio.sleep(0.5)
+                
+        logger.info("✅ Sample data population complete!")
+        
+    except Exception as e:
+        logger.error(f"❌ Error populating database: {e}")
+        
+        # Try alternative: Direct database insertion with mock embeddings
+        logger.info("Attempting direct database insertion with mock embeddings...")
+        await insert_mock_embeddings()
+
+async def insert_mock_embeddings():
+    """Insert mock embeddings directly into database"""
+    import psycopg2
+    from psycopg2.extras import Json
+    import numpy as np
+    
+    try:
+        # Get database URL from environment
+        db_url = os.getenv("DATABASE_URL", "postgresql://convergio_user:convergio_pass@localhost:5432/convergio_platform")
+        
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        
+        # Create embeddings table if not exists
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS embeddings (
+                id SERIAL PRIMARY KEY,
+                content TEXT NOT NULL,
+                embedding vector(1536),
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Insert sample documents with mock embeddings
+        for doc in SAMPLE_DOCUMENTS:
+            # Generate a deterministic mock embedding based on text
+            mock_embedding = np.random.RandomState(hash(doc["text"]) % 2**32).randn(1536).tolist()
+            
+            cur.execute("""
+                INSERT INTO embeddings (content, embedding, metadata)
+                VALUES (%s, %s, %s)
+            """, (doc["text"], mock_embedding, Json(doc["metadata"])))
+            
+            logger.info(f"✅ Inserted: {doc['metadata'].get('source', 'unknown')}")
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        logger.info("✅ Mock embeddings inserted successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ Database insertion failed: {e}")
+
+async def main():
+    """Main function"""
+    logger.info("🚀 Starting vector database population...")
+    logger.info(f"📊 Will insert {len(SAMPLE_DOCUMENTS)} sample documents")
+    
+    await create_embeddings()
+
+if __name__ == "__main__":
+    asyncio.run(main())

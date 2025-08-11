@@ -125,6 +125,10 @@ class Settings(BaseSettings):
     graphflow_enabled: bool = Field(default=False, env="GRAPHFLOW")
     hitl_enabled: bool = Field(default=False, env="HITL")
     cost_safety_enabled: bool = Field(default=True, env="COST_SAFETY")
+    # Agent behavior flags
+    smart_fallback_enabled: bool = Field(default=False, env="SMART_FALLBACK_ENABLED")
+    # Use synthetic placeholders for internal data in AgentIntelligence._fetch_internal_data
+    fake_internal_data_enabled: bool = Field(default=False, env="FAKE_INTERNAL_DATA_ENABLED")
     
     # Security
     jwt_secret: str = Field(..., env="JWT_SECRET")

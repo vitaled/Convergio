@@ -685,9 +685,18 @@ async def start_conversation(request: ConversationRequest, http_request: Request
             )
             
             # Convert GroupChatResult to response format with REAL content
+            # Format response as markdown
+            formatted_response = f"""## Agent Response
+
+{getattr(result, 'final_response', result.response) or "Conversation processing completed"}
+
+---
+*Agents involved: {', '.join(result.agents_used if result.agents_used else ['None'])}*
+"""
+            
             return {
                 "conversation_id": request.conversation_id or str(uuid4()),
-                "response": getattr(result, 'final_response', result.response) or "Conversation processing completed",
+                "response": formatted_response,
                 "agents_used": result.agents_used,
                 "turn_count": result.turn_count,
                 "duration_seconds": result.duration_seconds,
