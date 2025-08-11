@@ -5,12 +5,13 @@
   let apiKeys = {
     openai_api_key: '',
     anthropic_api_key: '',
-    default_model: ''
+    perplexity_api_key: ''
   };
 
   let keyStatus = {
     openai: { is_configured: false, is_valid: null },
-    anthropic: { is_configured: false, is_valid: null }
+    anthropic: { is_configured: false, is_valid: null },
+    perplexity: { is_configured: false, is_valid: null }
   };
 
   let saving = false;
@@ -49,9 +50,10 @@
         setTimeout(() => showSuccess = false, 3000);
         await loadKeyStatus();
         
-        // Clear only key fields; keep preferred model
+        // Clear only key fields
         apiKeys.openai_api_key = '';
         apiKeys.anthropic_api_key = '';
+        apiKeys.perplexity_api_key = '';
       } else {
         alert('Failed to save API keys');
       }
@@ -156,31 +158,6 @@
     </div>
 
     <div class="p-4 space-y-4">
-      <!-- Default Model Selection -->
-      <div class="space-y-2">
-        <label for="default-model" class="block text-xs font-medium text-gray-700">
-          Default OpenAI Model
-          <span class="font-normal text-gray-500">(Used unless overridden)</span>
-        </label>
-        <div class="flex items-center space-x-2">
-          <select
-            id="default-model"
-            bind:value={apiKeys.default_model}
-            class="px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-            aria-describedby="model-help"
-          >
-            <option value="">Use backend default (gpt-5-nano)</option>
-            <option value="gpt-5">gpt-5</option>
-            <option value="gpt-5-mini">gpt-5-mini</option>
-            <option value="gpt-5-nano">gpt-5-nano</option>
-          </select>
-          <a href="https://platform.openai.com/docs/models" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 text-xs">Model docs</a>
-        </div>
-        <p id="model-help" class="text-xs text-gray-500">
-          Roberdan aggiungi qualche info in piu qui, tipo costi, speed, reasoning, etc come dal sito.
-        </p>
-      </div>
-
       <!-- OpenAI API Key -->
       <div class="space-y-2">
         <label for="openai-key" class="block text-xs font-medium text-gray-700">
@@ -270,6 +247,50 @@
         </p>
       </div>
 
+      <!-- Perplexity API Key -->
+      <div class="space-y-2">
+        <label for="perplexity-key" class="block text-xs font-medium text-gray-700">
+          Perplexity API Key
+          <span class="font-normal text-gray-500">(Required for real-time web search)</span>
+        </label>
+        <div class="flex space-x-2">
+          <input
+            id="perplexity-key"
+            type="password"
+            bind:value={apiKeys.perplexity_api_key}
+            placeholder="pplx-..."
+            class="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
+            aria-describedby="perplexity-help"
+          />
+          <div class="flex items-center space-x-2">
+            {#if keyStatus.perplexity?.is_configured}
+              <span class="flex items-center text-xs text-green-600" role="status" aria-label="Perplexity API key configured">
+                <div class="h-2 w-2 bg-green-500 rounded-full mr-1" aria-hidden="true"></div>
+                Configured
+              </span>
+            {:else}
+              <span class="flex items-center text-xs text-yellow-600" role="status" aria-label="Perplexity API key recommended">
+                <div class="h-2 w-2 bg-yellow-500 rounded-full mr-1" aria-hidden="true"></div>
+                Recommended
+              </span>
+            {/if}
+            {#if keyStatus.perplexity?.is_configured}
+              <button
+                on:click={() => testApiKey('perplexity')}
+                disabled={testing}
+                class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors disabled:opacity-50"
+                aria-label="Test Perplexity API key"
+              >
+                {testing ? 'Testing...' : 'Test'}
+              </button>
+            {/if}
+          </div>
+        </div>
+        <p id="perplexity-help" class="text-xs text-gray-500">
+          Get your API key from <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800">Perplexity Settings</a>. Enables real-time data access for financial queries.
+        </p>
+      </div>
+
       <!-- Action Buttons -->
       <div class="flex justify-between pt-4 border-t border-gray-200">
         <div class="flex space-x-2">
@@ -288,7 +309,7 @@
           <div id="save-help" class="sr-only">You can save keys and/or default model</div>
         </div>
         
-        {#if keyStatus.openai.is_configured || keyStatus.anthropic.is_configured}
+        {#if keyStatus.openai.is_configured || keyStatus.anthropic.is_configured || keyStatus.perplexity?.is_configured}
           <button
             on:click={clearApiKeys}
             class="px-3 py-2 text-xs text-red-600 hover:text-red-800 transition-colors"
@@ -326,6 +347,7 @@
         <ul class="text-xs text-yellow-800 mt-1 space-y-1 list-disc ml-4">
           <li><strong>OpenAI GPT-4:</strong> ~$0.03-0.06 per conversation (varies by length)</li>
           <li><strong>Anthropic Claude:</strong> ~$0.015-0.075 per conversation</li>
+          <li><strong>Perplexity Sonar:</strong> ~$0.005 per search query (real-time web data)</li>
           <li>You maintain full control over your API usage and billing</li>
         </ul>
       </div>

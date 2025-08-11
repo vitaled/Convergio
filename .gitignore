@@ -462,5 +462,7 @@ dev-debug.log
 .roberdan
 
 # Task files
-tasks.json
-tasks/ 
+# tasks.json
+# tasks/ 
+
+.github/instructions/
