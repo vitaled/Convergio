@@ -16,6 +16,7 @@ from .rag import build_memory_context as default_build_memory_context, AdvancedR
 from .context import enhance_message_with_context
 from .types import GroupChatResult
 from .per_turn_rag import PerTurnRAGInjector, RAGEnhancedGroupChat, initialize_per_turn_rag
+from .intelligent_router import IntelligentAgentRouter
 from ...utils.tracing import start_span
 from ...security.ai_security_guardian import SecurityDecision
 from ..agent_intelligence import AgentIntelligence
@@ -101,7 +102,26 @@ async def orchestrate_conversation_impl(
         "context": context or {},
     }
 
-    # Execute the GroupChat stream with observer notifications handled inside runner
+    # Check if we should use single agent routing
+    router = IntelligentAgentRouter()
+    if router.should_use_single_agent(message):
+        # Select the best single agent for this query
+        all_agents = list(orchestrator.agents.values())
+        best_agent = router.select_best_agent(message, all_agents, context)
+        
+        if best_agent:
+            logger.info(f"🎯 Single agent routing to {best_agent.name}")
+            # Direct execution with single agent
+            return await direct_agent_conversation_impl(
+                orchestrator, 
+                best_agent.name, 
+                message, 
+                user_id, 
+                conversation_id, 
+                context
+            )
+    
+    # Execute the GroupChat stream for multi-agent scenarios
     chat_messages, full_response = await run_groupchat_stream_func(
         orchestrator.group_chat,
         task=message,
@@ -273,7 +293,7 @@ async def direct_agent_conversation_impl(
 
         return GroupChatResult(
             response=response_content or "",
-            agents_used=["user", agent_name],
+            agents_used=[agent_name],  # Only the agent that responded, not "user"
             turn_count=1,
             duration_seconds=duration,
             cost_breakdown={

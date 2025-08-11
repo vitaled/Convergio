@@ -39,79 +39,53 @@ def create_business_agents(
 
 
 def _select_tools_for_agent(agent_id: str):
+    """Select appropriate tool functions for each agent"""
     try:
-        from ...tools.convergio_tools import (
-            CONVERGIO_TOOLS,
-            BusinessIntelligenceTool,
-            EngagementAnalyticsTool,
-            VectorSearchTool,
-            TalentsQueryTool,
-            WebSearchTool,
-            WebBrowseTool,
+        from ...tools.autogen_tools import (
+            web_search,
+            query_talents,
+            business_intelligence,
+            get_amy_tools,
+            get_ali_tools,
+            get_data_analysis_tools,
+            get_market_strategy_tools,
+            get_default_tools
         )
         
         # Ali gets ALL tools including web access
         if agent_id == "ali_chief_of_staff":
-            return CONVERGIO_TOOLS
+            return get_ali_tools()
         
-        # Project Manager needs full Convergio database access
+        # Amy CFO needs financial tools
+        if agent_id == "amy_cfo":
+            logger.info("🎯 Configuring Amy CFO with web search for financial data")
+            return get_amy_tools()
+        
+        # Diana needs performance and financial tools
+        if agent_id == "diana_performance_dashboard":
+            return get_amy_tools()
+        
+        # Project Manager needs full database access
         if agent_id == "davide-project-manager":
-            return [
-                BusinessIntelligenceTool(), 
-                EngagementAnalyticsTool(),
-                TalentsQueryTool(),
-                VectorSearchTool(),
-                WebSearchTool(),  # For project research
-            ]
+            return [web_search, query_talents, business_intelligence]
         
-        # Financial agents need web search for market data
-        if agent_id in ["diana_performance_dashboard", "amy_cfo"]:
-            return [
-                BusinessIntelligenceTool(), 
-                EngagementAnalyticsTool(),
-                TalentsQueryTool(),  # Access to talent data
-                WebSearchTool(),  # For current market data
-            ]
-        
-        # Market/Strategy agents need web search and database access
+        # Market/Strategy agents need web search and business intelligence
         if any(term in agent_id.lower() for term in ["market", "strategy", "mckinsey", "investor"]):
-            return [
-                BusinessIntelligenceTool(), 
-                VectorSearchTool(),
-                TalentsQueryTool(),  # Access to talent data
-                WebSearchTool(),  # For market research
-                WebBrowseTool(),  # For reading articles
-            ]
+            return get_market_strategy_tools()
         
-        # Data/Analysis agents get full database access
+        # Data/Analysis agents get analysis tools
         if "data" in agent_id.lower() or "analysis" in agent_id.lower():
-            return [
-                BusinessIntelligenceTool(), 
-                EngagementAnalyticsTool(),
-                VectorSearchTool(), 
-                TalentsQueryTool(),
-                WebSearchTool(),  # For research
-            ]
+            return get_data_analysis_tools()
         
-        # Technical agents need documentation and database access
+        # Technical agents need web search for documentation
         if any(term in agent_id.lower() for term in ["tech", "architect", "security", "dev"]):
-            return [
-                BusinessIntelligenceTool(), 
-                VectorSearchTool(),
-                TalentsQueryTool(),  # Access to talent data
-                WebSearchTool(),  # For technical docs
-                WebBrowseTool(),  # For reading documentation
-            ]
+            return [web_search, business_intelligence]
         
-        # Default: Give all agents basic database access + web search
-        return [
-            TalentsQueryTool(),  # All agents can query talent data
-            VectorSearchTool(),  # All agents can search knowledge base
-            WebSearchTool()      # All agents can search web
-        ]
+        # Default: Give all agents basic tools
+        return get_default_tools()
         
     except Exception as e:
         logger.warning("Tool selection failed", agent_id=agent_id, error=str(e))
-    return []
+        return []
 
 

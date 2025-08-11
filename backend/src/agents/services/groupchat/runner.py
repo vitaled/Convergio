@@ -10,6 +10,7 @@ from typing import List, Tuple, Any, Dict, Iterable, Optional
 import time
 
 from ...observability.autogen_observer import AutoGenObserver
+from .tool_executor import GroupChatToolExecutor
 
 
 async def run_groupchat_stream(
@@ -30,6 +31,19 @@ async def run_groupchat_stream(
     term_markers = [m.lower() for m in (termination_markers or [
         "final answer", "final response", "conclusion", "end_of_conversation", "terminate"
     ])]
+    
+    # Initialize tool executor
+    tool_executor = GroupChatToolExecutor()
+    
+    # Check if we need to inject web search context BEFORE running the agent
+    web_context = await tool_executor.inject_web_search_if_needed(task)
+    if web_context:
+        # Enhance the task with web search results
+        enhanced_task = f"{task}{web_context}"
+        logger.info("🌐 Enhanced task with web search context")
+    else:
+        enhanced_task = task
+    
     # Notify observers of conversation start (idempotent for direct use)
     if observers:
         for obs in observers:
@@ -45,7 +59,7 @@ async def run_groupchat_stream(
         logger = structlog.get_logger()
         logger.info("🚀 Starting GroupChat stream", task=task[:100])
         
-        stream_iterator = aiter(group_chat.run_stream(task=task))
+        stream_iterator = aiter(group_chat.run_stream(task=enhanced_task))
         
         while True:
             try:
@@ -71,12 +85,19 @@ async def run_groupchat_stream(
                     continue
                     
                 if hasattr(response, "content") and response.content:
-                    # Don't include the original task in the response
-                    if response.content.strip() != task.strip():
+                    # Check if content contains tool calls
+                    if isinstance(response.content, list):
+                        # This is a tool call - execute it
+                        logger.info("🔧 Detected tool calls in response")
+                        tool_results = await tool_executor.execute_tool_calls(response.content)
+                        for result in tool_results:
+                            full_response += f"\n{result}\n"
+                    elif response.content.strip() != task.strip():
+                        # Regular text content
                         full_response += response.content
                     # Early termination: content markers
                     try:
-                        content_l = response.content.lower()
+                        content_l = response.content.lower() if isinstance(response.content, str) else ""
                         if any(marker in content_l for marker in term_markers):
                             break
                     except Exception:
