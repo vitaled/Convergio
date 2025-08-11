@@ -1,0 +1,84 @@
+# Feature Flags Configuration
+# Control feature rollout and A/B testing
+
+multi_agent_routing:
+  enabled: true
+  description: Enable intelligent multi-agent routing with turn count fixes
+  rollout_percentage: 100.0
+
+batch_embeddings:
+  enabled: true
+  description: Use batch embeddings for 90% cost reduction
+  rollout_percentage: 100.0
+
+unified_memory:
+  enabled: true
+  description: Use unified memory service with PostgreSQL
+  rollout_percentage: 100.0
+
+circuit_breaker:
+  enabled: true
+  description: Enable circuit breaker for orchestrator resilience
+  rollout_percentage: 100.0
+  conditions:
+    environment: production
+
+hot_reload_config:
+  enabled: true
+  description: Enable hot-reload for configuration changes
+  rollout_percentage: 100.0
+
+streaming_responses:
+  enabled: true
+  description: Enable WebSocket streaming for real-time responses
+  rollout_percentage: 100.0
+
+agent_intelligence:
+  enabled: true
+  description: Use AgentIntelligence service for smart responses
+  rollout_percentage: 100.0
+
+perplexity_web_search:
+  enabled: true
+  description: Enable Perplexity API for real-time web search
+  rollout_percentage: 100.0
+
+redis_caching:
+  enabled: true
+  description: Use Redis for embedding and memory caching
+  rollout_percentage: 100.0
+
+pgvector_search:
+  enabled: true
+  description: Use pgvector for semantic search
+  rollout_percentage: 100.0
+
+auto_vacuum:
+  enabled: false
+  description: Enable automatic database vacuum and analyze
+  rollout_percentage: 100.0
+  conditions:
+    environment: production
+
+metrics_collection:
+  enabled: true
+  description: Collect performance and cost metrics
+  rollout_percentage: 100.0
+
+conversation_memory:
+  enabled: true
+  description: Store conversation history for context
+  rollout_percentage: 100.0
+
+project_management:
+  enabled: true
+  description: Enable project management features
+  rollout_percentage: 100.0
+
+approval_system:
+  enabled: false
+  description: Require approval for sensitive operations
+  rollout_percentage: 0.0
+  conditions:
+    environment: production
+    risk_level: high

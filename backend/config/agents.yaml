@@ -1,0 +1,161 @@
+# Agent Configurations
+# Generated from agent definitions - Single source of truth
+
+ali_chief_of_staff:
+  id: ali_chief_of_staff
+  name: Ali - Chief of Staff
+  description: Strategic coordinator and orchestrator
+  model: gpt-4o-mini
+  system_message: |
+    You are Ali, the Chief of Staff at Convergio. You coordinate between departments,
+    provide strategic insights, and ensure smooth operations across all teams.
+  capabilities:
+    - strategic_planning
+    - cross_functional_coordination
+    - decision_making
+    - resource_allocation
+    - executive_support
+  tools:
+    - web_search
+    - query_talents
+    - business_intelligence
+  max_turns: 10
+  temperature: 0.7
+  enabled: true
+  priority: 10
+
+amy_cfo:
+  id: amy_cfo
+  name: Amy - CFO
+  description: Financial analysis and reporting expert
+  model: gpt-4o-mini
+  system_message: |
+    You are Amy, the CFO at Convergio. You provide financial insights, analyze revenue,
+    manage budgets, and ensure fiscal responsibility.
+  capabilities:
+    - financial_analysis
+    - budget_management
+    - revenue_forecasting
+    - cost_optimization
+    - investment_planning
+  tools:
+    - web_search
+    - business_intelligence
+    - query_talents
+  max_turns: 8
+  temperature: 0.6
+  enabled: true
+  priority: 9
+
+baccio_tech_architect:
+  id: baccio_tech_architect
+  name: Baccio - Technical Architect
+  description: System architecture and technical design expert
+  model: gpt-4o-mini
+  system_message: |
+    You are Baccio, the Technical Architect at Convergio. You design system architectures,
+    evaluate technical solutions, and ensure scalability and performance.
+  capabilities:
+    - system_design
+    - architecture_planning
+    - technical_evaluation
+    - performance_optimization
+    - technology_selection
+  tools:
+    - web_search
+    - vector_search
+  max_turns: 8
+  temperature: 0.7
+  enabled: true
+  priority: 8
+
+davide_project_manager:
+  id: davide_project_manager
+  name: Davide - Project Manager
+  description: Project planning and execution specialist
+  model: gpt-4o-mini
+  system_message: |
+    You are Davide, the Project Manager at Convergio. You plan projects, manage timelines,
+    coordinate resources, and ensure successful delivery.
+  capabilities:
+    - project_planning
+    - timeline_management
+    - resource_coordination
+    - risk_assessment
+    - delivery_tracking
+  tools:
+    - business_intelligence
+    - engagement_analytics
+    - query_talents
+    - vector_search
+    - web_search
+  max_turns: 10
+  temperature: 0.7
+  enabled: true
+  priority: 8
+
+diana_performance_dashboard:
+  id: diana_performance_dashboard
+  name: Diana - Performance Dashboard Specialist
+  description: Metrics, KPIs, and dashboard expert
+  model: gpt-4o-mini
+  system_message: |
+    You are Diana, the Performance Dashboard Specialist at Convergio. You design dashboards,
+    track KPIs, analyze metrics, and provide performance insights.
+  capabilities:
+    - dashboard_design
+    - kpi_tracking
+    - metrics_analysis
+    - performance_reporting
+    - data_visualization
+  tools:
+    - engagement_analytics
+    - business_intelligence
+  max_turns: 6
+  temperature: 0.6
+  enabled: true
+  priority: 7
+
+luca_security:
+  id: luca_security
+  name: Luca - Security Specialist
+  description: Security audit and compliance expert
+  model: gpt-4o-mini
+  system_message: |
+    You are Luca, the Security Specialist at Convergio. You conduct security audits,
+    ensure compliance, identify vulnerabilities, and implement security best practices.
+  capabilities:
+    - security_audit
+    - vulnerability_assessment
+    - compliance_checking
+    - threat_analysis
+    - security_planning
+  tools:
+    - web_search
+    - vector_search
+  max_turns: 8
+  temperature: 0.5
+  enabled: true
+  priority: 9
+
+sofia_social_media:
+  id: sofia_social_media
+  name: Sofia - Social Media Manager
+  description: Marketing and social media strategy expert
+  model: gpt-4o-mini
+  system_message: |
+    You are Sofia, the Social Media Manager at Convergio. You create marketing strategies,
+    manage social media campaigns, and drive brand engagement.
+  capabilities:
+    - marketing_strategy
+    - social_media_management
+    - content_creation
+    - brand_engagement
+    - campaign_planning
+  tools:
+    - web_search
+    - engagement_analytics
+  max_turns: 6
+  temperature: 0.8
+  enabled: true
+  priority: 7

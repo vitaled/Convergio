@@ -1,0 +1,56 @@
+# Rate Limits and Quotas Configuration
+
+# Token limits
+max_tokens_per_request: 4000
+max_tokens_per_conversation: 16000
+max_tokens_per_day: 1000000
+
+# Request limits
+max_requests_per_minute: 60
+max_requests_per_hour: 1000
+max_requests_per_day: 10000
+
+# Embedding limits
+max_embeddings_per_batch: 100
+max_embedding_dimension: 1536
+max_text_length_for_embedding: 8192
+
+# Conversation limits
+max_conversation_length: 100
+max_conversations_per_user: 50
+max_agents_per_conversation: 5
+max_turn_count: 20
+
+# Cache settings
+cache_ttl_seconds: 3600
+embedding_cache_ttl: 3600
+memory_cache_ttl: 900
+conversation_cache_ttl: 3600
+
+# Database limits
+max_db_connections: 200
+db_connection_timeout: 30
+max_query_results: 1000
+vector_search_limit: 10
+similarity_threshold: 0.7
+
+# WebSocket limits
+max_websocket_connections: 500
+websocket_message_size_limit: 65536
+websocket_ping_interval: 30
+websocket_timeout: 300
+
+# File size limits
+max_upload_size_mb: 50
+max_document_size_mb: 10
+max_image_size_mb: 5
+
+# Memory limits
+max_memory_entries_per_user: 1000
+memory_retention_days: 30
+memory_cleanup_interval_hours: 24
+
+# Cost thresholds
+max_cost_per_conversation: 1.0
+max_cost_per_day: 100.0
+cost_alert_threshold: 50.0
