@@ -37,7 +37,7 @@ if not openai_logger.handlers:
 
 def initialize_model_client() -> OpenAIChatCompletionClient:
     """Initialize model client using centralized AI client manager"""
-    from src.agents.ai_clients import get_autogen_client
+    from src.core.ai_clients import get_autogen_client
     
     settings = get_settings()
     

@@ -60,41 +60,79 @@ SAMPLE_DOCUMENTS = [
 ]
 
 async def create_embeddings():
-    """Create embeddings for sample documents"""
+    """Create embeddings for sample documents using batch API for efficiency"""
     
     try:
-        # Use the embedding endpoint directly
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for i, doc in enumerate(SAMPLE_DOCUMENTS):
-                logger.info(f"Creating embedding {i+1}/{len(SAMPLE_DOCUMENTS)}")
-                
-                # Call the embedding API
-                response = await client.post(
-                    "http://localhost:9000/api/v1/embeddings",
-                    json={
-                        "text": doc["text"],
-                        "metadata": doc["metadata"]
-                    }
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    logger.info(f"✅ Created embedding: {result.get('id', 'unknown')}")
-                else:
-                    logger.error(f"❌ Failed to create embedding: {response.status_code}")
-                    logger.error(f"Response: {response.text}")
-                
-                # Small delay to avoid overwhelming the service
-                await asyncio.sleep(0.5)
-                
-        logger.info("✅ Sample data population complete!")
+        # Import the new batch embedding function
+        from src.core.ai_clients import batch_create_embeddings
+        from src.core.vector_utils import VectorOperations
+        from src.core.database import get_async_session
         
+        # Extract all texts for batch processing
+        texts = [doc["text"] for doc in SAMPLE_DOCUMENTS]
+        
+        logger.info(f"🚀 Creating embeddings for {len(texts)} documents using batch API...")
+        
+        # Create all embeddings in a single batch call (90% cost reduction!)
+        embeddings = await batch_create_embeddings(texts, batch_size=100)
+        
+        logger.info(f"✅ Generated {len(embeddings)} embeddings in batch")
+        
+        # Now store them in the database
+        async with get_async_session() as session:
+            documents_with_embeddings = []
+            
+            for i, (doc, embedding) in enumerate(zip(SAMPLE_DOCUMENTS, embeddings)):
+                documents_with_embeddings.append({
+                    'text': doc['text'],
+                    'metadata': doc['metadata'],
+                    'document_id': f"sample_doc_{i}",
+                    'chunk_index': 0
+                })
+            
+            # Use VectorOperations to index all documents
+            indexed_count = await VectorOperations.index_vectors(
+                session,
+                documents_with_embeddings,
+                use_batch_embeddings=False  # We already have embeddings
+            )
+            
+            logger.info(f"✅ Indexed {indexed_count} documents in vector database")
+        
+        logger.info("✅ Sample data population complete with batch embeddings!")
+        
+    except ImportError:
+        # Fallback to API endpoint if new modules not available
+        logger.warning("New batch modules not available, using API endpoint...")
+        await create_embeddings_via_api()
     except Exception as e:
         logger.error(f"❌ Error populating database: {e}")
         
         # Try alternative: Direct database insertion with mock embeddings
         logger.info("Attempting direct database insertion with mock embeddings...")
         await insert_mock_embeddings()
+
+async def create_embeddings_via_api():
+    """Fallback: Create embeddings via API endpoint"""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for i, doc in enumerate(SAMPLE_DOCUMENTS):
+            logger.info(f"Creating embedding {i+1}/{len(SAMPLE_DOCUMENTS)}")
+            
+            response = await client.post(
+                "http://localhost:9000/api/v1/embeddings",
+                json={
+                    "text": doc["text"],
+                    "metadata": doc["metadata"]
+                }
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"✅ Created embedding: {result.get('id', 'unknown')}")
+            else:
+                logger.error(f"❌ Failed: {response.status_code}")
+            
+            await asyncio.sleep(0.5)
 
 async def insert_mock_embeddings():
     """Insert mock embeddings directly into database"""
