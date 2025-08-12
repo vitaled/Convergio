@@ -47,6 +47,7 @@ from src.api.component_serialization import router as serialization_router
 from src.api.agent_management import router as agent_management_router
 from src.api.swarm_coordination import router as swarm_coordination_router
 from src.api.agents_ecosystem import router as agents_ecosystem_router
+from src.api.admin import router as admin_router
 
 # Setup structured logging
 setup_logging()
@@ -110,6 +111,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Vector search integrated in API
         logger.info("🔍 Vector search engine ready")
         
+        # Initialize database maintenance scheduler
+        logger.info("🔧 Initializing database maintenance scheduler...")
+        try:
+            from src.core.db_maintenance import get_db_maintenance
+            db_maintenance = get_db_maintenance()
+            # Schedule VACUUM ANALYZE at 3:00 AM UTC daily
+            db_maintenance.schedule_maintenance(vacuum_hour=3, vacuum_minute=0)
+            logger.info("✅ Database maintenance scheduler started (VACUUM at 03:00 UTC)")
+        except Exception as maintenance_error:
+            logger.warning(f"⚠️ Database maintenance scheduler failed: {maintenance_error}")
+            logger.info("📈 Backend operational, maintenance can be scheduled manually")
+        
         logger.info("✅ Convergio backend startup completed successfully")
         
     except Exception as e:
@@ -122,6 +135,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("🛑 Shutting down Convergio backend...")
     
     try:
+        # Stop database maintenance scheduler
+        try:
+            from src.core.db_maintenance import get_db_maintenance
+            db_maintenance = get_db_maintenance()
+            db_maintenance.stop_maintenance()
+            logger.info("✅ Database maintenance scheduler stopped")
+        except Exception as e:
+            logger.warning(f"⚠️ Error stopping maintenance scheduler: {e}")
+        
         await close_redis()
         await close_db()
         logger.info("✅ Convergio backend shutdown completed")
@@ -224,6 +246,9 @@ def create_app() -> FastAPI:
     
     # Agent ecosystem health monitoring
     app.include_router(agents_ecosystem_router, tags=["Agent Ecosystem"])
+    
+    # Admin endpoints for database maintenance
+    app.include_router(admin_router, tags=["Admin"])
     
     # Vector search APIs (no auth required)
     app.include_router(vector_router, prefix="/api/v1/vector", tags=["Vector Search"])
