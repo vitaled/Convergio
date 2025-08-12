@@ -44,9 +44,13 @@ from .project_manager import (
     get_project_status,
     list_projects
 )
+from .orchestrator_management import router as orchestrator_router
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/agents", tags=["AI Agents"])
+
+# Include sub-routers
+router.include_router(orchestrator_router)
 
 
 # ==================== Agent Management Endpoints ====================

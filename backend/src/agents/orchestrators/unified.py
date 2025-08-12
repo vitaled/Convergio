@@ -13,6 +13,7 @@ from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.messages import TextMessage
 
 from .base import BaseGroupChatOrchestrator
+from .resilience import CircuitBreaker, CircuitBreakerConfig, CircuitState, HealthMonitor
 from ..services.groupchat.intelligent_router import IntelligentAgentRouter
 from ..services.groupchat.rag import AdvancedRAGProcessor
 from ..services.groupchat.per_turn_rag import PerTurnRAGInjector
@@ -44,12 +45,17 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         self.agent_loader = DynamicAgentLoader()
         self.termination_markers = ["DONE", "TERMINATE", "END_CONVERSATION"]
         self.max_rounds = 10
-        self.circuit_breaker = {
-            "failures": 0,
-            "threshold": 3,
-            "is_open": False,
-            "last_failure": None
-        }
+        
+        # Enhanced circuit breaker with configurable settings
+        circuit_config = CircuitBreakerConfig(
+            failure_threshold=5,
+            recovery_timeout=60,
+            success_threshold=3
+        )
+        self.circuit_breaker = CircuitBreaker(name, circuit_config)
+        
+        # Health monitoring
+        self.health_monitor = HealthMonitor(check_interval=30)
     
     async def initialize(
         self,
@@ -110,12 +116,15 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             self.is_initialized = True
             self.initialization_time = datetime.now()
             
+            # Start health monitoring
+            await self.health_monitor.start({self.name: self})
+            
             logger.info(f"✅ Unified orchestrator initialized successfully")
             return True
             
         except Exception as e:
             logger.error(f"Failed to initialize orchestrator: {e}")
-            self._handle_circuit_breaker_failure()
+            # Circuit breaker tracks failures automatically
             return False
     
     async def orchestrate(
@@ -135,8 +144,8 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         3. Falls back gracefully on failures
         """
         
-        # Check circuit breaker
-        if self._is_circuit_open():
+        # Check circuit breaker state
+        if self.circuit_breaker.state == CircuitState.OPEN:
             return self._circuit_breaker_response()
         
         start_time = datetime.now()
@@ -186,14 +195,13 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                 response_time=duration
             )
             
-            # Reset circuit breaker on success
-            self._reset_circuit_breaker()
+            # Circuit breaker tracks success automatically
             
             return result
             
         except Exception as e:
             logger.error(f"Orchestration failed: {e}")
-            self._handle_circuit_breaker_failure()
+            # Circuit breaker tracks failures automatically
             
             # Fallback response
             return {
@@ -355,37 +363,22 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         
         return len(messages) >= self.max_rounds
     
-    def _is_circuit_open(self) -> bool:
-        """Check if circuit breaker is open"""
-        if not self.circuit_breaker["is_open"]:
-            return False
-        
-        # Check if enough time has passed to retry
-        if self.circuit_breaker["last_failure"]:
-            time_since_failure = (
-                datetime.now() - self.circuit_breaker["last_failure"]
-            ).total_seconds()
-            
-            if time_since_failure > 60:  # 1 minute cooldown
-                self._reset_circuit_breaker()
-                return False
-        
-        return True
+    async def health(self) -> bool:
+        """Check orchestrator health"""
+        return self.is_initialized and self.circuit_breaker.state != CircuitState.OPEN
     
-    def _handle_circuit_breaker_failure(self):
-        """Handle a failure for circuit breaker"""
-        self.circuit_breaker["failures"] += 1
-        self.circuit_breaker["last_failure"] = datetime.now()
-        
-        if self.circuit_breaker["failures"] >= self.circuit_breaker["threshold"]:
-            self.circuit_breaker["is_open"] = True
-            logger.warning("⚠️ Circuit breaker opened due to repeated failures")
+    def get_circuit_status(self) -> Dict[str, Any]:
+        """Get circuit breaker status"""
+        return self.circuit_breaker.get_status()
     
-    def _reset_circuit_breaker(self):
-        """Reset circuit breaker"""
-        self.circuit_breaker["failures"] = 0
-        self.circuit_breaker["is_open"] = False
-        self.circuit_breaker["last_failure"] = None
+    def get_health_status(self) -> Dict[str, Any]:
+        """Get health monitoring status"""
+        return self.health_monitor.get_health_status()
+    
+    async def shutdown(self):
+        """Shutdown orchestrator and cleanup resources"""
+        await self.health_monitor.stop()
+        logger.info("Orchestrator shutdown complete")
     
     def _circuit_breaker_response(self) -> Dict[str, Any]:
         """Response when circuit breaker is open"""
@@ -394,5 +387,6 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             "agents_used": [],
             "turn_count": 0,
             "duration_seconds": 0,
-            "circuit_breaker": "open"
+            "circuit_breaker": "open",
+            "circuit_status": self.circuit_breaker.get_status()
         }

@@ -10,6 +10,8 @@ from typing import Any, Dict, Optional
 from src.core.config import get_settings
 from src.core.redis import get_redis_client
 from .services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator, GroupChatResult
+from .orchestrators.unified import UnifiedOrchestrator
+from .orchestrators.base import OrchestratorRegistry
 from .services.redis_state_manager import RedisStateManager  
 from .services.cost_tracker import CostTracker
 from .memory.autogen_memory_system import AutoGenMemorySystem
@@ -25,11 +27,12 @@ class RealAgentOrchestrator:
         """Initialize with REAL components."""
         self.settings = get_settings()
         
-        # Use the REAL ModernGroupChatOrchestrator from agents service
+        # Use the UnifiedOrchestrator with all registered orchestrators
         self.state_manager: RedisStateManager = None
         self.cost_tracker: CostTracker = None
-        self.orchestrator: ModernGroupChatOrchestrator = None
+        self.orchestrator: UnifiedOrchestrator = None  # Now using UnifiedOrchestrator
         self.memory_system: AutoGenMemorySystem = None
+        self.registry = OrchestratorRegistry()
         
         self._initialized = False
     
@@ -60,14 +63,34 @@ class RealAgentOrchestrator:
             self.memory_system = AutoGenMemorySystem()
             # Memory system is initialized in constructor - no initialize() method
             
-            # Initialize the REAL ModernGroupChatOrchestrator with memory
-            self.orchestrator = ModernGroupChatOrchestrator(
+            # Register all available orchestrators
+            self.registry.register("modern_groupchat", ModernGroupChatOrchestrator)
+            # Additional orchestrators can be registered here:
+            # self.registry.register("autogen", AutoGenOrchestrator)
+            # self.registry.register("graphflow", GraphFlowOrchestrator)
+            # self.registry.register("streaming", StreamingOrchestrator)
+            # self.registry.register("swarm", SwarmOrchestrator)
+            
+            # Set default orchestrator
+            self.registry.set_default("modern_groupchat")
+            
+            # Initialize the UnifiedOrchestrator
+            self.orchestrator = UnifiedOrchestrator(
+                enable_circuit_breaker=True,
+                enable_health_monitoring=True
+            )
+            
+            # Create and register ModernGroupChatOrchestrator instance
+            modern_gc = ModernGroupChatOrchestrator(
                 state_manager=self.state_manager,
                 cost_tracker=self.cost_tracker,
                 agents_directory="src/agents/definitions",  # All 50+ agents
                 memory_system=self.memory_system,  # Add memory system
                 observers=[OtelAutoGenObserver()],
             )
+            
+            # Manually add to orchestrator's dict since we're creating instances
+            self.orchestrator.orchestrators["modern_groupchat"] = modern_gc
             
             # Initialize services
             await self.state_manager.initialize()
