@@ -53,11 +53,17 @@
     
     connectionState.set('connecting');
     
+    // Generate conversation ID
+    const conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+    
     try {
-      ws = new WebSocket('ws://localhost:9000/ws');
+      // Use the correct agent conversation WebSocket endpoint
+      const wsUrl = `ws://localhost:9000/api/v1/agents/ws/conversation/${conversationId}?user_id=${userId}`;
+      ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected to agent:', agentName);
         connectionState.set('connected');
         reconnectAttempts = 0;
         
@@ -103,6 +109,29 @@
       const message = JSON.parse(data);
       
       switch (message.type) {
+        case 'system':
+          // System message (like connection confirmation)
+          console.log('System message:', message.message);
+          break;
+          
+        case 'typing':
+          // Agent is typing
+          isTyping = true;
+          break;
+          
+        case 'response':
+          // Full response from agent
+          isTyping = false;
+          messages.update(msgs => [...msgs, {
+            id: Date.now().toString(),
+            type: 'agent',
+            content: message.message || '',
+            timestamp: new Date(message.timestamp || Date.now()),
+            tools: message.agents_used || []
+          }]);
+          scrollToBottom();
+          break;
+          
         case 'stream_start':
           // Start streaming a new message
           currentStreamingMessage = {
@@ -182,9 +211,11 @@
     // Try WebSocket first
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({
-        type: 'message',
-        content: currentMessage,
-        agent: agentName
+        message: currentMessage,  // Backend expects 'message' directly
+        context: {
+          agent_id: agentName,
+          source: 'agent_chat'
+        }
       }));
     } else {
       // Fallback to HTTP
@@ -195,16 +226,20 @@
   // HTTP fallback
   async function sendHttpMessage(message: string) {
     try {
-      const response = await fetch(`http://localhost:9000${endpoint}`, {
+      // Use the conversation endpoint instead
+      const response = await fetch(`http://localhost:9000/api/v1/agents/conversation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           message,
+          user_id: 'user_' + Math.random().toString(36).substr(2, 9),
+          conversation_id: 'conv_' + Date.now(),
+          mode: 'single',  // or 'multi' for multiple agents
           context: {
             source: 'agent_chat',
-            agent: agentName
+            agent_id: agentName
           }
         })
       });

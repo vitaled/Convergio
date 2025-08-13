@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import AliAssistant from '$lib/components/AliAssistant.svelte';
   import CostDisplay from '$lib/components/CostDisplay.svelte';
+  import ApiStatusDropdown from '$lib/components/ApiStatusDropdown.svelte';
   
   // MVP navigation items (simplified for initial release)
   const navItems = [
@@ -97,11 +98,8 @@
             v{APP_VERSION}
           </div>
           
-          <!-- Status Indicator -->
-          <div class="flex items-center space-x-2 text-xs text-green-600">
-            <div class="h-1.5 w-1.5 bg-green-500 rounded-full"></div>
-            <span class="hidden sm:inline">Online</span>
-          </div>
+          <!-- API Status Dropdown -->
+          <ApiStatusDropdown />
         </div>
       </div>
     </div>
