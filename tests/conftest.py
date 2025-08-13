@@ -117,3 +117,5 @@ def pytest_configure(config):
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("DATABASE_URL", "postgresql://localhost/convergio_test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
+os.environ.setdefault("API_BASE_URL", "http://localhost:9000")
+os.environ.setdefault("COST_API_BASE_URL", "http://localhost:9000/api/v1")
