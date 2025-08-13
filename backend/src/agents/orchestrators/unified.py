@@ -21,6 +21,9 @@ from ..services.groupchat.metrics import extract_agents_used, estimate_cost
 from ..services.agent_intelligence import AgentIntelligence
 from ..security.ai_security_guardian import AISecurityGuardian
 from ..services.agent_loader import DynamicAgentLoader
+from ..tools.web_search_tool import get_web_tools
+from ..tools.database_tools import get_database_tools
+from ..tools.vector_search_tool import get_vector_tools
 from ...core.ai_clients import get_autogen_client
 
 logger = structlog.get_logger()
@@ -88,7 +91,20 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             # Create AutoGen AssistantAgent instances from metadata
             self.agents = self.agent_loader.create_autogen_agents(self.model_client)
             
-            logger.info(f"✅ Loaded {len(self.agents)} agents")
+            # Register tools to ALL agents
+            all_tools = []
+            all_tools.extend(get_web_tools())
+            all_tools.extend(get_database_tools())
+            all_tools.extend(get_vector_tools())
+            
+            # Add tools to each agent
+            for agent_name, agent in self.agents.items():
+                if hasattr(agent, 'register_tools'):
+                    agent.register_tools(all_tools)
+                elif hasattr(agent, '_tools'):
+                    agent._tools = all_tools
+                    
+            logger.info(f"✅ Loaded {len(self.agents)} agents with {len(all_tools)} tools each")
             
             # Initialize GroupChat for multi-agent scenarios
             if len(self.agents) > 1:
@@ -146,10 +162,10 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         try:
             # Safety check if enabled
             if self.safety_guardian:
-                safety_result = await self.safety_guardian.check_message(message)
-                if not safety_result.is_safe:
+                safety_result = await self.safety_guardian.validate_prompt(message, user_id)
+                if not safety_result.execution_authorized:
                     return {
-                        "response": safety_result.explanation,
+                        "response": f"Security validation failed: {', '.join(safety_result.violations)}",
                         "agents_used": ["safety_guardian"],
                         "turn_count": 0,
                         "duration_seconds": 0,
@@ -230,8 +246,7 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         # Get intelligent response
         response = await self.agent_intelligence.generate_intelligent_response(
             message,
-            context,
-            agent_name=best_agent.name
+            context
         )
         
         # Execute agent

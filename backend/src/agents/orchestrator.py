@@ -5,7 +5,7 @@ Complete integration of the original agents service with AutoGen
 
 import asyncio
 import structlog
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from src.core.config import get_settings
 from src.core.redis import get_redis_client
@@ -160,6 +160,18 @@ class RealAgentOrchestrator:
         
         agent_names = self.orchestrator.list_agents()
         return {"agents": agent_names, "total": len(agent_names)}
+    
+    def list_agents(self) -> List[str]:
+        """List all agent IDs."""
+        if not self._initialized or not self.orchestrator:
+            return []
+        return self.orchestrator.list_agents()
+    
+    def get_agent(self, agent_id: str):
+        """Get a specific agent by ID."""
+        if not self._initialized or not self.orchestrator:
+            return None
+        return self.orchestrator.agents.get(agent_id)
     
     async def reload_agents(self) -> Dict[str, Any]:
         """Reload agents in REAL system."""

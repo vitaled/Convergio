@@ -245,6 +245,9 @@ def create_app() -> FastAPI:
     # AI orchestration APIs (no auth required)
     app.include_router(agents_router, prefix="/api/v1/agents", tags=["AI Agents"])
     
+    # Ali Intelligence API
+    app.include_router(ali_intelligence_router, prefix="/api/v1/agents", tags=["Ali Intelligence"])
+    
     # Agent ecosystem health monitoring
     app.include_router(agents_ecosystem_router, tags=["Agent Ecosystem"])
     

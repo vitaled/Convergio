@@ -14,6 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Authentication removed - no auth required for some endpoints
 from src.core.database import get_db_session
 from src.core.redis import cache_get, cache_set
+from src.services.cost_tracking_service import EnhancedCostTracker
+from src.services.budget_monitor_service import budget_monitor
+from src.services.pricing_updater_service import pricing_updater
+from src.services.circuit_breaker_service import circuit_breaker
+from src.services.cost_background_tasks import cost_task_manager
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Cost Management"])
@@ -316,23 +321,18 @@ async def get_budget_alerts(
 @router.get("/realtime/current")
 async def get_realtime_cost():
     """
-    🔄 Get real-time current cost totals
+    🔄 Get real-time current cost totals with provider breakdown
     
-    Returns current cost information for header display - no auth required
+    Returns comprehensive cost information for display - no auth required
     """
     
     try:
-        # Get real cost data from agents system
-        cost_data = await _get_realtime_cost_data()
+        # Use enhanced cost tracker
+        from src.services.cost_tracking_service import EnhancedCostTracker
+        tracker = EnhancedCostTracker()
+        cost_data = await tracker.get_realtime_overview()
         
-        return {
-            "total_cost_usd": cost_data["total_cost"],
-            "today_cost_usd": cost_data["today_cost"],
-            "total_interactions": cost_data["total_interactions"], 
-            "total_tokens": cost_data["total_tokens"],
-            "status": cost_data["status"],
-            "last_updated": datetime.utcnow().isoformat()
-        }
+        return cost_data
         
     except Exception as e:
         logger.error("❌ Failed to get realtime cost", error=str(e))
@@ -342,6 +342,8 @@ async def get_realtime_cost():
             "total_interactions": 0,
             "total_tokens": 0,
             "status": "error",
+            "provider_breakdown": {},
+            "model_breakdown": {},
             "error": str(e),
             "last_updated": datetime.utcnow().isoformat()
         }
@@ -352,51 +354,176 @@ async def record_interaction_cost(
     interaction_data: Dict[str, Any]
 ):
     """
-    📝 Record cost for AI interaction
+    📝 Record cost for AI interaction with database persistence
     
-    Records usage and cost data for tracking and budgeting
+    Records detailed usage and cost data for tracking and budgeting
     """
     
     try:
-        # Extract interaction details
-        agent_id = interaction_data.get("agent_id")
-        model_used = interaction_data.get("model", "gpt-4")
-        tokens_used = interaction_data.get("tokens_used", 0)
-        cost_usd = interaction_data.get("cost_usd", 0.0)
+        # Use enhanced cost tracker
+        from src.services.cost_tracking_service import EnhancedCostTracker
+        from src.agents.services.redis_state_manager import RedisStateManager
         
-        # Record interaction in cost tracking system
-        cost_record = {
-            "id": f"cost_{int(datetime.utcnow().timestamp())}",
-            "user_id": "default",
-            "agent_id": agent_id,
-            "model": model_used,
-            "tokens_used": tokens_used,
-            "cost_usd": cost_usd,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        state_manager = RedisStateManager()
+        tracker = EnhancedCostTracker(state_manager)
         
-        # Store in Redis for real-time tracking
-        await cache_set(f"cost_record:{cost_record['id']}", cost_record, ttl=2592000)
+        # Track the API call
+        result = await tracker.track_api_call(
+            session_id=interaction_data.get("session_id", "default"),
+            conversation_id=interaction_data.get("conversation_id", "default"),
+            provider=interaction_data.get("provider", "openai"),
+            model=interaction_data.get("model", "gpt-4o"),
+            input_tokens=interaction_data.get("input_tokens", 0),
+            output_tokens=interaction_data.get("output_tokens", 0),
+            agent_id=interaction_data.get("agent_id"),
+            agent_name=interaction_data.get("agent_name"),
+            turn_id=interaction_data.get("turn_id"),
+            request_type=interaction_data.get("request_type", "chat"),
+            response_time_ms=interaction_data.get("response_time_ms"),
+            metadata=interaction_data.get("metadata")
+        )
         
-        # Update running totals
-        await _update_cost_totals(agent_id, "default", cost_usd)
-        
-        logger.info("📝 Interaction cost recorded",
-                   agent_id=agent_id,
-                   cost_usd=cost_usd,
-                   model=model_used)
-        
-        return {
-            "message": "Cost recorded successfully",
-            "cost_id": cost_record["id"],
-            "cost_usd": cost_usd
-        }
+        if result["success"]:
+            logger.info("📝 Interaction cost recorded",
+                       session_id=interaction_data.get("session_id"),
+                       cost_usd=result["cost_breakdown"]["total_cost_usd"],
+                       model=interaction_data.get("model"))
+            
+            return {
+                "message": "Cost recorded successfully",
+                "cost_breakdown": result["cost_breakdown"],
+                "session_total": result["session_total"],
+                "daily_total": result["daily_total"],
+                "alerts": result.get("alerts", [])
+            }
+        else:
+            raise Exception(result.get("error", "Unknown error"))
         
     except Exception as e:
         logger.error("❌ Failed to record interaction cost", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to record interaction cost"
+            detail=f"Failed to record interaction cost: {str(e)}"
+        )
+
+
+@router.get("/sessions/{session_id}")
+async def get_session_cost_details(session_id: str):
+    """
+    📊 Get detailed cost breakdown for a session
+    
+    Returns comprehensive session cost data with all API calls
+    """
+    
+    try:
+        tracker = EnhancedCostTracker()
+        session_data = await tracker.get_session_details(session_id)
+        
+        if "error" in session_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=session_data["error"]
+            )
+        
+        return session_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("❌ Failed to get session cost details", error=str(e), session_id=session_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve session cost details"
+        )
+
+
+@router.get("/agents/{agent_id}/costs")
+async def get_agent_cost_details(
+    agent_id: str,
+    days: int = Query(7, description="Number of days to look back", ge=1, le=90)
+):
+    """
+    🤖 Get detailed cost breakdown for an agent
+    
+    Returns cost analysis for agent across all models and providers
+    """
+    
+    try:
+        tracker = EnhancedCostTracker()
+        agent_data = await tracker.get_agent_costs(agent_id, days)
+        
+        if "error" in agent_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=agent_data["error"]
+            )
+        
+        return agent_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("❌ Failed to get agent cost details", error=str(e), agent_id=agent_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve agent cost details"
+        )
+
+
+@router.get("/pricing/current")
+async def get_current_pricing():
+    """
+    💰 Get current pricing for all providers and models
+    
+    Returns up-to-date pricing information from the database
+    """
+    
+    try:
+        from src.core.database import get_async_read_session
+        from sqlalchemy import select, and_, func
+        from src.models.cost_tracking import ProviderPricing
+        
+        async with get_async_read_session() as db:
+            result = await db.execute(
+                select(ProviderPricing)
+                .where(
+                    and_(
+                        ProviderPricing.is_active == True,
+                        ProviderPricing.effective_from <= func.now(),
+                        func.coalesce(ProviderPricing.effective_to > func.now(), True)
+                    )
+                )
+                .order_by(ProviderPricing.provider, ProviderPricing.model)
+            )
+            
+            pricing_records = result.scalars().all()
+            
+            # Group by provider
+            pricing_by_provider = {}
+            for record in pricing_records:
+                if record.provider not in pricing_by_provider:
+                    pricing_by_provider[record.provider] = []
+                
+                pricing_by_provider[record.provider].append({
+                    "model": record.model,
+                    "input_price_per_1k": float(record.input_price_per_1k),
+                    "output_price_per_1k": float(record.output_price_per_1k),
+                    "price_per_request": float(record.price_per_request) if record.price_per_request else None,
+                    "max_tokens": record.max_tokens,
+                    "context_window": record.context_window,
+                    "notes": record.notes
+                })
+            
+            return {
+                "providers": pricing_by_provider,
+                "last_updated": datetime.utcnow().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error("❌ Failed to get current pricing", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve current pricing"
         )
 
 
@@ -555,3 +682,351 @@ async def _update_cost_totals(agent_id: str, user_id: str, cost_usd: float) -> N
     total_key = "system_total_cost"
     system_total = await cache_get(total_key) or 0.0
     await cache_set(total_key, system_total + cost_usd, ttl=2592000)  # 30 days
+
+
+# Budget monitoring endpoints
+@router.get("/budget/status")
+async def get_budget_status():
+    """
+    🚨 Get comprehensive budget status and limits monitoring
+    
+    Returns real-time budget health, spending limits, and predictions
+    """
+    
+    try:
+        budget_status = await budget_monitor.check_all_limits()
+        return budget_status
+        
+    except Exception as e:
+        logger.error("❌ Failed to get budget status", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve budget status"
+        )
+
+
+@router.get("/budget/summary")
+async def get_budget_summary():
+    """
+    📊 Get concise budget status summary
+    
+    Returns high-level budget health indicators
+    """
+    
+    try:
+        summary = await budget_monitor.get_budget_status_summary()
+        return summary
+        
+    except Exception as e:
+        logger.error("❌ Failed to get budget summary", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve budget summary"
+        )
+
+
+@router.post("/budget/limits")
+async def set_budget_limits(
+    daily_limit: Optional[float] = None,
+    monthly_limit: Optional[float] = None,
+    provider_limits: Optional[Dict[str, float]] = None
+):
+    """
+    ⚙️ Set custom budget limits
+    
+    Allows configuration of spending limits for different time periods
+    """
+    
+    try:
+        from decimal import Decimal
+        
+        # Convert to Decimal for precision
+        daily_decimal = Decimal(str(daily_limit)) if daily_limit else None
+        monthly_decimal = Decimal(str(monthly_limit)) if monthly_limit else None
+        provider_decimals = {k: Decimal(str(v)) for k, v in provider_limits.items()} if provider_limits else None
+        
+        result = await budget_monitor.set_budget_limits(
+            daily_limit=daily_decimal,
+            monthly_limit=monthly_decimal,
+            provider_limits=provider_decimals
+        )
+        
+        logger.info("⚙️ Budget limits updated",
+                   daily=daily_limit,
+                   monthly=monthly_limit,
+                   providers=list(provider_limits.keys()) if provider_limits else [])
+        
+        return result
+        
+    except Exception as e:
+        logger.error("❌ Failed to set budget limits", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to set budget limits: {str(e)}"
+        )
+
+
+@router.get("/budget/circuit-breaker")
+async def get_circuit_breaker_status():
+    """
+    🚦 Get circuit breaker status for cost limits
+    
+    Returns whether API calls should be suspended due to budget limits
+    """
+    
+    try:
+        status = await budget_monitor.check_all_limits()
+        circuit_status = status["circuit_breaker"]
+        
+        return {
+            "circuit_breaker_active": circuit_status["should_trigger"],
+            "status": circuit_status["current_status"],
+            "reasons": circuit_status["reasons"],
+            "recommended_action": circuit_status["recommended_action"],
+            "override_required": circuit_status["manual_override_required"]
+        }
+        
+    except Exception as e:
+        logger.error("❌ Failed to get circuit breaker status", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve circuit breaker status"
+        )
+
+
+# Pricing management endpoints
+@router.post("/pricing/update")
+async def update_pricing_data():
+    """
+    💰 Update pricing data from web sources
+    
+    Triggers automatic pricing update using current date and web research
+    """
+    
+    try:
+        result = await pricing_updater.update_all_pricing()
+        
+        logger.info("💰 Pricing update completed",
+                   providers_updated=len(result["providers_updated"]),
+                   errors=len(result["errors"]))
+        
+        return result
+        
+    except Exception as e:
+        logger.error("❌ Failed to update pricing", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update pricing: {str(e)}"
+        )
+
+
+@router.get("/pricing/comparison")
+async def get_pricing_comparison():
+    """
+    📈 Get pricing comparison and historical data
+    
+    Returns current vs previous pricing for all providers
+    """
+    
+    try:
+        comparison = await pricing_updater.get_pricing_comparison()
+        return comparison
+        
+    except Exception as e:
+        logger.error("❌ Failed to get pricing comparison", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve pricing comparison"
+        )
+
+
+@router.get("/admin/dashboard")
+async def get_admin_dashboard():
+    """
+    🔧 Get comprehensive admin dashboard data
+    
+    Returns complete system status for administrators
+    """
+    
+    try:
+        # Get all data concurrently
+        import asyncio
+        
+        budget_status, cost_overview, pricing_data = await asyncio.gather(
+            budget_monitor.check_all_limits(),
+            EnhancedCostTracker().get_realtime_overview(),
+            pricing_updater.get_pricing_comparison()
+        )
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "budget_monitoring": budget_status,
+            "cost_overview": cost_overview,
+            "pricing_data": pricing_data,
+            "system_health": {
+                "overall_status": budget_status.get("circuit_breaker", {}).get("current_status", "unknown"),
+                "total_alerts": len(budget_status.get("alerts_generated", [])),
+                "critical_alerts": len([
+                    a for a in budget_status.get("alerts_generated", [])
+                    if a.get("severity") == "critical"
+                ])
+            }
+        }
+        
+    except Exception as e:
+        logger.error("❌ Failed to get admin dashboard", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve admin dashboard data"
+        )
+
+
+@router.get("/system/status")
+async def get_system_status():
+    """
+    🏥 Get comprehensive system status including background services
+    
+    Returns status of all cost-related services and monitoring
+    """
+    
+    try:
+        status = await cost_task_manager.get_status()
+        return status
+        
+    except Exception as e:
+        logger.error("❌ Failed to get system status", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve system status"
+        )
+
+
+@router.post("/system/check")
+async def trigger_manual_check():
+    """
+    🔄 Trigger manual check of all cost systems
+    
+    Forces immediate check of budget limits, pricing, and circuit breaker
+    """
+    
+    try:
+        result = await cost_task_manager.trigger_manual_check()
+        return result
+        
+    except Exception as e:
+        logger.error("❌ Failed to trigger manual check", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to trigger manual check"
+        )
+
+
+@router.get("/circuit-breaker/status")
+async def get_detailed_circuit_status():
+    """
+    🚦 Get detailed circuit breaker status
+    
+    Returns comprehensive circuit breaker state and suspension details
+    """
+    
+    try:
+        circuit_status = await circuit_breaker.get_circuit_status()
+        return circuit_status
+        
+    except Exception as e:
+        logger.error("❌ Failed to get circuit breaker status", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve circuit breaker status"
+        )
+
+
+@router.post("/circuit-breaker/override")
+async def emergency_override(
+    override_code: str,
+    duration_minutes: int = 60
+):
+    """
+    🚨 Emergency override for circuit breaker
+    
+    Temporarily disables circuit breaker with proper authorization
+    """
+    
+    try:
+        success = await circuit_breaker.emergency_override(override_code, duration_minutes)
+        
+        if success:
+            logger.info("🚨 Emergency override activated", code=override_code[:4] + "***")
+            return {
+                "success": True,
+                "message": "Emergency override activated",
+                "duration_minutes": duration_minutes
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid override code"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("❌ Failed to activate emergency override", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to activate emergency override"
+        )
+
+
+@router.post("/providers/{provider}/resume")
+async def resume_suspended_provider(provider: str):
+    """
+    ▶️ Resume a suspended provider
+    
+    Manually resume API calls for a suspended provider
+    """
+    
+    try:
+        await circuit_breaker.resume_provider(provider)
+        
+        logger.info("▶️ Provider manually resumed", provider=provider)
+        
+        return {
+            "success": True,
+            "message": f"Provider {provider} resumed",
+            "provider": provider
+        }
+        
+    except Exception as e:
+        logger.error("❌ Failed to resume provider", error=str(e), provider=provider)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to resume provider {provider}"
+        )
+
+
+@router.post("/agents/{agent_id}/resume")
+async def resume_suspended_agent(agent_id: str):
+    """
+    ▶️ Resume a suspended agent
+    
+    Manually resume API calls for a suspended agent
+    """
+    
+    try:
+        await circuit_breaker.resume_agent(agent_id)
+        
+        logger.info("▶️ Agent manually resumed", agent_id=agent_id)
+        
+        return {
+            "success": True,
+            "message": f"Agent {agent_id} resumed",
+            "agent_id": agent_id
+        }
+        
+    except Exception as e:
+        logger.error("❌ Failed to resume agent", error=str(e), agent_id=agent_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to resume agent {agent_id}"
+        )

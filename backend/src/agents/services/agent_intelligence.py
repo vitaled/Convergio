@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import httpx
 import json
+import os
 
 import structlog
 from src.agents.utils.config import get_settings
@@ -75,22 +76,67 @@ class AgentIntelligence:
         message: str,
         context: Optional[Dict[str, Any]] = None
     ) -> Optional[str]:
-        """Fetch relevant data from Convergio DB/Vector"""
+        """Fetch relevant data from Convergio DB/Vector using REAL integrations"""
         try:
-            # If fake data is disabled, do not fabricate internal data
-            if not getattr(settings, 'fake_internal_data_enabled', False):
-                return None
-
-            # TODO: Implement actual DB/Vector queries
-            # Temporary: controlled synthetic placeholders when explicitly enabled
+            logger.info(f"🔍 Fetching REAL internal data for: {message[:100]}")
+            
+            data_sources = []
             ml = message.lower()
-            if 'msft' in ml or 'microsoft' in ml:
-                return "[placeholder] MSFT portfolio allocation 15%, YTD +23.5%"
-            if 'revenue' in ml:
-                return "[placeholder] Q4 revenue $52.9B (+18% YoY); Cloud $25.9B (+29%)"
-            if 'cost' in ml:
-                return "[placeholder] Opex $14.9B; R&D $6.5B; efficiency +12%"
+            
+            # 1. REAL DATABASE QUERIES
+            if any(keyword in ml for keyword in ['talent', 'team', 'staff', 'employee', 'people']):
+                from ..tools.database_tools import query_talents_count
+                talent_data = query_talents_count()
+                data_sources.append(f"📊 Database: {talent_data}")
+            
+            if any(keyword in ml for keyword in ['document', 'knowledge', 'file', 'content']):
+                from ..tools.database_tools import query_knowledge_base
+                kb_data = query_knowledge_base()
+                data_sources.append(f"📚 Knowledge Base: {kb_data}")
+            
+            # 2. REAL VECTOR SEARCH (if service is available)
+            try:
+                import httpx
+                async with httpx.AsyncClient() as client:
+                    vector_response = await client.post(
+                        'http://localhost:9000/api/v1/vector/search',
+                        json={'query': message, 'top_k': 3},
+                        timeout=5.0
+                    )
+                    if vector_response.status_code == 200:
+                        vector_data = vector_response.json()
+                        if vector_data.get('results'):
+                            results_summary = f"Found {len(vector_data['results'])} relevant docs"
+                            data_sources.append(f"🔍 Vector Search: {results_summary}")
+            except Exception as e:
+                logger.debug(f"Vector search not available: {e}")
+            
+            # 3. REAL PERPLEXITY SEARCH (if available)
+            perplexity_key = os.getenv("PERPLEXITY_API_KEY")
+            if perplexity_key and any(keyword in ml for keyword in ['market', 'competitor', 'trend', 'news', 'current']):
+                try:
+                    from ..tools.web_search_tool import WebSearchTool
+                    from ..tools.web_search_tool import WebSearchArgs
+                    
+                    web_tool = WebSearchTool(perplexity_key)
+                    search_args = WebSearchArgs(query=message, max_results=3)
+                    web_result = await web_tool.run(search_args)
+                    
+                    if '"error"' not in web_result:
+                        data_sources.append(f"🌐 Perplexity: Real-time web search completed")
+                except Exception as e:
+                    logger.debug(f"Perplexity search failed: {e}")
+            
+            # 4. COMBINE ALL REAL DATA
+            if data_sources:
+                combined_data = "\n\n".join(data_sources)
+                logger.info(f"✅ REAL data fetched from {len(data_sources)} sources")
+                return f"REAL DATA SOURCES:\n{combined_data}"
+            
+            # Only return None if NO real data is available
+            logger.info("No real internal data available for this query")
             return None
+            
         except Exception as e:
             logger.error(f"Failed to fetch internal data: {e}")
             return None

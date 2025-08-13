@@ -461,6 +461,20 @@ Found {result['results_count']} relevant documents:
         return f"❌ Search failed: {str(e)}"
 
 
+def get_database_tools() -> List[Any]:
+    """Get all database tools for AutoGen agents"""
+    from autogen_core.tools import FunctionTool
+    
+    return [
+        FunctionTool(query_talents_count, description="Get total talent count and statistics"),
+        FunctionTool(query_talent_details, description="Get detailed info about a specific talent by username"),
+        FunctionTool(query_department_structure, description="Get department overview and team structure"),
+        FunctionTool(query_knowledge_base, description="Get knowledge base and documents overview"),
+        FunctionTool(search_knowledge, description="Search for information in the knowledge base"),
+        FunctionTool(query_system_status, description="Get comprehensive system health status")
+    ]
+
+
 def query_system_status() -> str:
     """Get comprehensive system health status"""
     try:

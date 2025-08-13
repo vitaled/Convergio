@@ -81,7 +81,7 @@ class EnhancedCostTracker:
                     total_cost_usd=total_cost,
                     request_type=request_type,
                     response_time_ms=response_time_ms,
-                    metadata=metadata or {}
+                    request_metadata=metadata or {}
                 )
                 
                 db.add(cost_record)

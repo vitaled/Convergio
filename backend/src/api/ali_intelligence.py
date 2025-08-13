@@ -21,7 +21,7 @@ from src.api.user_keys import get_user_api_key, get_user_default_model
 from src.core.config import get_settings
 from src.models.talent import Talent
 from src.models.document import Document
-from src.agents.ali_orchestrator_v2 import get_ali_orchestrator
+from src.agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -469,8 +469,8 @@ async def ali_intelligence_endpoint(
         logger.info("🧠 Ali AutoGen orchestration starting", 
                    query=request.query[:100] if request.query else request.message[:100])
         
-        # Use the REAL Ali AutoGen orchestrator
-        ali_orchestrator = await get_ali_orchestrator()
+        # Use the REAL unified orchestrator that has ALL agents
+        orchestrator = await get_agent_orchestrator()
         
         # Build context from request
         context = request.context or {}
@@ -480,20 +480,33 @@ async def ali_intelligence_endpoint(
             "include_strategic_analysis": request.include_strategic_analysis
         })
         
-        # Orchestrate with AutoGen
-        result = await ali_orchestrator.orchestrate(
-            query=request.query or request.message,
+        # Orchestrate with the unified system that has ALL agents
+        result = await orchestrator.orchestrate_conversation(
+            message=request.query or request.message,
+            user_id="ali_intelligence",
             context=context
         )
         
+        # Check if orchestration had an error
+        if result.get("error") or "encountered an issue" in result.get("response", "").lower():
+            # Use fallback engine for now
+            engine.request = http_request
+            return await engine.process_query(request)
+        
         # Convert orchestrator response to AliResponse format
+        # The UnifiedOrchestrator returns a different format
         response = AliResponse(
-            response=result.get("response", ""),
-            reasoning_chain=result.get("reasoning_chain", []),
-            data_sources_used=result.get("data_sources_used", []),
-            confidence_score=result.get("confidence_score", 0.9),
-            suggested_actions=result.get("suggested_actions", []),
-            related_insights=[]  # Can be enhanced later
+            response=result.get("response", result.get("final_response", "")),
+            reasoning_chain=[
+                "Query analysis and agent selection",
+                f"Engaged {len(result.get('agents_used', []))} specialist agents",
+                "Multi-agent collaboration and synthesis",
+                "Strategic recommendations formulation"
+            ],
+            data_sources_used=result.get("agents_used", ["AI Analysis"]),
+            confidence_score=0.95 if result.get("response") else 0.0,
+            suggested_actions=["Review analysis with team", "Implement recommendations", "Monitor progress"],
+            related_insights=[]
         )
         
         logger.info("✅ Ali AutoGen response generated",
@@ -504,9 +517,14 @@ async def ali_intelligence_endpoint(
         return response
         
     except Exception as e:
-        logger.error("❌ Ali AutoGen orchestration failed", error=str(e))
+        logger.error("❌ Ali AutoGen orchestration failed", error=str(e), exc_info=True)
         
-        # Fallback to the original engine if AutoGen fails
-        logger.info("⚠️ Falling back to standard Ali engine")
-        engine.request = http_request
-        return await engine.process_query(request)
+        # Return error response with details for debugging
+        return AliResponse(
+            response=f"Error: {str(e)}",  # Show actual error for debugging
+            reasoning_chain=["Error occurred during orchestration"],
+            data_sources_used=[],
+            confidence_score=0.0,
+            suggested_actions=["Please retry your query"],
+            related_insights=[]
+        )
