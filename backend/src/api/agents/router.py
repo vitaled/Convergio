@@ -202,11 +202,11 @@ async def orchestrate_agents(
     execution_id = str(uuid4())
     
     try:
-        orchestrator = await get_agent_orchestrator(mode=request.mode)
+        orchestrator = await get_agent_orchestrator()
         
         # Add user API key to context
         context = request.context or {}
-        user_api_key = get_user_api_key(req)
+        user_api_key = get_user_api_key(req, "openai")
         if user_api_key:
             context["user_api_key"] = user_api_key
         
