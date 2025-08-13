@@ -12,8 +12,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Authentication removed - no auth required for this version
-from src.core.database import get_db_session
+from src.core.database import get_db_session, get_read_db_session
 from src.core.redis import cache_get, cache_set
+from src.core.pagination import CursorPaginator, PaginationParams, PaginatedResponse
 from src.models.user import User
 
 logger = structlog.get_logger()
@@ -196,6 +197,63 @@ async def get_real_time_metrics():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve real-time metrics"
+        )
+
+
+@router.get("/activities")
+async def get_paginated_activities(
+    limit: int = Query(50, ge=1, le=200, description="Items per page"),
+    cursor: Optional[str] = Query(None, description="Pagination cursor"),
+    db: AsyncSession = Depends(get_read_db_session)  # Use read replica
+):
+    """
+    📊 Get paginated activity list using cursor pagination
+    
+    Efficient pagination for large activity datasets using cursor-based navigation.
+    Better performance than offset pagination for large datasets.
+    """
+    try:
+        from sqlalchemy import text
+        
+        # Create pagination params
+        pagination = PaginationParams(limit=limit, cursor=cursor)
+        
+        # Decode cursor if provided
+        cursor_data = CursorPaginator.decode_cursor(cursor) if cursor else {}
+        
+        # Build query with cursor pagination
+        base_query = """
+            SELECT id, activity_type, user_id, created_at, metadata
+            FROM activities
+        """
+        
+        # Apply cursor pagination
+        query, params = CursorPaginator.paginate_query(
+            base_query,
+            {},
+            pagination,
+            order_field="created_at",
+            order_desc=True
+        )
+        
+        # Execute query
+        result = await db.execute(text(query), params)
+        items = [dict(row) for row in result.fetchall()]
+        
+        # Create paginated response
+        response = CursorPaginator.create_response(
+            items,
+            pagination,
+            key_fields=["created_at", "id"]
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error("❌ Failed to get paginated activities", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve activities"
         )
 
 

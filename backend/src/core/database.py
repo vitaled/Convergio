@@ -24,7 +24,9 @@ logger = structlog.get_logger()
 
 # Global database components
 async_engine: Optional[AsyncEngine] = None
+async_read_engine: Optional[AsyncEngine] = None  # Read replica engine
 async_session_factory: Optional[async_sessionmaker] = None
+async_read_session_factory: Optional[async_sessionmaker] = None  # Read replica sessions
 
 
 class Base(DeclarativeBase):
@@ -32,13 +34,22 @@ class Base(DeclarativeBase):
     pass
 
 
-def create_database_engine() -> AsyncEngine:
-    """Create async database engine with optimized settings"""
+def create_database_engine(is_read_replica: bool = False) -> AsyncEngine:
+    """Create async database engine with optimized settings
+    
+    Args:
+        is_read_replica: Whether this is for a read replica connection
+    """
     
     settings = get_settings()
     
+    # Use read replica URL if available and requested
+    db_url = settings.DATABASE_URL
+    if is_read_replica and hasattr(settings, 'DATABASE_READ_URL'):
+        db_url = settings.DATABASE_READ_URL
+    
     engine = create_async_engine(
-        settings.DATABASE_URL,
+        db_url,
         # Connection pool settings
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_POOL_OVERFLOW,
@@ -75,13 +86,13 @@ def create_database_engine() -> AsyncEngine:
 async def init_db() -> None:
     """Initialize database connection and session factory"""
     
-    global async_engine, async_session_factory
+    global async_engine, async_read_engine, async_session_factory, async_read_session_factory
     
     try:
-        # Create async engine
-        async_engine = create_database_engine()
+        # Create async engine for primary database
+        async_engine = create_database_engine(is_read_replica=False)
         
-        # Create session factory
+        # Create session factory for primary
         async_session_factory = async_sessionmaker(
             async_engine,
             class_=AsyncSession,
@@ -89,6 +100,24 @@ async def init_db() -> None:
             autoflush=True,  # Auto-flush before queries
             autocommit=False,  # Explicit transaction control
         )
+        
+        # Create read replica engine and session factory if configured
+        settings = get_settings()
+        if hasattr(settings, 'DATABASE_READ_URL') and settings.DATABASE_READ_URL:
+            async_read_engine = create_database_engine(is_read_replica=True)
+            async_read_session_factory = async_sessionmaker(
+                async_read_engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autoflush=False,  # Read-only, no flush needed
+                autocommit=False,
+            )
+            logger.info("✅ Read replica database configured")
+        else:
+            # Fallback to primary for reads if no replica
+            async_read_engine = async_engine
+            async_read_session_factory = async_session_factory
+            logger.info("ℹ️ No read replica configured, using primary for reads")
         
         # Test connection
         async with async_engine.begin() as conn:
@@ -252,16 +281,25 @@ async def ensure_dev_schema() -> None:
 async def close_db() -> None:
     """Close database connections"""
     
-    global async_engine
+    global async_engine, async_read_engine
     
     if async_engine:
         try:
             await async_engine.dispose()
-            logger.info("✅ Database connections closed")
+            logger.info("✅ Primary database connections closed")
         except Exception as e:
-            logger.error("❌ Error closing database", error=str(e))
+            logger.error("❌ Error closing primary database", error=str(e))
         finally:
             async_engine = None
+    
+    if async_read_engine and async_read_engine != async_engine:
+        try:
+            await async_read_engine.dispose()
+            logger.info("✅ Read replica database connections closed")
+        except Exception as e:
+            logger.error("❌ Error closing read replica database", error=str(e))
+        finally:
+            async_read_engine = None
 
 
 def get_async_session_factory() -> async_sessionmaker:
@@ -292,9 +330,42 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 # Dependency for FastAPI route injection
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency for database session injection"""
+    """FastAPI dependency for database session injection (write operations)"""
     
     async with get_async_session() as session:
+        yield session
+
+
+def get_async_read_session_factory() -> async_sessionmaker:
+    """Get async session factory for read operations"""
+    
+    if async_read_session_factory is None:
+        # Fallback to primary if no read replica
+        return get_async_session_factory()
+    
+    return async_read_session_factory
+
+
+@asynccontextmanager
+async def get_async_read_session() -> AsyncGenerator[AsyncSession, None]:
+    """Get async database session for read-only operations"""
+    
+    session_factory = get_async_read_session_factory()
+    
+    async with session_factory() as session:
+        try:
+            yield session
+        except Exception as e:
+            logger.error("❌ Error in read session", error=str(e))
+            raise
+        finally:
+            await session.close()
+
+
+async def get_read_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for read-only database session injection"""
+    
+    async with get_async_read_session() as session:
         yield session
 
 
@@ -322,11 +393,26 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 #     logger.debug("📊 Database connection checked in")
 
 
+# Decorator for read-only operations
+def read_only(func):
+    """Decorator to mark functions that should use read replica"""
+    func._read_only = True
+    return func
+
+
 # Utility functions for database operations
-async def execute_query(query: str, params: dict = None) -> list:
-    """Execute raw SQL query"""
+async def execute_query(query: str, params: dict = None, read_only: bool = False) -> list:
+    """Execute raw SQL query
     
-    async with get_async_session() as session:
+    Args:
+        query: SQL query to execute
+        params: Query parameters
+        read_only: Whether to use read replica
+    """
+    
+    session_context = get_async_read_session() if read_only else get_async_session()
+    
+    async with session_context as session:
         result = await session.execute(query, params or {})
         return result.fetchall()
 
