@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     rag_in_loop_enabled: bool = Field(default=True, env="RAG_IN_LOOP")
     true_streaming_enabled: bool = Field(default=True, env="TRUE_STREAMING")
     speaker_policy_enabled: bool = Field(default=True, env="SPEAKER_POLICY")
-    graphflow_enabled: bool = Field(default=False, env="GRAPHFLOW")
+    graphflow_enabled: bool = Field(default=True, env="GRAPHFLOW")
     hitl_enabled: bool = Field(default=False, env="HITL")
     cost_safety_enabled: bool = Field(default=True, env="COST_SAFETY")
     # Agent behavior flags
@@ -212,9 +212,9 @@ def load_env_from_root():
             break
         current = current.parent
     else:
-        # Fallback: try relative to agents directory (4 levels up from this file)
-        agents_dir = Path(__file__).parent.parent.parent.parent
-        env_file = agents_dir / ".env"
+        # Fallback: try relative to agents directory (4 levels up from this file to reach backend root)
+        backend_root = Path(__file__).parent.parent.parent.parent
+        env_file = backend_root / ".env"
         if not env_file.exists():
             raise FileNotFoundError(f"Could not find .env file in project root")
     

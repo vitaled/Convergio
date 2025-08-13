@@ -70,45 +70,6 @@ async def list_workflows():
     List all available business workflows
     """
     try:
-        if not settings.graphflow_enabled:
-            # Return mock data when GraphFlow is disabled
-            mock_workflows = [
-                {
-                    "id": "customer_onboarding",
-                    "name": "Customer Onboarding Workflow",
-                    "description": "Automated customer onboarding process",
-                    "status": "active",
-                    "steps": ["verification", "documentation", "setup"],
-                    "created_at": "2025-01-01T00:00:00Z",
-                    "updated_at": "2025-01-01T00:00:00Z",
-                    "execution_count": 45,
-                    "success_rate": 92.5
-                },
-                {
-                    "id": "invoice_processing",
-                    "name": "Invoice Processing Workflow", 
-                    "description": "Automated invoice processing and approval",
-                    "status": "active",
-                    "steps": ["validation", "approval", "payment"],
-                    "created_at": "2025-01-01T00:00:00Z",
-                    "updated_at": "2025-01-01T00:00:00Z",
-                    "execution_count": 128,
-                    "success_rate": 96.8
-                },
-                {
-                    "id": "support_ticket",
-                    "name": "Support Ticket Workflow",
-                    "description": "Customer support ticket routing and resolution", 
-                    "status": "active",
-                    "steps": ["triage", "assignment", "resolution"],
-                    "created_at": "2025-01-01T00:00:00Z",
-                    "updated_at": "2025-01-01T00:00:00Z",
-                    "execution_count": 67,
-                    "success_rate": 88.7
-                }
-            ]
-            return WorkflowListResponse(workflows=mock_workflows, total_count=len(mock_workflows))
-        
         _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         workflows = await orchestrator.list_available_workflows()
@@ -277,52 +238,6 @@ async def get_recent_executions(limit: int = 10, user_id: Optional[str] = None):
     Get recent workflow executions with optional user filtering
     """
     try:
-        if not settings.graphflow_enabled:
-            # Return mock data when GraphFlow is disabled
-            mock_executions = [
-                {
-                    "execution_id": "exec_001",
-                    "workflow_name": "Customer Onboarding Workflow",
-                    "status": "completed",
-                    "started_at": "2025-08-13T17:30:00Z",
-                    "duration": 245,
-                    "success_rate": 92.5
-                },
-                {
-                    "execution_id": "exec_002", 
-                    "workflow_name": "Invoice Processing Workflow",
-                    "status": "completed",
-                    "started_at": "2025-08-13T16:45:00Z",
-                    "duration": 156,
-                    "success_rate": 96.8
-                },
-                {
-                    "execution_id": "exec_003",
-                    "workflow_name": "Support Ticket Workflow", 
-                    "status": "running",
-                    "started_at": "2025-08-13T18:00:00Z",
-                    "duration": 89,
-                    "success_rate": 88.7
-                },
-                {
-                    "execution_id": "exec_004",
-                    "workflow_name": "Customer Onboarding Workflow",
-                    "status": "failed",
-                    "started_at": "2025-08-13T15:20:00Z", 
-                    "duration": 320,
-                    "success_rate": 92.5
-                },
-                {
-                    "execution_id": "exec_005",
-                    "workflow_name": "Invoice Processing Workflow",
-                    "status": "completed",
-                    "started_at": "2025-08-13T14:15:00Z",
-                    "duration": 178,
-                    "success_rate": 96.8
-                }
-            ]
-            return {"executions": mock_executions[:limit], "total": len(mock_executions)}
-        
         _ensure_graphflow_enabled()
         orchestrator = get_graphflow_orchestrator()
         # Get all executions from orchestrator
@@ -393,11 +308,6 @@ async def workflows_health():
     """Health check for workflows system"""
     try:
         # Feature flag gate
-        if not settings.graphflow_enabled:
-            return {
-                "status": "disabled",
-                "message": "GraphFlow feature flag is disabled",
-            }
         orchestrator = get_graphflow_orchestrator()
         workflows = await orchestrator.list_available_workflows()
         return {
