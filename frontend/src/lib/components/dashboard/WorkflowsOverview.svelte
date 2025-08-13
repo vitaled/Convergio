@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { workflowsService, type Workflow, type RecentExecution } from '$lib/services/workflowsService';
+  import WorkflowEditor from './WorkflowEditor.svelte';
 
   let workflows: Workflow[] = [];
   let recentExecutions: RecentExecution[] = [];
@@ -9,6 +10,8 @@
   let selectedWorkflow: any = null;
   let showDetails = false;
   let executingWorkflow = false;
+  let showEditor = false;
+  let editingWorkflowId: string | null = null;
 
   function getStatusColor(status: string): string {
     switch (status) {
@@ -95,6 +98,33 @@
       executingWorkflow = false;
     }
   }
+  
+  function openEditor(workflowId: string | null = null) {
+    editingWorkflowId = workflowId;
+    showEditor = true;
+  }
+  
+  async function handleSaveWorkflow(workflow: any) {
+    try {
+      // Save workflow via API
+      const response = await fetch('http://localhost:9000/api/v1/workflows/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workflow)
+      });
+      
+      if (response.ok) {
+        alert('✅ Workflow saved successfully!');
+        showEditor = false;
+        loadWorkflowsData();
+      } else {
+        alert('Failed to save workflow');
+      }
+    } catch (err) {
+      console.error('Failed to save workflow:', err);
+      alert('Failed to save workflow');
+    }
+  }
 
   $: activeWorkflows = workflows; // All workflows are considered active
   $: totalExecutions = 0; // No execution count in current API
@@ -105,15 +135,23 @@
   <div class="px-4 py-3 border-b border-gray-200">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-medium text-gray-900">Workflows & Automation</h3>
-      <button 
-        on:click={loadWorkflowsData}
-        class="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
-      >
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span>Refresh</span>
-      </button>
+      <div class="flex items-center space-x-2">
+        <button 
+          on:click={() => { showEditor = true; editingWorkflowId = null; }}
+          class="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          + Create Workflow
+        </button>
+        <button 
+          on:click={loadWorkflowsData}
+          class="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+        >
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>Refresh</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -202,9 +240,15 @@
                   </div>
                   <button 
                     on:click={() => viewWorkflowDetails(workflow.workflow_id)}
-                    class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 mr-2"
+                    class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                   >
                     Details
+                  </button>
+                  <button 
+                    on:click={() => openEditor(workflow.workflow_id)}
+                    class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 mx-1"
+                  >
+                    Edit
                   </button>
                   <button 
                     on:click={() => executeWorkflow(workflow.workflow_id)}
@@ -372,4 +416,13 @@
       </div>
     </div>
   </div>
+{/if}
+
+<!-- Workflow Editor -->
+{#if showEditor}
+  <WorkflowEditor 
+    workflowId={editingWorkflowId}
+    onSave={handleSaveWorkflow}
+    onClose={() => { showEditor = false; editingWorkflowId = null; }}
+  />
 {/if}

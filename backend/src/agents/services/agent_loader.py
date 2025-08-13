@@ -202,7 +202,7 @@ class DynamicAgentLoader:
             for agent in self.agent_metadata.values()
         }
     
-    def create_autogen_agents(self, model_client: OpenAIChatCompletionClient) -> Dict[str, AssistantAgent]:
+    def create_autogen_agents(self, model_client: OpenAIChatCompletionClient, tools: List[Any] = None) -> Dict[str, AssistantAgent]:
         """Create AutoGen AssistantAgent instances from loaded metadata."""
         agents = {}
         
@@ -211,21 +211,22 @@ class DynamicAgentLoader:
                 # Build system message
                 system_message = self._build_system_message(metadata)
                 
-                # Create AutoGen agent
+                # Create AutoGen agent WITH TOOLS from the start
                 agent = AssistantAgent(
                     name=metadata.class_name,
                     model_client=model_client,
-                    system_message=system_message
+                    system_message=system_message,
+                    tools=tools or []  # Pass tools directly to constructor
                 )
                 
                 agents[key] = agent
-                logger.debug("Created AutoGen agent", name=metadata.name, class_name=metadata.class_name)
+                logger.debug("Created AutoGen agent with tools", name=metadata.name, class_name=metadata.class_name, tools_count=len(tools or []))
                 
             except Exception as e:
                 logger.error("Failed to create AutoGen agent", name=metadata.name, error=str(e))
                 continue
         
-        logger.info("AutoGen agents created", total=len(agents))
+        logger.info("AutoGen agents created with tools", total=len(agents), tools_count=len(tools or []))
         return agents
     
     def _build_system_message(self, metadata: AgentMetadata) -> str:

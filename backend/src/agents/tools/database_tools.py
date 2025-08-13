@@ -44,33 +44,26 @@ class DatabaseTools:
             # Get all active talents with basic stats
             talents = await Talent.get_all(db, limit=1000, is_active=True)
             
-            # Calculate department distribution
-            departments = {}
-            positions = {}
-            managers_count = 0
+            # Calculate basic distribution based on REAL fields
+            active_count = 0
+            admin_count = 0
             
             for talent in talents:
-                # Department distribution
-                dept = talent.department or "Unassigned"
-                departments[dept] = departments.get(dept, 0) + 1
+                # Count active (not deleted)
+                if not talent.deleted_at:
+                    active_count += 1
                 
-                # Position distribution
-                pos = talent.position or "Unspecified"
-                positions[pos] = positions.get(pos, 0) + 1
-                
-                # Count managers
-                if talent.subordinates:  # Has subordinates
-                    managers_count += 1
+                # Count admins
+                if talent.is_admin:
+                    admin_count += 1
             
             await db.close()
             
             return {
                 "total_talents": len(talents),
-                "active_talents": len([t for t in talents if t.is_active]),
-                "departments": departments,
-                "positions": positions,
-                "managers_count": managers_count,
-                "latest_talent": talents[0].username if talents else None,
+                "active_talents": active_count,
+                "admin_count": admin_count,
+                "latest_talent": talents[0].email if talents else None,
                 "status": "success",
                 "timestamp": datetime.utcnow().isoformat()
             }
@@ -339,14 +332,10 @@ def query_talents_count() -> str:
         result = asyncio.run(DatabaseTools.get_talents_summary())
         
         if result["status"] == "success":
-            departments = result["departments"]
-            top_depts = sorted(departments.items(), key=lambda x: x[1], reverse=True)[:3]
-            dept_summary = ", ".join([f"{dept}: {count}" for dept, count in top_depts])
-            
-            return f"""✅ TALENT OVERVIEW:
-• Total Active Talents: {result['total_talents']}
-• Managers: {result['managers_count']}
-• Top Departments: {dept_summary}
+            return f"""✅ TALENT OVERVIEW FROM DATABASE:
+• Total Talents in Database: {result['total_talents']}
+• Active Talents: {result['active_talents']}
+• Admins: {result['admin_count']}
 • Latest Addition: {result['latest_talent'] or 'None'}"""
         else:
             return f"❌ Error: {result.get('error', 'Unknown error')}"

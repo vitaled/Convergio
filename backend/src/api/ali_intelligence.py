@@ -489,11 +489,18 @@ async def ali_intelligence_endpoint(
             context=context
         )
         
-        # Check if orchestration had an error
-        if result.get("error") or "encountered an issue" in result.get("response", "").lower():
-            # Use fallback engine for now
-            engine.request = http_request
-            return await engine.process_query(request)
+        # Check if orchestration had an error - NO FALLBACK, SHOW THE ERROR!
+        if result.get("error"):
+            error_msg = f"ORCHESTRATION ERROR: {result.get('error')}"
+            logger.error(error_msg)
+            return AliResponse(
+                response=error_msg,
+                reasoning_chain=["ERROR IN ORCHESTRATION"],
+                data_sources_used=[],
+                confidence_score=0.0,
+                suggested_actions=["FIX THE FUCKING ERROR!"],
+                related_insights=[]
+            )
         
         # Convert orchestrator response to AliResponse format
         # The UnifiedOrchestrator returns a different format
@@ -521,12 +528,12 @@ async def ali_intelligence_endpoint(
     except Exception as e:
         logger.error("❌ Ali AutoGen orchestration failed", error=str(e), exc_info=True)
         
-        # Return error response with details for debugging
+        # NO FALLBACK - SHOW THE REAL ERROR!
         return AliResponse(
-            response=f"Error: {str(e)}",  # Show actual error for debugging
-            reasoning_chain=["Error occurred during orchestration"],
-            data_sources_used=[],
+            response=f"FATAL ERROR IN ALI: {str(e)}\n\nSTACK TRACE: Check logs for details",
+            reasoning_chain=[f"EXCEPTION: {str(e)}"],
+            data_sources_used=["NONE - ERROR"],
             confidence_score=0.0,
-            suggested_actions=["Please retry your query"],
+            suggested_actions=["FIX THE ERROR!", "CHECK LOGS!", "DEBUG THE SYSTEM!"],
             related_insights=[]
         )

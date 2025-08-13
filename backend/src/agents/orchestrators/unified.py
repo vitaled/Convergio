@@ -88,23 +88,21 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             self.agent_loader = DynamicAgentLoader(agents_dir)
             self.agent_loader.scan_and_load_agents()
             
-            # Create AutoGen AssistantAgent instances from metadata
-            self.agents = self.agent_loader.create_autogen_agents(self.model_client)
-            
-            # Register tools to ALL agents
+            # Prepare tools BEFORE creating agents
             all_tools = []
             all_tools.extend(get_web_tools())
             all_tools.extend(get_database_tools())
             all_tools.extend(get_vector_tools())
             
-            # Add tools to each agent
-            for agent_name, agent in self.agents.items():
-                if hasattr(agent, 'register_tools'):
-                    agent.register_tools(all_tools)
-                elif hasattr(agent, '_tools'):
-                    agent._tools = all_tools
+            logger.info(f"🔧 Prepared {len(all_tools)} tools for agents")
+            
+            # Create AutoGen AssistantAgent instances WITH TOOLS
+            self.agents = self.agent_loader.create_autogen_agents(
+                model_client=self.model_client,
+                tools=all_tools  # Pass tools to agent creation
+            )
                     
-            logger.info(f"✅ Loaded {len(self.agents)} agents with {len(all_tools)} tools each")
+            logger.info(f"✅ Loaded {len(self.agents)} agents with {len(all_tools)} tools integrated")
             
             # Initialize GroupChat for multi-agent scenarios
             if len(self.agents) > 1:
@@ -289,17 +287,40 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         #     context
         # )
         
-        # Execute agent directly
+        # Execute agent WITH TOOLS using AutoGen 0.7.x API
         messages = []
-        async for chunk in best_agent.run_stream(task=message):
-            if hasattr(chunk, 'content'):
-                messages.append(chunk)
-        
-        # Extract final response from agent
-        final_response = " ".join(
-            msg.content for msg in messages 
-            if hasattr(msg, 'content') and isinstance(msg.content, str)
-        )
+        try:
+            from autogen_agentchat.messages import TextMessage
+            task_message = TextMessage(content=message, source="user")
+            
+            # Run the agent - tools should now work since they're passed at creation
+            result = await best_agent.run(task=task_message)
+            
+            # Extract response from result
+            if hasattr(result, 'messages'):
+                messages = result.messages
+                # Get the last agent message
+                final_response = ""
+                for msg in reversed(messages):
+                    if hasattr(msg, 'source') and msg.source == best_agent.name:
+                        final_response = msg.content
+                        break
+                
+                if not final_response:
+                    # Try to get any message with content
+                    for msg in reversed(messages):
+                        if hasattr(msg, 'content') and msg.content:
+                            final_response = msg.content
+                            break
+                            
+                if not final_response:
+                    final_response = "Agent executed but no response generated"
+            else:
+                final_response = str(result)
+                
+        except Exception as e:
+            logger.error(f"Agent execution failed: {e}", exc_info=True)
+            final_response = f"AGENT EXECUTION ERROR: {str(e)}"
         
         return {
             "response": final_response,
@@ -307,7 +328,7 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             "turn_count": 1,
             "duration_seconds": 0,  # Will be set by caller
             "routing": "single_agent",
-            "cost_breakdown": estimate_cost(messages)
+            "cost_breakdown": estimate_cost(messages if isinstance(messages, list) else [])
         }
     
     async def _execute_multi_agent(
@@ -356,7 +377,7 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             "turn_count": len(messages),
             "duration_seconds": 0,  # Will be set by caller
             "routing": "multi_agent",
-            "cost_breakdown": estimate_cost(messages)
+            "cost_breakdown": estimate_cost(messages if isinstance(messages, list) else [])
         }
     
     async def stream(
