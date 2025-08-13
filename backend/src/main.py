@@ -48,6 +48,7 @@ from src.api.agent_management import router as agent_management_router
 from src.api.swarm_coordination import router as swarm_coordination_router
 from src.api.agents_ecosystem import router as agents_ecosystem_router
 from src.api.admin import router as admin_router
+from src.api.system_status import router as system_status_router
 
 # Setup structured logging
 setup_logging()
@@ -249,6 +250,9 @@ def create_app() -> FastAPI:
     
     # Admin endpoints for database maintenance
     app.include_router(admin_router, tags=["Admin"])
+    
+    # System status endpoints
+    app.include_router(system_status_router, tags=["System"])
     
     # Vector search APIs (no auth required)
     app.include_router(vector_router, prefix="/api/v1/vector", tags=["Vector Search"])

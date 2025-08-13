@@ -24,15 +24,17 @@ async def test_openai_simple():
         client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
         
         print("🔄 Testing direct OpenAI call...")
+        messages = [
+            {"role": "system", "content": "Respond in Italian briefly"},
+            {"role": "user", "content": "Ciao, come stai?"}
+        ]
+        print(f"➡️ Request to OpenAI: model='gpt-5-nano', messages={messages}, max_completion_tokens=100")
         response = await client.chat.completions.create(
             model="gpt-5-nano",
-            messages=[
-                {"role": "system", "content": "Respond in Italian briefly"},
-                {"role": "user", "content": "Ciao, come stai?"}
-            ],
-            max_tokens=100
+            messages=messages,
+            max_completion_tokens=100
         )
-        
+        print(f"⬅️ Raw OpenAI response: {response}")
         content = response.choices[0].message.content
         print(f"✅ OpenAI response: {content}")
         return True

@@ -33,49 +33,75 @@
   
   async function checkApiStatus() {
     try {
-      // Check backend health
-      const healthResponse = await fetch('http://localhost:9000/health', {
+      // Check system API status (from .env configuration)
+      const systemResponse = await fetch('http://localhost:9000/api/v1/system/api-status', {
         signal: AbortSignal.timeout(3000)
       });
       
-      if (healthResponse.ok) {
-        const health = await healthResponse.json();
+      if (systemResponse.ok) {
+        const systemStatus = await systemResponse.json();
+        
+        // Update backend status
         apiStatus.backend = { 
-          connected: true, 
-          version: health.version || 'Unknown'
+          connected: systemStatus.backend?.connected || false, 
+          version: systemStatus.backend?.version || 'Unknown'
+        };
+        
+        // Update OpenAI status from system config
+        apiStatus.openai = {
+          connected: systemStatus.openai?.connected || false,
+          model: systemStatus.openai?.model || undefined,
+          error: systemStatus.openai?.connected ? undefined : 'Not configured in .env'
+        };
+        
+        // Update Anthropic status from system config
+        apiStatus.anthropic = {
+          connected: systemStatus.anthropic?.connected || false,
+          model: systemStatus.anthropic?.model || undefined,
+          error: systemStatus.anthropic?.connected ? undefined : 'Not configured in .env'
+        };
+        
+        // Update Perplexity status from system config
+        apiStatus.perplexity = {
+          connected: systemStatus.perplexity?.connected || false,
+          model: systemStatus.perplexity?.model || undefined,
+          error: systemStatus.perplexity?.connected ? undefined : 'Not configured in .env'
         };
       } else {
         apiStatus.backend = { connected: false };
       }
       
-      // Check API keys status
-      const keysResponse = await fetch('http://localhost:9000/api/v1/user-keys/status', {
-        signal: AbortSignal.timeout(3000)
-      });
-      
-      if (keysResponse.ok) {
-        const keysStatus = await keysResponse.json();
+      // Also check user-provided keys (optional override)
+      try {
+        const keysResponse = await fetch('http://localhost:9000/api/v1/user-keys/status', {
+          signal: AbortSignal.timeout(3000)
+        });
         
-        // Update OpenAI status
-        apiStatus.openai = {
-          connected: keysStatus.openai?.is_configured && keysStatus.openai?.is_valid !== false,
-          model: keysStatus.openai?.is_configured ? 'GPT-4' : undefined,
-          error: keysStatus.openai?.is_valid === false ? 'Invalid API key' : undefined
-        };
-        
-        // Update Anthropic status
-        apiStatus.anthropic = {
-          connected: keysStatus.anthropic?.is_configured && keysStatus.anthropic?.is_valid !== false,
-          model: keysStatus.anthropic?.is_configured ? 'Claude 3' : undefined,
-          error: keysStatus.anthropic?.is_valid === false ? 'Invalid API key' : undefined
-        };
-        
-        // Update Perplexity status
-        apiStatus.perplexity = {
-          connected: keysStatus.perplexity?.is_configured && keysStatus.perplexity?.is_valid !== false,
-          model: keysStatus.perplexity?.is_configured ? 'Sonar' : undefined,
-          error: keysStatus.perplexity?.is_valid === false ? 'Invalid API key' : undefined
-        };
+        if (keysResponse.ok) {
+          const keysStatus = await keysResponse.json();
+          
+          // Override with user keys if provided
+          if (keysStatus.openai?.is_configured) {
+            apiStatus.openai.connected = true;
+            apiStatus.openai.model = 'GPT-4 (User)';
+            apiStatus.openai.error = keysStatus.openai?.is_valid === false ? 'Invalid user API key' : undefined;
+          }
+          
+          if (keysStatus.anthropic?.is_configured) {
+            apiStatus.anthropic.connected = true;
+            apiStatus.anthropic.model = 'Claude 3 (User)';
+            apiStatus.anthropic.error = keysStatus.anthropic?.is_valid === false ? 'Invalid user API key' : undefined;
+          }
+          
+          if (keysStatus.perplexity?.is_configured) {
+            apiStatus.perplexity.connected = true;
+            apiStatus.perplexity.model = 'Sonar (User)';
+            apiStatus.perplexity.error = keysStatus.perplexity?.is_valid === false ? 'Invalid user API key' : undefined;
+          }
+        }
+      } catch (userKeysError) {
+        // User keys are optional, don't fail if not available
+        console.log('User keys not checked:', userKeysError);
       }
       
     } catch (error) {
@@ -209,7 +235,7 @@
                 {:else if apiStatus.openai.error}
                   {apiStatus.openai.error}
                 {:else}
-                  No API key
+                  Check .env configuration
                 {/if}
               </p>
             </div>
@@ -234,7 +260,7 @@
                 {:else if apiStatus.anthropic.error}
                   {apiStatus.anthropic.error}
                 {:else}
-                  No API key
+                  Check .env configuration
                 {/if}
               </p>
             </div>
@@ -259,7 +285,7 @@
                 {:else if apiStatus.perplexity.error}
                   {apiStatus.perplexity.error}
                 {:else}
-                  No API key
+                  Check .env configuration
                 {/if}
               </p>
             </div>
