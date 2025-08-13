@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import MarkdownRenderer from './MarkdownRenderer.svelte';
   import '../styles/ali-breathing.css';
 
   // Ali state
@@ -121,6 +122,7 @@
 
         if (response.ok) {
           const result = await response.json();
+          console.log('✅ Ali Response SUCCESS:', result);
           const aiResponse = {
             id: Date.now() + 1,
             type: 'ai',
@@ -130,11 +132,13 @@
           };
           messages = [...messages, aiResponse];
         } else {
-          // Fallback if API fails
+          // Log the actual error for debugging
+          const errorText = await response.text();
+          console.error('❌ Ali API Error:', response.status, response.statusText, errorText);
           const aiResponse = {
             id: Date.now() + 1,
             type: 'ai',
-            content: `I'm processing your request about "${currentMessage}". The AI team is coordinating to provide you with strategic insights. Give me a moment to analyze this thoroughly.`,
+            content: `API Error (${response.status}): ${response.statusText}. Backend response: ${errorText.substring(0, 200)}...`,
             timestamp: new Date()
           };
           messages = [...messages, aiResponse];
@@ -288,7 +292,7 @@
               {#if message.type === 'user'}
                 <div class="bg-gray-900 text-white p-2 rounded-lg rounded-br-sm text-xs" role="group" aria-label="Your message">
                   <div class="font-medium text-xs mb-1 opacity-75" aria-hidden="true">You (CEO)</div>
-                  <div>{message.content}</div>
+                  <MarkdownRenderer content={message.content} />
                 </div>
               {:else}
                 <div class="bg-gray-100 p-2 rounded-lg rounded-bl-sm text-xs" role="group" aria-label="Ali's response">
@@ -299,7 +303,7 @@
                     <span class="font-medium text-xs text-gray-900">Ali</span>
                     <span class="text-xs text-gray-500">• Chief of Staff</span>
                   </div>
-                  <div class="text-gray-900">{message.content}</div>
+                  <div class="text-gray-900"><MarkdownRenderer content={message.content} /></div>
                 </div>
               {/if}
               <div class="text-xs text-gray-500 mt-1 {message.type === 'user' ? 'text-right' : 'text-left'}" aria-label="Message sent at {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}">

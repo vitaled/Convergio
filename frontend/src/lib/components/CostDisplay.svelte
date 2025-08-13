@@ -248,7 +248,7 @@
         <div class="pt-2 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400">
           <span>Updated:</span>
           <span class="font-mono">
-            {new Date($costData.last_updated).toLocaleTimeString()}
+            {$costData.last_updated ? new Date($costData.last_updated + (($costData.last_updated.includes('Z') || $costData.last_updated.includes('+')) ? '' : 'Z')).toLocaleTimeString() : 'N/A'}
           </span>
         </div>
 

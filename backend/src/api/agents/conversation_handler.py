@@ -51,8 +51,8 @@ async def handle_conversation(
     )
     
     try:
-        # Get orchestrator based on mode
-        orchestrator = await get_agent_orchestrator(mode=request.mode)
+        # Get orchestrator (mode selection handled internally)
+        orchestrator = await get_agent_orchestrator()
         
         if not orchestrator.is_healthy():
             raise HTTPException(
@@ -62,7 +62,7 @@ async def handle_conversation(
         
         # Add user API key to context if available
         context = request.context or {}
-        user_api_key = get_user_api_key(req)
+        user_api_key = get_user_api_key(req, "openai")
         if user_api_key:
             context["user_api_key"] = user_api_key
         
@@ -84,17 +84,17 @@ async def handle_conversation(
                 "context": context,
                 "timestamp": datetime.now().isoformat()
             }),
-            expire=3600  # 1 hour TTL
+            ttl=3600  # 1 hour TTL
         )
         
-        # Track metrics
-        metrics = get_selection_metrics()
-        metrics.record_conversation(
-            conversation_id=conversation_id,
-            agents_used=result.get("agents_used", []),
-            duration=result.get("duration_seconds", 0),
-            turn_count=result.get("turn_count", 0)
-        )
+        # Track metrics (temporarily disabled)
+        # metrics = get_selection_metrics()
+        # metrics.record_conversation(
+        #     conversation_id=conversation_id,
+        #     agents_used=result.get("agents_used", []),
+        #     duration=result.get("duration_seconds", 0),
+        #     turn_count=result.get("turn_count", 0)
+        # )
         
         logger.info(
             f"✅ Conversation completed",
@@ -155,7 +155,7 @@ async def handle_streaming_conversation(
         
         # Add user API key to context
         context = request.context or {}
-        user_api_key = get_user_api_key(req)
+        user_api_key = get_user_api_key(req, "openai")
         if user_api_key:
             context["user_api_key"] = user_api_key
         

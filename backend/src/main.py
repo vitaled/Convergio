@@ -48,6 +48,8 @@ from src.api.agent_management import router as agent_management_router
 from src.api.swarm_coordination import router as swarm_coordination_router
 from src.api.agents_ecosystem import router as agents_ecosystem_router
 from src.api.admin import router as admin_router
+from src.api.approvals import router as approvals_router
+from src.api.projects import router as projects_router
 from src.api.system_status import router as system_status_router
 
 # Setup structured logging
@@ -187,7 +189,7 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
     
     # CORS - Must be first - Fix credentials issue
-    cors_origins = settings.cors_origins_list + ["http://localhost:4001", "http://127.0.0.1:4001"]
+    cors_origins = settings.cors_origins_list
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
@@ -271,6 +273,12 @@ def create_app() -> FastAPI:
     
     # Analytics & Dashboard (CEO Dashboard Supreme support)
     app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["Analytics"])
+    
+    # Approvals system 
+    app.include_router(approvals_router, prefix="/api/v1/approvals", tags=["Approvals"])
+    
+    # Projects & Clients (Real database data)
+    app.include_router(projects_router, prefix="/api/v1/projects", tags=["Projects & Clients"])
     
     # Workflows & Business Process Automation (GraphFlow) - FIX: Add proper prefix
     app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
