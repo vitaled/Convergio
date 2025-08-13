@@ -87,7 +87,7 @@ async def store_user_api_keys(
         
         # Store preferred model (validated)
         if keys.default_model:
-            allowed = {"gpt-5", "gpt-5-mini", "gpt-5-nano"}
+            allowed = {"gpt-4o", "gpt-4o-mini", "gpt-5", "gpt-5-mini", "gpt-5-nano"}
             model = keys.default_model.strip()
             if model in allowed:
                 encrypted_keys['model'] = model

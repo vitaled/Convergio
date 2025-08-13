@@ -234,7 +234,7 @@ class Settings(BaseSettings):
     
     # OpenAI API
     OPENAI_API_KEY: str = Field(description="OpenAI API key")
-    OPENAI_MODEL: str = Field(default="gpt-5-nano", description="Default OpenAI model")
+    OPENAI_MODEL: str = Field(default="gpt-4o-mini", description="Default OpenAI model")
     OPENAI_MAX_TOKENS: int = Field(default=2048, description="OpenAI max tokens")
     
     # Anthropic API  

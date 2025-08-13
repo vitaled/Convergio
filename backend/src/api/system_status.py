@@ -53,7 +53,7 @@ async def get_system_api_status(
             # Don't expose that it's a placeholder
             status["openai"]["connected"] = True
             status["openai"]["source"] = "system"
-            status["openai"]["model"] = settings.OPENAI_MODEL if hasattr(settings, 'OPENAI_MODEL') else "gpt-4"
+            status["openai"]["model"] = settings.OPENAI_MODEL if hasattr(settings, 'OPENAI_MODEL') else "gpt-4o-mini"
     
     # Check Anthropic  
     if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:

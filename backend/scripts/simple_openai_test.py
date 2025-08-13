@@ -1,77 +1,101 @@
 #!/usr/bin/env python3
 """
-Simple OpenAI test without complex imports
+Simple OpenAI model tester.
+Tests a list of GPT-5 and GPT-4 nano/mini models, reports which work, and finds the cheapest available.
 """
 
 import os
 import asyncio
 
-# Get API key from environment
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# API key and model config
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DEFAULT_MODEL = "gpt-4o-mini"
+ECONOMICAL_MODELS = ["gpt-4o-mini", "gpt-4o-mini-2024-07-18", "gpt-3.5-turbo"]
+
+# List of models to test
+TEST_MODELS = [
+    "gpt-5.5-nano",
+    "gpt-5.5-mini",
+    "gpt-5-nano",
+    "gpt-5-mini",
+    "gpt-4.5-nano",
+    "gpt-4.5-mini",
+    "gpt-4o-mini",
+    "gpt-4o-mini-2024-07-18"
+]
 
 async def test_openai_simple():
     print("🔍 Simple OpenAI test...")
-    print(f"API Key: {OPENAI_API_KEY[:20] if OPENAI_API_KEY else 'None'}...")
-    
     if not OPENAI_API_KEY:
-        print("❌ No API key found")
+        print("❌ No API key found. Please set OPENAI_API_KEY in your environment.")
         return False
-    
+
+    print(f"API Key (first 20 chars): {OPENAI_API_KEY[:20]}...")
+    results = {}
+
     try:
-        # Direct OpenAI test with openai library
         import openai
-        
         client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
-        
-        print("🔄 Testing direct OpenAI call...")
+
         messages = [
-            {"role": "system", "content": "Respond in Italian briefly"},
-            {"role": "user", "content": "Ciao, come stai?"}
+            {"role": "system", "content": "Rispondi brevemente in italiano."},
+            {"role": "user", "content": "Ciao, chi sei?"}
         ]
-        print(f"➡️ Request to OpenAI: model='gpt-5-nano', messages={messages}, max_completion_tokens=100")
-        response = await client.chat.completions.create(
-            model="gpt-5-nano",
-            messages=messages,
-            max_completion_tokens=100
-        )
-        print(f"⬅️ Raw OpenAI response: {response}")
-        content = response.choices[0].message.content
-        print(f"✅ OpenAI response: {content}")
-        return True
-        
+
+        for model in TEST_MODELS:
+            print(f"\n📌 Testing model: {model}")
+            try:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=50,
+                    temperature=0.7
+                )
+                content = response.choices[0].message.content
+                if content and content.strip():
+                    print(f"✅ {model}: {content}")
+                    results[model] = {"success": True, "reason": ""}
+                else:
+                    print(f"⚠️ {model}: Empty response")
+                    results[model] = {"success": False, "reason": "Empty response"}
+            except Exception as e:
+                err_str = str(e)
+                print(f"❌ {model}: {err_str}")
+                if any(term in err_str.lower() for term in [
+                    "model_not_found", "not found", "unsupported", "does not exist", "unavailable"
+                ]):
+                    print(f"ℹ️ Model '{model}' is unavailable for your API key or plan.")
+                    err_str += " (unavailable for API key/plan)"
+                results[model] = {"success": False, "reason": err_str}
+
+        # Summary
+        print("\n=== SUMMARY ===")
+        success_models = [m for m, r in results.items() if r["success"]]
+        failed_models = [m for m, r in results.items() if not r["success"]]
+        print(f"✅ Successes: {success_models}")
+        print("❌ Failures:", [f"{m}: {results[m]['reason']}" for m in failed_models])
+
+        # Find cheapest working model
+        cheapest_model = None
+        for candidate in ECONOMICAL_MODELS:
+            if candidate in success_models:
+                cheapest_model = candidate
+                break
+        if cheapest_model:
+            print(f"💰 Cheapest working model: {cheapest_model}")
+        else:
+            print("💰 No economical model from ECONOMICAL_MODELS list is available.")
+
+        return len(success_models) > 0
+
     except ImportError:
-        print("⚠️ openai library not available, trying AutoGen...")
-        
-        try:
-            from autogen_ext.models.openai import OpenAIChatCompletionClient
-            from autogen_agentchat.agents import AssistantAgent
-            
-            # Create client
-            client = OpenAIChatCompletionClient(
-                model="gpt-5-nano",
-                api_key=OPENAI_API_KEY,
-            )
-            
-            # Create agent
-            agent = AssistantAgent(
-                name="test",
-                model_client=client,
-                system_message="Respond briefly in Italian."
-            )
-            
-            print("🔄 Testing AutoGen agent.run()...")
-            response = await agent.run(task="Come stai?")
-            print(f"✅ AutoGen response: {response}")
-            return True
-            
-        except Exception as e:
-            print(f"❌ AutoGen test failed: {e}")
-            return False
-            
+        print("⚠️ openai library not available.")
+        return False
     except Exception as e:
         print(f"❌ OpenAI test failed: {e}")
         return False
 
+
 if __name__ == "__main__":
     result = asyncio.run(test_openai_simple())
-    print(f"🎯 Test result: {'SUCCESS' if result else 'FAILED'}")
+    print(f"\n🎯 Test result: {'SUCCESS' if result else 'FAILED'}")

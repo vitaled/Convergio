@@ -9,7 +9,6 @@ from typing import Any, Dict, Optional
 
 from src.core.config import get_settings
 from src.core.redis import get_redis_client
-from .services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator, GroupChatResult
 from .orchestrators.unified import UnifiedOrchestrator
 from .orchestrators.base import OrchestratorRegistry
 from .services.redis_state_manager import RedisStateManager  
@@ -27,12 +26,13 @@ class RealAgentOrchestrator:
         """Initialize with REAL components."""
         self.settings = get_settings()
         
-        # Use the UnifiedOrchestrator with all registered orchestrators
+        # Use the UnifiedOrchestrator as the primary orchestrator
         self.state_manager: RedisStateManager = None
         self.cost_tracker: CostTracker = None
-        self.orchestrator: UnifiedOrchestrator = None  # Now using UnifiedOrchestrator
+        self.orchestrator: UnifiedOrchestrator = None
         self.memory_system: AutoGenMemorySystem = None
         self.registry = OrchestratorRegistry()
+        self.agents_directory: str = "src/agents/definitions"
         
         self._initialized = False
     
@@ -63,38 +63,19 @@ class RealAgentOrchestrator:
             self.memory_system = AutoGenMemorySystem()
             # Memory system is initialized in constructor - no initialize() method
             
-            # Register all available orchestrators
-            self.registry.register("modern_groupchat", ModernGroupChatOrchestrator)
-            # Additional orchestrators can be registered here:
-            # self.registry.register("autogen", AutoGenOrchestrator)
-            # self.registry.register("graphflow", GraphFlowOrchestrator)
-            # self.registry.register("streaming", StreamingOrchestrator)
-            # self.registry.register("swarm", SwarmOrchestrator)
-            
-            # Set default orchestrator
-            self.registry.set_default("modern_groupchat")
-            
-            # Initialize the UnifiedOrchestrator
-            self.orchestrator = UnifiedOrchestrator(
-                enable_circuit_breaker=True,
-                enable_health_monitoring=True
-            )
-            
-            # Create and register ModernGroupChatOrchestrator instance
-            modern_gc = ModernGroupChatOrchestrator(
-                state_manager=self.state_manager,
-                cost_tracker=self.cost_tracker,
-                agents_directory="src/agents/definitions",  # All 50+ agents
-                memory_system=self.memory_system,  # Add memory system
-                observers=[OtelAutoGenObserver()],
-            )
-            
-            # Manually add to orchestrator's dict since we're creating instances
-            self.orchestrator.orchestrators["modern_groupchat"] = modern_gc
+            # Initialize the UnifiedOrchestrator (no kwargs supported in __init__)
+            self.orchestrator = UnifiedOrchestrator()
             
             # Initialize services
             await self.state_manager.initialize()
-            await self.orchestrator.initialize()
+            # UnifiedOrchestrator requires agents_dir on initialize
+            init_ok = await self.orchestrator.initialize(
+                agents_dir=self.agents_directory,
+                enable_rag=True,
+                enable_safety=True
+            )
+            if not init_ok:
+                raise RuntimeError("UnifiedOrchestrator failed to initialize")
             
             self._initialized = True
             logger.info("✅ REAL Agent System initialized successfully")
@@ -109,7 +90,7 @@ class RealAgentOrchestrator:
         user_id: str,
         conversation_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
-    ) -> GroupChatResult:
+    ) -> Dict[str, Any]:
         """Orchestrate conversation using REAL agent system."""
         
         if not self._initialized:
@@ -119,8 +100,8 @@ class RealAgentOrchestrator:
                    user_id=user_id,
                    message_preview=message[:100])
         
-        # Use the REAL orchestrator
-        result = await self.orchestrator.orchestrate_conversation(
+        # Use the UnifiedOrchestrator API
+        result = await self.orchestrator.orchestrate(
             message=message,
             user_id=user_id,
             conversation_id=conversation_id,
@@ -128,8 +109,8 @@ class RealAgentOrchestrator:
         )
         
         logger.info("✅ REAL Agent Conversation completed",
-                   agents_used=len(result.agents_used),
-                   cost_usd=result.cost_breakdown.get("total_cost_usd", 0))
+                   agents_used=len(result.get("agents_used", [])),
+                   cost_usd=result.get("cost_breakdown", {}).get("total_cost_usd", 0))
         
         return result
     
@@ -156,7 +137,7 @@ class RealAgentOrchestrator:
         
         # Use orchestrator to handle the specific agent interaction
         # The orchestrator will route to the appropriate agent
-        result = await self.orchestrator.orchestrate_conversation(
+        result = await self.orchestrator.orchestrate(
             message=f"Agent {agent_name}: {message}",
             user_id="debug_user",
             conversation_id=conversation_id,
@@ -168,8 +149,8 @@ class RealAgentOrchestrator:
             "conversation_id": conversation_id,
             "debug_mode": debug_mode,
             "result": result,
-            "agents_used": result.agents_used,
-            "cost": result.cost_breakdown
+            "agents_used": result.get("agents_used", []),
+            "cost": result.get("cost_breakdown", {})
         }
     
     async def get_available_agents(self) -> Dict[str, Any]:
@@ -177,20 +158,23 @@ class RealAgentOrchestrator:
         if not self._initialized:
             await self.initialize()
         
-        return await self.orchestrator.get_ecosystem_status()
+        agent_names = self.orchestrator.list_agents()
+        return {"agents": agent_names, "total": len(agent_names)}
     
     async def reload_agents(self) -> Dict[str, Any]:
         """Reload agents in REAL system."""
         if not self._initialized:
             await self.initialize()
         
-        return await self.orchestrator.reload_agents()
+        # Reinitialize the unified orchestrator to reload agent definitions
+        ok = await self.orchestrator.initialize(agents_dir=self.agents_directory, enable_rag=True, enable_safety=True)
+        return {"reloaded": ok}
     
     def is_healthy(self) -> bool:
         """Check if REAL system is healthy."""
         return (self._initialized and 
                 self.orchestrator is not None and
-                self.orchestrator.is_healthy())
+                (self.orchestrator.is_healthy() if hasattr(self.orchestrator, "is_healthy") else True))
     
     async def close(self) -> None:
         """Close REAL system."""

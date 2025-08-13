@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import structlog
 
-from ...agents.orchestrator import get_orchestrator
+from ...agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 
@@ -37,7 +37,7 @@ async def list_orchestrators():
     List all available orchestrators with their status
     """
     try:
-        orchestrator = await get_orchestrator()
+        orchestrator = await get_agent_orchestrator()
         
         if not hasattr(orchestrator, 'orchestrator') or not hasattr(orchestrator.orchestrator, 'orchestrators'):
             return []
@@ -90,7 +90,7 @@ async def select_orchestrator(selection: OrchestratorSelection):
     Select a specific orchestrator for use
     """
     try:
-        orchestrator = await get_orchestrator()
+        orchestrator = await get_agent_orchestrator()
         
         if not hasattr(orchestrator, 'orchestrator'):
             raise HTTPException(status_code=400, detail="Unified orchestrator not available")
@@ -134,7 +134,7 @@ async def get_orchestrator_health():
     Get health status of all orchestrators
     """
     try:
-        orchestrator = await get_orchestrator()
+        orchestrator = await get_agent_orchestrator()
         
         if not hasattr(orchestrator, 'orchestrator'):
             return {"status": "unavailable"}
@@ -170,7 +170,7 @@ async def get_orchestrator_metrics():
     Get usage metrics for all orchestrators
     """
     try:
-        orchestrator = await get_orchestrator()
+        orchestrator = await get_agent_orchestrator()
         
         if not hasattr(orchestrator, 'orchestrator'):
             return {"metrics": {}}
@@ -193,7 +193,7 @@ async def reset_circuit_breaker(orchestrator_name: str):
     Manually reset circuit breaker for a specific orchestrator
     """
     try:
-        orchestrator = await get_orchestrator()
+        orchestrator = await get_agent_orchestrator()
         
         if not hasattr(orchestrator, 'orchestrator'):
             raise HTTPException(status_code=400, detail="Unified orchestrator not available")

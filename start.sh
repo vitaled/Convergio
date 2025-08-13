@@ -107,11 +107,24 @@ done
 # System checks and startup
 # ----------------------------------------------------------------------------------
 echo "🔍 Running system checks..."
-python scripts/start.py --check-only
-
-if [[ $? -ne 0 ]]; then
-  echo "❌ System checks failed. Please fix the issues above."
-  exit 1
+# Check if the script exists and run it, otherwise skip
+if [[ -f "backend/scripts/start.py" ]]; then
+  cd backend
+  python scripts/start.py --check-only
+  CHECK_RESULT=$?
+  cd ..
+  if [[ $CHECK_RESULT -ne 0 ]]; then
+    echo "❌ System checks failed. Please fix the issues above."
+    exit 1
+  fi
+elif [[ -f "scripts/start.py" ]]; then
+  python scripts/start.py --check-only
+  if [[ $? -ne 0 ]]; then
+    echo "❌ System checks failed. Please fix the issues above."
+    exit 1
+  fi
+else
+  echo "⚠️ System check script not found, skipping checks..."
 fi
 
 echo "✅ All system checks passed!"

@@ -41,8 +41,8 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
     def __init__(self, name: str = "unified_orchestrator"):
         super().__init__(name)
         self.router = IntelligentAgentRouter()
-        self.agent_intelligence = AgentIntelligence()
-        self.agent_loader = DynamicAgentLoader()
+        self.agent_intelligence = AgentIntelligence(agent_name=name)
+        self.agent_loader = None
         self.termination_markers = ["DONE", "TERMINATE", "END_CONVERSATION"]
         self.max_rounds = 10
         
@@ -80,20 +80,13 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                 model_client = get_autogen_client(provider="openai")
             self.model_client = model_client
             
-            # Load agents from directory
+            # Load agents from directory using DynamicAgentLoader
             logger.info(f"📂 Loading agents from {agents_dir}")
-            agent_configs = await self.agent_loader.load_agents_from_directory(agents_dir)
+            self.agent_loader = DynamicAgentLoader(agents_dir)
+            self.agent_loader.scan_and_load_agents()
             
-            # Create agent instances
-            for config in agent_configs:
-                agent = AssistantAgent(
-                    name=config["name"],
-                    model_client=self.model_client,
-                    system_message=config.get("system_message", ""),
-                    description=config.get("description", ""),
-                    tools=config.get("tools", [])
-                )
-                self.agents[config["name"]] = agent
+            # Create AutoGen AssistantAgent instances from metadata
+            self.agents = self.agent_loader.create_autogen_agents(self.model_client)
             
             logger.info(f"✅ Loaded {len(self.agents)} agents")
             
@@ -105,8 +98,8 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             
             # Initialize RAG processor if enabled
             if kwargs.get("enable_rag", True):
+                # AdvancedRAGProcessor initializes in __init__; no initialize() method
                 self.rag_processor = AdvancedRAGProcessor()
-                await self.rag_processor.initialize()
             
             # Initialize safety guardian if enabled
             if kwargs.get("enable_safety", True):
