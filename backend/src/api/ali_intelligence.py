@@ -21,17 +21,27 @@ from src.api.user_keys import get_user_api_key, get_user_default_model
 from src.core.config import get_settings
 from src.models.talent import Talent
 from src.models.document import Document
+from src.agents.ali_orchestrator_v2 import get_ali_orchestrator
 
 logger = structlog.get_logger()
 router = APIRouter()
 
 class AliRequest(BaseModel):
     """Ali intelligence request"""
-    message: str
+    query: str  # Alias for message
+    message: Optional[str] = None  # Keep for backward compatibility
     context: Optional[Dict[str, Any]] = None
     use_vector_search: bool = True
     use_database_insights: bool = True
     include_strategic_analysis: bool = True
+    
+    def __init__(self, **data):
+        # Support both 'query' and 'message' fields
+        if 'query' in data and 'message' not in data:
+            data['message'] = data['query']
+        elif 'message' in data and 'query' not in data:
+            data['query'] = data['message']
+        super().__init__(**data)
 
 class AliResponse(BaseModel):
     """Ali intelligence response"""
@@ -444,38 +454,59 @@ async def get_ali_engine(
     return AliIntelligenceEngine(db, request)
 
 @router.post("/ali/intelligence", response_model=AliResponse)
+@router.post("/ask", response_model=AliResponse)  # Alias for easier access
 async def ali_intelligence_endpoint(
     request: AliRequest,
     http_request: Request,
     engine: AliIntelligenceEngine = Depends(get_ali_engine)
 ) -> AliResponse:
     """
-    🧠 Ali Intelligence Endpoint
-    Advanced AI-powered strategic analysis with vector search and database integration
+    🧠 Ali Intelligence Endpoint - REAL AutoGen Orchestrator
+    Uses AutoGen GroupChat with specialist agents and Perplexity integration
     """
     
     try:
-        # Set the HTTP request for the engine
-        engine.request = http_request
+        logger.info("🧠 Ali AutoGen orchestration starting", 
+                   query=request.query[:100] if request.query else request.message[:100])
         
-        logger.info("Ali intelligence processing request", 
-                   intent=request.message[:100],
-                   use_vector=request.use_vector_search,
-                   use_db=request.use_database_insights)
+        # Use the REAL Ali AutoGen orchestrator
+        ali_orchestrator = await get_ali_orchestrator()
         
-        # Process with full intelligence capabilities
-        result = await engine.process_query(request)
+        # Build context from request
+        context = request.context or {}
+        context.update({
+            "use_vector_search": request.use_vector_search,
+            "use_database_insights": request.use_database_insights,
+            "include_strategic_analysis": request.include_strategic_analysis
+        })
         
-        logger.info("Ali intelligence response generated",
-                   confidence=result.confidence_score,
-                   sources=len(result.data_sources_used),
-                   actions=len(result.suggested_actions))
+        # Orchestrate with AutoGen
+        result = await ali_orchestrator.orchestrate(
+            query=request.query or request.message,
+            context=context
+        )
         
-        return result
+        # Convert orchestrator response to AliResponse format
+        response = AliResponse(
+            response=result.get("response", ""),
+            reasoning_chain=result.get("reasoning_chain", []),
+            data_sources_used=result.get("data_sources_used", []),
+            confidence_score=result.get("confidence_score", 0.9),
+            suggested_actions=result.get("suggested_actions", []),
+            related_insights=[]  # Can be enhanced later
+        )
+        
+        logger.info("✅ Ali AutoGen response generated",
+                   agents_involved=result.get("agents_involved", []),
+                   execution_time=result.get("execution_time", 0),
+                   sources=len(response.data_sources_used))
+        
+        return response
         
     except Exception as e:
-        logger.error("Ali intelligence processing failed", error=str(e))
-        raise HTTPException(
-            status_code=500,
-            detail="Strategic analysis temporarily unavailable"
-        )
+        logger.error("❌ Ali AutoGen orchestration failed", error=str(e))
+        
+        # Fallback to the original engine if AutoGen fails
+        logger.info("⚠️ Falling back to standard Ali engine")
+        engine.request = http_request
+        return await engine.process_query(request)

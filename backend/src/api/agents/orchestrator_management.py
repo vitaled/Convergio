@@ -12,7 +12,7 @@ from ...agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/orchestrators", tags=["Orchestrator Management"])
+router = APIRouter(tags=["Orchestrator Management"])
 
 
 class OrchestratorSelection(BaseModel):
@@ -31,7 +31,7 @@ class OrchestratorInfo(BaseModel):
     metrics: Optional[Dict[str, Any]] = None
 
 
-@router.get("/", response_model=List[OrchestratorInfo])
+@router.get("/orchestrators", response_model=List[OrchestratorInfo])
 async def list_orchestrators():
     """
     List all available orchestrators with their status
@@ -84,7 +84,7 @@ async def list_orchestrators():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/select")
+@router.post("/orchestrators/select")
 async def select_orchestrator(selection: OrchestratorSelection):
     """
     Select a specific orchestrator for use
@@ -128,7 +128,7 @@ async def select_orchestrator(selection: OrchestratorSelection):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/health")
+@router.get("/orchestrators/health")
 async def get_orchestrator_health():
     """
     Get health status of all orchestrators
@@ -164,7 +164,7 @@ async def get_orchestrator_health():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/metrics")
+@router.get("/orchestrators/metrics")
 async def get_orchestrator_metrics():
     """
     Get usage metrics for all orchestrators
@@ -187,7 +187,7 @@ async def get_orchestrator_metrics():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/reset-circuit-breaker/{orchestrator_name}")
+@router.post("/orchestrators/reset-circuit-breaker/{orchestrator_name}")
 async def reset_circuit_breaker(orchestrator_name: str):
     """
     Manually reset circuit breaker for a specific orchestrator

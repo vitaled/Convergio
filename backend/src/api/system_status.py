@@ -49,22 +49,24 @@ async def get_system_api_status(
     
     # Check OpenAI
     if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
-        if not settings.OPENAI_API_KEY.startswith('sk-proj-'):
-            # Don't expose that it's a placeholder
+        # Valid OpenAI keys start with sk-proj- or sk-
+        if settings.OPENAI_API_KEY.startswith(('sk-proj-', 'sk-')):
             status["openai"]["connected"] = True
             status["openai"]["source"] = "system"
             status["openai"]["model"] = settings.OPENAI_MODEL if hasattr(settings, 'OPENAI_MODEL') else "gpt-4o-mini"
     
     # Check Anthropic  
     if hasattr(settings, 'ANTHROPIC_API_KEY') and settings.ANTHROPIC_API_KEY:
-        if not settings.ANTHROPIC_API_KEY.startswith('sk-ant-'):
+        # Valid Anthropic keys start with sk-ant-
+        if settings.ANTHROPIC_API_KEY.startswith('sk-ant-'):
             status["anthropic"]["connected"] = True
             status["anthropic"]["source"] = "system"
             status["anthropic"]["model"] = settings.ANTHROPIC_MODEL if hasattr(settings, 'ANTHROPIC_MODEL') else "claude-3-opus"
     
     # Check Perplexity
     if hasattr(settings, 'PERPLEXITY_API_KEY') and settings.PERPLEXITY_API_KEY:
-        if not settings.PERPLEXITY_API_KEY.startswith('pplx-'):
+        # Valid Perplexity keys start with pplx-
+        if settings.PERPLEXITY_API_KEY.startswith('pplx-'):
             status["perplexity"]["connected"] = True
             status["perplexity"]["source"] = "system"
             status["perplexity"]["model"] = "sonar"

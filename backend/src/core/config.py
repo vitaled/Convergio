@@ -241,6 +241,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = Field(description="Anthropic API key")
     ANTHROPIC_MODEL: str = Field(default="claude-3-sonnet-20240229", description="Default Anthropic model")
     
+    # Perplexity API
+    PERPLEXITY_API_KEY: Optional[str] = Field(default=None, description="Perplexity API key")
+    PERPLEXITY_MODEL: str = Field(default="sonar", description="Default Perplexity model")
+    
     # Vector Search
     VECTOR_DIMENSION: int = Field(default=1536, description="Vector embedding dimension")
     VECTOR_INDEX_TYPE: str = Field(default="HNSW", description="Vector index type")
