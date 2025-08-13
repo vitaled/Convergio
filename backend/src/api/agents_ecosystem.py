@@ -319,7 +319,7 @@ Keep the response professional, concise, and aligned with business team standard
 
         # Call OpenAI with timeout and retry logic
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=settings.default_ai_model,
             messages=[
                 {"role": "system", "content": "You are a professional HR consultant creating team member profiles. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt}
