@@ -115,3 +115,13 @@ class User:
         
         talent = await Talent.get_by_email(db, email)
         return cls(talent) if talent else None
+    
+    @classmethod
+    async def get_total_count(cls, db: AsyncSession) -> int:
+        """Get total count of all users"""
+        return await Talent.get_total_count(db)
+    
+    @classmethod 
+    async def get_active_count(cls, db: AsyncSession, since_date=None) -> int:
+        """Get count of active users"""
+        return await Talent.get_active_count(db, since_date)

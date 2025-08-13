@@ -175,3 +175,26 @@ class Talent(Base):
             "managers": [],  # No manager hierarchy in current schema
             "subordinates": []  # No subordinates in current schema
         }
+    
+    @classmethod
+    async def get_total_count(cls, db: AsyncSession) -> int:
+        """Get total count of all talents"""
+        result = await db.execute(
+            select(func.count(cls.id))
+            .where(cls.deleted_at.is_(None))
+        )
+        return result.scalar() or 0
+    
+    @classmethod
+    async def get_active_count(cls, db: AsyncSession, since_date=None) -> int:
+        """Get count of active talents (not deleted)"""
+        query = select(func.count(cls.id)).where(cls.deleted_at.is_(None))
+        
+        # If since_date is provided, filter by created_at or updated_at
+        if since_date:
+            query = query.where(
+                (cls.created_at >= since_date) | (cls.updated_at >= since_date)
+            )
+        
+        result = await db.execute(query)
+        return result.scalar() or 0
