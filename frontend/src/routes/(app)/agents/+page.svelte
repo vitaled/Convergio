@@ -15,12 +15,6 @@
     personality: string;
     is_featured: boolean;
     key?: string;  // Backend agent key
-    cost_data?: {
-      total_cost_usd: number;
-      total_calls: number;
-      avg_cost_per_call: number;
-      last_updated: string;
-    };
   }
 
   interface Message {
@@ -52,15 +46,132 @@
     role: '',
     description: '',
     specialty: '',
-    personality: '',
-    color: '#666666',
-    tools: [] as string[],
-    expertise_areas: [] as string[],
-    additional_content: ''
+    personality: ''
   };
   let isCreatingAgent = false;
   let creationError: string | null = null;
   let creationSuccess = false;
+  
+  // AI Generated agent preview
+  let generatedAgent: any = null;
+  let isGeneratingAgent = false;
+  let showPreview = false;
+
+  // Reset form
+  function resetAgentForm() {
+    newAgentForm = {
+      name: '',
+      role: '',
+      description: '',
+      specialty: '',
+      personality: ''
+    };
+    creationError = null;
+    creationSuccess = false;
+    showPreview = false;
+    generatedAgent = null;
+    isGeneratingAgent = false;
+    isCreatingAgent = false;
+  }
+
+  // Cancel agent creation
+  function cancelAgentCreation() {
+    resetAgentForm();
+    showHireForm = false;
+  }
+
+  // Generate agent using AI
+  async function generateAgent() {
+    isGeneratingAgent = true;
+    creationError = null;
+    generatedAgent = null;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      
+      const response = await fetch(`${apiUrl}/api/v1/agents/generate-agent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          basic_info: {
+            name: newAgentForm.name,
+            role: newAgentForm.role,
+            description: newAgentForm.description,
+            specialty: newAgentForm.specialty,
+            personality: newAgentForm.personality
+          },
+          existing_agents: allAgents.slice(0, 10) // Send sample of existing agents for context
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        generatedAgent = result.agent;
+        showPreview = true;
+        console.log('Agent generated:', generatedAgent);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to generate agent: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to generate agent:', error);
+      creationError = error instanceof Error ? error.message : 'Failed to generate agent with AI';
+    } finally {
+      isGeneratingAgent = false;
+    }
+  }
+
+  // Create the final agent after review
+  async function createFinalAgent() {
+    isCreatingAgent = true;
+    creationError = null;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      
+      const response = await fetch(`${apiUrl}/api/v1/agents/create-agent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          agent_data: generatedAgent
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Agent created successfully:', result);
+        
+        creationSuccess = true;
+        
+        // Reload agents to include the new one
+        setTimeout(async () => {
+          await loadAgentsFromAPI();
+          resetAgentForm();
+          showHireForm = false;
+          showPreview = false;
+          generatedAgent = null;
+        }, 1500);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to create agent: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to create final agent:', error);
+      creationError = error instanceof Error ? error.message : 'Failed to create agent';
+    } finally {
+      isCreatingAgent = false;
+    }
+  }
+
+  // Back to editing
+  function backToEdit() {
+    showPreview = false;
+    generatedAgent = null;
+  }
   
   // Static fallback agents (kept for offline/error scenarios)
   const fallbackAgents: Agent[] = [
@@ -103,12 +214,102 @@
     ).join(', ');
   }
 
-  // Extract unique skills for filter
-  $: allSkills = [...new Set(allAgents.map(agent => agent.specialty.split(', ')).flat())]
-    .map(skill => skill.charAt(0).toUpperCase() + skill.slice(1));
+  // Helper functions to get simple agent data
+  function getSimpleRole(key: string): string {
+    const roleMap: Record<string, string> = {
+      'ali_chief_of_staff': 'Chief of Staff',
+      'amy_cfo': 'CFO',
+      'baccio_tech_architect': 'Tech Architect',
+      'sofia_marketing_strategist': 'Marketing Strategist',
+      'luca_security_expert': 'Security Expert',
+      'giulia_hr_talent_acquisition': 'HR Director',
+      'marco_devops_engineer': 'Operations Director',
+      'elena_legal_compliance_expert': 'Legal Advisor',
+      'davide_project_manager': 'Project Manager',
+      'omri_data_scientist': 'Data Scientist',
+      'dan_engineering_gm': 'DevOps Engineer',
+      'andrea_customer_success_manager': 'Sales Director',
+      'sara_ux_ui_designer': 'UX Designer',
+      'riccardo_storyteller': 'Content Creator',
+      'matteo_strategic_business_architect': 'Financial Analyst',
+      'satya_board_of_directors': 'CEO Advisor',
+      'antonio_strategy_expert': 'Innovation Manager',
+      'diana_performance_dashboard': 'Quality Assurance'
+    };
+    return roleMap[key] || 'AI Agent';
+  }
 
-  // Featured agents (top 6)
-  $: featuredAgents = allAgents.filter(agent => agent.is_featured);
+  function getSimpleDescription(key: string): string {
+    const descMap: Record<string, string> = {
+      'ali_chief_of_staff': 'Strategic coordinator and master orchestrator',
+      'amy_cfo': 'Financial analysis and strategic planning',
+      'baccio_tech_architect': 'System architecture and technical strategy',
+      'sofia_marketing_strategist': 'Marketing campaigns and growth strategies',
+      'luca_security_expert': 'Cybersecurity and risk management',
+      'giulia_hr_talent_acquisition': 'Human resources and talent management',
+      'marco_devops_engineer': 'Operational excellence and process optimization',
+      'elena_legal_compliance_expert': 'Legal compliance and risk management',
+      'davide_project_manager': 'Project coordination and delivery management',
+      'omri_data_scientist': 'Data analysis and machine learning insights',
+      'dan_engineering_gm': 'Infrastructure and deployment automation',
+      'andrea_customer_success_manager': 'Revenue generation and customer acquisition',
+      'sara_ux_ui_designer': 'User experience and interface design',
+      'riccardo_storyteller': 'Content strategy and brand storytelling',
+      'matteo_strategic_business_architect': 'Advanced financial modeling and forecasting',
+      'satya_board_of_directors': 'Executive strategy and business transformation',
+      'antonio_strategy_expert': 'Innovation strategies and emerging technologies',
+      'diana_performance_dashboard': 'Quality management and process improvement'
+    };
+    return descMap[key] || 'AI-powered specialist';
+  }
+
+  function getSimpleSpecialty(key: string): string {
+    const specMap: Record<string, string> = {
+      'ali_chief_of_staff': 'Executive assistance, team coordination, strategic planning',
+      'amy_cfo': 'Financial modeling, budgeting, investment analysis',
+      'baccio_tech_architect': 'Cloud architecture, scalability, technical decision-making',
+      'sofia_marketing_strategist': 'Brand positioning, digital marketing, customer acquisition',
+      'luca_security_expert': 'Security audits, risk assessment, compliance',
+      'giulia_hr_talent_acquisition': 'Recruitment, team development, organizational culture',
+      'marco_devops_engineer': 'Operations management, process improvement, supply chain',
+      'elena_legal_compliance_expert': 'Corporate law, contracts, compliance, intellectual property',
+      'davide_project_manager': 'Agile methodologies, team coordination, timeline management',
+      'omri_data_scientist': 'Predictive analytics, data mining, ML algorithms, statistical analysis',
+      'dan_engineering_gm': 'CI/CD, cloud infrastructure, monitoring, containerization',
+      'andrea_customer_success_manager': 'B2B sales, customer relationship management, pipeline optimization',
+      'sara_ux_ui_designer': 'User research, wireframing, prototyping, accessibility',
+      'riccardo_storyteller': 'Content marketing, copywriting, brand voice, SEO',
+      'matteo_strategic_business_architect': 'Financial planning, investment analysis, budget forecasting',
+      'satya_board_of_directors': 'Strategic planning, digital transformation, C-suite advisory',
+      'antonio_strategy_expert': 'Innovation management, emerging tech, R&D strategy',
+      'diana_performance_dashboard': 'QA processes, compliance, continuous improvement'
+    };
+    return specMap[key] || 'General AI assistance, problem solving';
+  }
+
+  function getSimplePersonality(key: string): string {
+    const persMap: Record<string, string> = {
+      'ali_chief_of_staff': 'Diplomatic, strategic, always sees the bigger picture',
+      'amy_cfo': 'Analytical, detail-oriented, fiscally responsible',
+      'baccio_tech_architect': 'Innovative, pragmatic, loves elegant solutions',
+      'sofia_marketing_strategist': 'Creative, data-driven, customer-focused',
+      'luca_security_expert': 'Vigilant, thorough, security-first mindset',
+      'giulia_hr_talent_acquisition': 'Empathetic, people-focused, culture builder',
+      'marco_devops_engineer': 'Efficient, systematic, results-driven',
+      'elena_legal_compliance_expert': 'Meticulous, analytical, risk-aware',
+      'davide_project_manager': 'Organized, collaborative, deadline-focused',
+      'omri_data_scientist': 'Curious, methodical, insight-driven',
+      'dan_engineering_gm': 'Reliable, automation-focused, performance-oriented',
+      'andrea_customer_success_manager': 'Persuasive, relationship-focused, target-driven',
+      'sara_ux_ui_designer': 'Empathetic, creative, user-centered',
+      'riccardo_storyteller': 'Creative, strategic, brand-conscious',
+      'matteo_strategic_business_architect': 'Analytical, detail-oriented, numbers-focused',
+      'satya_board_of_directors': 'Visionary, decisive, transformation-focused',
+      'antonio_strategy_expert': 'Forward-thinking, creative, technology-savvy',
+      'diana_performance_dashboard': 'Meticulous, quality-focused, systematic'
+    };
+    return persMap[key] || 'Intelligent, helpful, specialized';
+  }
 
   // Load agents from API
   async function loadAgentsFromAPI() {
@@ -121,17 +322,29 @@
       if (response.ok) {
         const data = await response.json();
         
-        // Transform backend agent data to frontend format
-        const transformedAgents = data.agents.map((backendAgent: any, index: number) => ({
-          id: index + 1,
-          name: backendAgent.name,
-          key: backendAgent.key,
-          role: backendAgent.description || 'AI Agent',
-          description: backendAgent.description,
-          specialty: backendAgent.expertise_count > 0 ? 'AI-powered specialist' : 'General AI assistant',
-          personality: 'Intelligent, helpful, specialized',
-          is_featured: index < 6 // First 6 are featured
-        }));
+        // Transform backend agent data to frontend format with proper names and descriptions
+        const transformedAgents = data.agents.map((backendAgent: any, index: number) => {
+          // Convert backend name to proper display name (ali-chief-of-staff -> Ali)
+          const displayName = backendAgent.name.split('-')[0].charAt(0).toUpperCase() + 
+                              backendAgent.name.split('-')[0].slice(1);
+          
+          // Create simple role from description
+          const role = getSimpleRole(backendAgent.key);
+          const description = getSimpleDescription(backendAgent.key);
+          const specialty = getSimpleSpecialty(backendAgent.key);
+          const personality = getSimplePersonality(backendAgent.key);
+          
+          return {
+            id: index + 1,
+            name: displayName,
+            key: backendAgent.key,
+            role: role,
+            description: description,
+            specialty: specialty,
+            personality: personality,
+            is_featured: index < 6 // First 6 are featured
+          };
+        });
         
         allAgents = transformedAgents;
         console.log(`✅ Loaded ${allAgents.length} agents from API`);
@@ -150,6 +363,13 @@
     }
   }
 
+  // Extract unique skills for filter (reactive)
+  $: allSkills = [...new Set(allAgents.map(agent => agent.specialty.split(', ')).flat())]
+    .map(skill => skill.charAt(0).toUpperCase() + skill.slice(1));
+
+  // Featured agents (reactive)
+  $: featuredAgents = allAgents.filter(agent => agent.is_featured);
+
   // Filtered agents based on search
   $: filteredAgents = allAgents.filter(agent => {
     const matchesSearch = !searchQuery || 
@@ -163,17 +383,280 @@
     return matchesSearch && matchesSkill;
   });
 
+  let currentMessage = '';
+  let messages: Message[] = [];
   let selectedAgent = fallbackAgents[0];
+  let isLoading = false;
+  let messagesContainer: HTMLElement;
   
+  // View Mode variables
+  let isOversightMode = false;
+  let oversightIterations: any[] = [];
+  let websocket: WebSocket | null = null;
+
+  // Auto-scroll function
+  function scrollToBottom() {
+    if (messagesContainer) {
+      setTimeout(() => {
+        messagesContainer.scrollTo({
+          top: messagesContainer.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }
+
+  // Watch messages changes to auto-scroll
+  $: if (messages.length > 0) {
+    scrollToBottom();
+  }
+
+  function selectAgent(agent: Agent) {
+    selectedAgent = agent;
+    showConversationManager = true;
+    
+    // Switch conversation context
+    if (agent.key) {
+      conversationManager.switchToAgent(agent.key);
+      currentAgentId.set(agent.key);
+    }
+    
+    // Load existing conversation or create welcome message
+    const conversation = conversationManager.getConversation?.(agent.key || agent.name.toLowerCase());
+    if (conversation && conversation.messages.length > 0) {
+      // Convert conversation messages to local format
+      messages = conversation.messages.map(msg => ({
+        id: msg.id,
+        type: msg.type === 'user' ? 'user' : 'ai',
+        content: msg.content,
+        timestamp: msg.timestamp,
+        agents_used: []
+      }));
+    } else {
+      // Start with empty conversation - agent will introduce itself intelligently if needed
+      messages = [];
+    }
+  }
+
+  async function sendMessage() {
+    if (!currentMessage.trim()) return;
+    
+    // Add user message
+    const userMessage = {
+      id: Date.now(),
+      type: 'user',
+      content: currentMessage.trim(),
+      timestamp: new Date()
+    };
+    messages = [...messages, userMessage];
+    
+    // Save user message to conversation store
+    if (selectedAgent?.key) {
+      conversationManager.addMessage(selectedAgent.key, {
+        agentId: selectedAgent.key,
+        agentName: selectedAgent.name,
+        content: userMessage.content,
+        timestamp: userMessage.timestamp,
+        type: 'user',
+        status: 'sent'
+      });
+    }
+    
+    const messageToSend = currentMessage.trim();
+    currentMessage = '';
+    isLoading = true;
+    
+    // Check if we're in Oversight Mode with Ali
+    if (isOversightMode && selectedAgent?.name === 'Ali') {
+      await sendOversightModeMessage(messageToSend);
+    } else {
+      await sendExecutiveModeMessage(messageToSend);
+    }
+  }
+
+  async function sendExecutiveModeMessage(messageToSend: string) {
+    try {
+      const response = await fetch('http://localhost:9000/api/v1/agents/conversation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: `[${selectedAgent?.role || 'Agent'} ${selectedAgent?.name || 'Unknown'}] ${messageToSend}`,
+          user_id: 'user-agent-interaction',
+          context: {
+            agent_id: selectedAgent?.id || 0,
+            agent_name: selectedAgent?.key || selectedAgent?.name || 'unknown',  // Use backend key
+            agent_role: selectedAgent?.role || 'Agent',
+            agent_specialty: selectedAgent?.specialty || 'General assistance'
+          }
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        messages = [...messages, {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: result.response,
+          timestamp: new Date(),
+          agents_used: result.agents_used
+        }];
+      } else {
+        messages = [...messages, {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: `I'm experiencing some technical difficulties. Let me get back to you with a comprehensive response shortly.`,
+          timestamp: new Date()
+        }];
+      }
+    } catch (error) {
+      console.error('Agent conversation error:', error);
+      messages = [...messages, {
+        id: Date.now() + 1,
+        type: 'ai', 
+        content: `I'm having trouble connecting right now. Please try again, and I'll coordinate with the team to provide you with the insights you need.`,
+        timestamp: new Date()
+      }];
+    } finally {
+      isLoading = false;
+      
+      // Save conversation to store
+      if (selectedAgent?.key && messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.type === 'ai') {
+          conversationManager.addMessage(selectedAgent.key, {
+            agentId: selectedAgent.key,
+            agentName: selectedAgent.name,
+            content: lastMessage.content,
+            timestamp: lastMessage.timestamp,
+            type: 'agent',
+            status: 'sent'
+          });
+        }
+      }
+    }
+  }
+
+  async function sendOversightModeMessage(messageToSend: string) {
+    try {
+      // Clear previous oversight iterations
+      oversightIterations = [];
+      
+      // Start WebSocket connection for real-time agent updates
+      const conversationId = `oversight-${Date.now()}`;
+      const wsUrl = `ws://localhost:9000/api/v1/agents/ws/conversation/${conversationId}`;
+      
+      websocket = new WebSocket(wsUrl);
+      
+      websocket.onopen = () => {
+        console.log('WebSocket connected for oversight mode');
+        // Send conversation start message
+        websocket?.send(JSON.stringify({
+          type: 'start_conversation',
+          message: messageToSend,
+          user_id: 'debug-user',
+          context: {
+            agent_id: selectedAgent?.id || 0,
+            agent_name: selectedAgent?.name || 'Unknown',
+            agent_role: selectedAgent?.role || 'Agent'
+          }
+        }));
+      };
+      
+      websocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log('WebSocket message:', data);
+        
+        switch (data.type) {
+          case 'connection_established':
+            console.log('Oversight mode connection established');
+            break;
+            
+          case 'conversation_started':
+            console.log('Oversight conversation started');
+            break;
+            
+          case 'agent_status':
+          case 'agent_response':
+            // Add or update agent iteration
+            oversightIterations = [...oversightIterations, data];
+            break;
+            
+          case 'conversation_completed':
+            isLoading = false;
+            // Add final Ali response to regular messages
+            messages = [...messages, {
+              id: Date.now() + 1,
+              type: 'ai',
+              content: data.final_response,
+              timestamp: new Date(),
+              agents_used: data.agents_used || []
+            }];
+            websocket?.close();
+            break;
+            
+          case 'error':
+            console.error('WebSocket error:', data.message);
+            isLoading = false;
+            messages = [...messages, {
+              id: Date.now() + 1,
+              type: 'ai',
+              content: `Oversight mode error: ${data.message}`,
+              timestamp: new Date()
+            }];
+            break;
+        }
+      };
+      
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        isLoading = false;
+        messages = [...messages, {
+          id: Date.now() + 1,
+          type: 'ai',
+          content: `Oversight mode connection failed. Falling back to executive mode.`,
+          timestamp: new Date()
+        }];
+      };
+      
+    } catch (error) {
+      console.error('Oversight mode error:', error);
+      isLoading = false;
+      // Fallback to executive mode
+      await sendExecutiveModeMessage(messageToSend);
+    }
+  }
+
+  function handleKeyPress(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
+  }
+
   onMount(() => {
     // Load agents and initialize
     (async () => {
       await loadAgentsFromAPI();
       
-      // Initialize with first featured agent when available
-      if (featuredAgents.length > 0) {
-        selectedAgent = featuredAgents[0];
-      }
+      // Initialize conversations for all agents
+      allAgents.forEach(agent => {
+        if (agent.key) {
+          conversationManager.initializeConversation(agent.key, agent.name);
+        }
+      });
+      
+      // Initialize with first featured agent when available (after reactive updates)
+      setTimeout(() => {
+        if (featuredAgents.length > 0) {
+          selectedAgent = featuredAgents[0];
+          selectAgent(featuredAgents[0]);
+        } else if (allAgents.length > 0) {
+          selectedAgent = allAgents[0];
+          selectAgent(allAgents[0]);
+        }
+      }, 100);
     })();
   });
 </script>
@@ -254,7 +737,7 @@
           <div class="divide-y divide-gray-100">
             {#each filteredAgents as agent}
               <button
-                on:click={() => selectedAgent = agent}
+                on:click={() => selectAgent(agent)}
                 class="w-full p-3 hover:bg-gray-50 transition-colors text-left group {selectedAgent.id === agent.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''}"
               >
                 <div class="flex items-center space-x-3">
@@ -262,22 +745,18 @@
                     <AgentIcons agentName={agent.name} size="w-4 h-4" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between">
-                      <div class="font-medium text-gray-900 text-sm">{agent.name}</div>
-                    </div>
+                    <div class="font-medium text-gray-900 text-sm">{agent.name}</div>
                     <div class="text-xs text-gray-500">{agent.role}</div>
                     <div class="text-xs text-gray-400 truncate mt-0.5">{capitalizeSpecialty(agent.specialty)}</div>
                   </div>
-                  <div class="flex flex-col items-end space-y-1">
-                    {#if agent.key}
-                      <AgentStatus agentId={agent.key} agentName={agent.name} compact={true} />
-                    {:else}
-                      <div class="flex items-center space-x-1 px-2 py-1 bg-gray-100 rounded-full">
-                        <div class="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                        <span class="text-xs text-gray-500 font-medium">Ready</span>
-                      </div>
-                    {/if}
-                  </div>
+                  {#if agent.key}
+                    <AgentStatus agentId={agent.key} agentName={agent.name} compact={true} />
+                  {:else}
+                    <div class="flex items-center space-x-1 px-2 py-1 bg-gray-100 rounded-full">
+                      <div class="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
+                      <span class="text-xs text-gray-500 font-medium">Ready</span>
+                    </div>
+                  {/if}
                 </div>
               </button>
             {/each}
@@ -298,39 +777,212 @@
       </div>
     </div>
 
-    <!-- Right Side - Selected Agent Info -->
+    <!-- Enlarged Chat Interface -->
     <div class="lg:col-span-3">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-        <div class="flex items-center space-x-3 mb-4">
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center border border-blue-200 bg-white">
-            <AgentIcons agentName={selectedAgent.name} size="w-5 h-5" />
-          </div>
-          <div class="flex-1">
-            <div class="text-lg font-semibold text-gray-900">{selectedAgent.name}</div>
-            <div class="text-sm text-blue-600">{selectedAgent.role}</div>
-            <div class="text-xs text-gray-500 mt-1">{capitalizeSpecialty(selectedAgent.specialty)}</div>
+      <div class="bg-white border border-gray-200 rounded-xl shadow-sm h-[600px] flex flex-col">
+        <!-- Chat Header -->
+        <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center border border-blue-200 bg-white">
+                <AgentIcons agentName={selectedAgent?.name || ''} size="w-5 h-5" />
+              </div>
+              <div class="flex-1">
+                <div class="text-lg font-semibold text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
+                <div class="text-sm text-blue-600">{selectedAgent?.role || ''}</div>
+                <div class="text-xs text-gray-500 mt-1">{selectedAgent ? capitalizeSpecialty(selectedAgent.specialty) : ''}</div>
+              </div>
+            </div>
+            
+            <!-- Executive/Oversight Mode Toggle (only for Ali) -->
+            {#if selectedAgent?.name === 'Ali'}
+              <div class="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 border border-blue-200">
+                <span class="text-xs font-medium text-gray-600">View:</span>
+                <button
+                  on:click={() => isOversightMode = false}
+                  class="px-3 py-1 text-xs font-medium rounded transition-colors {!isOversightMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600'}"
+                >
+                  Executive
+                </button>
+                <button
+                  on:click={() => isOversightMode = true}
+                  class="px-3 py-1 text-xs font-medium rounded transition-colors {isOversightMode ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600'}"
+                >
+                  Oversight
+                </button>
+              </div>
+            {/if}
           </div>
         </div>
-        
-        <div class="text-gray-700">
-          <p class="mb-4">{selectedAgent.description}</p>
-          <p class="text-sm text-gray-600"><strong>Personality:</strong> {selectedAgent.personality}</p>
+
+        <!-- Messages / Oversight Timeline -->
+        <div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-6 space-y-4">
           
-          {#if isLoadingAgents}
-            <div class="mt-4 text-center py-8">
-              <div class="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-              <p class="mt-2 text-sm text-gray-600">Loading agents...</p>
+          {#if !isOversightMode || selectedAgent?.name !== 'Ali'}
+            <!-- Executive Mode: Regular Messages -->
+            {#each messages as message}
+              <div class="flex {message.type === 'user' ? 'justify-end' : 'justify-start'}">
+                <div class="max-w-lg">
+                  {#if message.type === 'user'}
+                    <div class="bg-blue-500 text-white p-4 rounded-xl rounded-br-sm">
+                      <div class="font-medium mb-1 opacity-75 text-sm">You</div>
+                      <div class="text-sm leading-relaxed">
+                        <MarkdownRenderer content={message.content} />
+                      </div>
+                    </div>
+                  {:else}
+                    <div class="bg-gray-50 p-4 rounded-xl rounded-bl-sm border">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <AgentIcons agentName={selectedAgent?.name || ''} size="w-4 h-4" />
+                        <span class="font-medium text-gray-900 text-sm">{selectedAgent?.name || ''}</span>
+                        <span class="text-xs text-blue-600">• {selectedAgent?.role || ''}</span>
+                      </div>
+                      <div class="text-gray-800 text-sm leading-relaxed">
+                        <MarkdownRenderer content={message.content} />
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+            
+            {#if isLoading}
+              <div class="flex justify-start">
+                <div class="bg-gray-50 p-4 rounded-xl border max-w-lg">
+                  <div class="flex items-center space-x-2 mb-2">
+                    <AgentIcons agentName={selectedAgent?.name || ''} size="w-4 h-4" />
+                    <span class="text-sm text-gray-600">{selectedAgent?.name || 'Agent'} is thinking...</span>
+                  </div>
+                  <div class="flex space-x-1">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                  </div>
+                </div>
+              </div>
+            {/if}
+          {:else}
+            <!-- Oversight Mode: Timeline with Agent Iterations -->
+            <div class="oversight-timeline">
+              <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                <div class="w-2 h-2 bg-purple-600 rounded-full mr-2 animate-pulse"></div>
+                Oversight Mode: Team Coordination Timeline
+              </h3>
+              
+              <!-- User Message -->
+              {#each messages.filter(m => m.type === 'user') as userMessage}
+                <div class="timeline-item mb-6">
+                  <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span class="text-white text-xs font-bold">You</span>
+                    </div>
+                    <div class="flex-1 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                      <div class="font-medium text-blue-900 text-sm mb-1">Your Request</div>
+                      <div class="text-blue-800 text-sm">
+                        <MarkdownRenderer content={userMessage.content} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+              
+              <!-- Agent Iterations -->
+              {#each oversightIterations as iteration, i}
+                <div class="timeline-item mb-4 relative">
+                  <!-- Timeline connector -->
+                  {#if i < oversightIterations.length - 1}
+                    <div class="absolute left-4 top-12 w-0.5 h-8 bg-gray-200"></div>
+                  {/if}
+                  
+                  <div class="flex items-start space-x-3">
+                    <!-- Agent Avatar with Status -->
+                    <div class="relative">
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center border-2" style="background-color: {iteration.color}20; border-color: {iteration.color}">
+                        <AgentIcons agentName={iteration.agent_name} size="w-4 h-4" />
+                      </div>
+                      
+                      <!-- Status Indicator -->
+                      {#if iteration.status === 'thinking'}
+                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+                      {:else if iteration.status === 'completed'}
+                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full">
+                          <svg class="w-2 h-2 text-white absolute top-0.5 left-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                          </svg>
+                        </div>
+                      {:else if iteration.status === 'active'}
+                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
+                      {/if}
+                    </div>
+                    
+                    <!-- Agent Content -->
+                    <div class="flex-1 border-l-4 p-3 rounded-r-lg" style="background-color: {iteration.color}05; border-left-color: {iteration.color}">
+                      <div class="flex items-center space-x-2 mb-2">
+                        <span class="font-medium text-sm" style="color: {iteration.color}">{iteration.agent_name}</span>
+                        <span class="text-xs text-gray-500">{iteration.agent_role}</span>
+                        <div class="text-xs px-2 py-1 rounded-full" style="background-color: {iteration.color}20; color: {iteration.color}">
+                          Turn {iteration.turn}
+                        </div>
+                      </div>
+                      
+                      {#if iteration.status === 'thinking'}
+                        <div class="text-sm text-gray-600 italic">{iteration.message || `${iteration.agent_name} is analyzing your request...`}</div>
+                      {:else}
+                        <div class="text-sm text-gray-800">{iteration.content}</div>
+                      {/if}
+                      
+                      <div class="text-xs text-gray-400 mt-2">
+                        {new Date(iteration.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/each}
+              
+              <!-- Loading state in oversight mode -->
+              {#if isLoading}
+                <div class="timeline-item mb-4">
+                  <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center animate-pulse">
+                      <AgentIcons agentName="Ali" size="w-4 h-4" />
+                    </div>
+                    <div class="flex-1 bg-gray-50 border-l-4 border-gray-200 p-3 rounded-r-lg">
+                      <div class="text-sm text-gray-600">Ali is coordinating the team response...</div>
+                      <div class="flex space-x-1 mt-2">
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              {/if}
             </div>
           {/if}
-          
-          {#if loadingError}
-            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p class="text-sm text-red-700">
-                <strong>Loading Error:</strong> {loadingError}
-              </p>
-              <p class="text-xs text-red-600 mt-1">Using fallback agents for now.</p>
-            </div>
-          {/if}
+        </div>
+
+        <!-- Enhanced Input -->
+        <div class="p-6 border-t border-gray-100 bg-gray-50">
+          <div class="flex space-x-3">
+            <textarea
+              bind:value={currentMessage}
+              on:keydown={handleKeyPress}
+              placeholder="Ask {selectedAgent?.name || 'the agent'} about strategy, analysis, or anything in their expertise area..."
+              class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows="2"
+              disabled={isLoading}
+            ></textarea>
+            <button
+              on:click={sendMessage}
+              disabled={!currentMessage.trim() || isLoading}
+              class="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors font-medium"
+            >
+              Send
+            </button>
+          </div>
+          <div class="text-xs text-gray-500 mt-2">
+            Press Shift+Enter for new line, Enter to send
+          </div>
         </div>
       </div>
     </div>
@@ -347,6 +999,7 @@
             <button
               on:click={() => showHireForm = false}
               class="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close modal"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -357,10 +1010,220 @@
         
         <!-- Modal Body -->
         <div class="px-6 py-6">
-          <div class="text-center">
-            <p class="text-gray-600">This feature will be available soon!</p>
-            <p class="text-sm text-gray-500 mt-2">You'll be able to create custom AI agents here.</p>
-          </div>
+          {#if !showPreview}
+            <!-- Initial Form -->
+            <form on:submit|preventDefault={generateAgent} class="space-y-4">
+              <!-- Agent Name -->
+              <div>
+                <label for="agent-name" class="block text-sm font-medium text-gray-700 mb-1">
+                  Agent Name *
+                </label>
+                <input
+                  id="agent-name"
+                  type="text"
+                  bind:value={newAgentForm.name}
+                  placeholder="e.g., Mario, Elena, Giorgio..."
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <!-- Role -->
+              <div>
+                <label for="agent-role" class="block text-sm font-medium text-gray-700 mb-1">
+                  Role *
+                </label>
+                <input
+                  id="agent-role"
+                  type="text"
+                  bind:value={newAgentForm.role}
+                  placeholder="e.g., Marketing Manager, Data Analyst..."
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <!-- Description -->
+              <div>
+                <label for="agent-description" class="block text-sm font-medium text-gray-700 mb-1">
+                  Description *
+                </label>
+                <textarea
+                  id="agent-description"
+                  bind:value={newAgentForm.description}
+                  placeholder="Brief description of what this agent does..."
+                  rows="2"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  required
+                ></textarea>
+              </div>
+
+              <!-- Specialty -->
+              <div>
+                <label for="agent-specialty" class="block text-sm font-medium text-gray-700 mb-1">
+                  Specialty *
+                </label>
+                <input
+                  id="agent-specialty"
+                  type="text"
+                  bind:value={newAgentForm.specialty}
+                  placeholder="e.g., Social media, financial planning..."
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <!-- Personality -->
+              <div>
+                <label for="agent-personality" class="block text-sm font-medium text-gray-700 mb-1">
+                  Personality
+                </label>
+                <input
+                  id="agent-personality"
+                  type="text"
+                  bind:value={newAgentForm.personality}
+                  placeholder="e.g., Creative, analytical, detail-oriented..."
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <!-- Error Messages -->
+              {#if creationError}
+                <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p class="text-sm text-red-700">{creationError}</p>
+                </div>
+              {/if}
+
+              <!-- Buttons -->
+              <div class="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  on:click={cancelAgentCreation}
+                  class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  disabled={isGeneratingAgent}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white rounded-lg transition-colors font-medium"
+                  disabled={isGeneratingAgent}
+                >
+                  {#if isGeneratingAgent}
+                    <div class="flex items-center justify-center space-x-2">
+                      <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>AI Creating...</span>
+                    </div>
+                  {:else}
+                    ✨ Generate with AI
+                  {/if}
+                </button>
+              </div>
+              
+              <div class="text-xs text-gray-500 text-center pt-2">
+                AI will create a complete job description aligned with your team
+              </div>
+            </form>
+            
+          {:else}
+            <!-- AI Generated Preview -->
+            <div class="space-y-6">
+              <div class="text-center">
+                <div class="inline-flex items-center space-x-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
+                  <span>🤖</span>
+                  <span>AI Generated Agent</span>
+                </div>
+              </div>
+              
+              {#if generatedAgent}
+                <!-- Agent Preview Card -->
+                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div class="flex items-center space-x-3 mb-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg" 
+                         style="background-color: {generatedAgent.color || '#6366f1'}">
+                      {generatedAgent.name?.charAt(0) || 'A'}
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-gray-900">{generatedAgent.name}</h3>
+                      <p class="text-sm text-blue-600">{generatedAgent.role}</p>
+                    </div>
+                  </div>
+                  
+                  <div class="space-y-3 text-sm">
+                    <div>
+                      <span class="font-medium text-gray-700">Description:</span>
+                      <p class="text-gray-600 mt-1">{generatedAgent.description}</p>
+                    </div>
+                    
+                    <div>
+                      <span class="font-medium text-gray-700">Specialty:</span>
+                      <p class="text-gray-600 mt-1">{generatedAgent.specialty}</p>
+                    </div>
+                    
+                    <div>
+                      <span class="font-medium text-gray-700">Personality:</span>
+                      <p class="text-gray-600 mt-1">{generatedAgent.personality}</p>
+                    </div>
+                    
+                    {#if generatedAgent.tools && generatedAgent.tools.length > 0}
+                      <div>
+                        <span class="font-medium text-gray-700">Tools:</span>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                          {#each generatedAgent.tools.slice(0, 3) as tool}
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{tool}</span>
+                          {/each}
+                          {#if generatedAgent.tools.length > 3}
+                            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">+{generatedAgent.tools.length - 3} more</span>
+                          {/if}
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
+
+              <!-- Success Messages -->
+              {#if creationSuccess}
+                <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p class="text-sm text-green-700">Agent created successfully!</p>
+                </div>
+              {/if}
+
+              <!-- Error Messages -->
+              {#if creationError}
+                <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p class="text-sm text-red-700">{creationError}</p>
+                </div>
+              {/if}
+
+              <!-- Action Buttons -->
+              <div class="flex space-x-3">
+                <button
+                  type="button"
+                  on:click={backToEdit}
+                  class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  disabled={isCreatingAgent}
+                >
+                  ← Edit Details
+                </button>
+                <button
+                  type="button"
+                  on:click={createFinalAgent}
+                  class="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white rounded-lg transition-colors font-medium"
+                  disabled={isCreatingAgent}
+                >
+                  {#if isCreatingAgent}
+                    <div class="flex items-center justify-center space-x-2">
+                      <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Creating...</span>
+                    </div>
+                  {:else}
+                    ✅ Hire This Agent
+                  {/if}
+                </button>
+              </div>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
