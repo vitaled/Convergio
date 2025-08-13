@@ -4,11 +4,19 @@
   import { aliService } from '$lib/services/aliService';
   import DashboardMetricCard from '$lib/components/DashboardMetricCard.svelte';
   import ProjectCard from '$lib/components/ProjectCard.svelte';
+  import DashboardNavigation from '$lib/components/dashboard/DashboardNavigation.svelte';
+  import ProjectsOverview from '$lib/components/dashboard/ProjectsOverview.svelte';
+  import AgentsOverview from '$lib/components/dashboard/AgentsOverview.svelte';
+  import TalentsOverview from '$lib/components/dashboard/TalentsOverview.svelte';
+  import CostOverview from '$lib/components/dashboard/CostOverview.svelte';
+  import WorkflowsOverview from '$lib/components/dashboard/WorkflowsOverview.svelte';
+  import FeedbackOverview from '$lib/components/dashboard/FeedbackOverview.svelte';
 
   let dashboardData: DashboardMetrics | null = null;
   let loading = true;
   let error: string | null = null;
   let timeRange = '7d';
+  let activeSection = 'overview';
 
   function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-US', {
@@ -100,248 +108,309 @@
 </script>
 
 <svelte:head>
-  <title>Analytics Dashboard - platform.Convergio.io</title>
+  <title>Convergio Dashboard - platform.Convergio.io</title>
 </svelte:head>
 
-<!-- Simple Dashboard inspired by Reflex -->
+<!-- Comprehensive Dashboard -->
 <div class="space-y-6">
-  <!-- Simple Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-lg font-medium text-gray-900">Executive Overview</h1>
-      <p class="mt-1 text-xs text-gray-500">Real-time business metrics</p>
-    </div>
-    <button
-      on:click={requestExecutiveBrief}
-      class="inline-flex items-center px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium rounded transition-colors"
-    >
-      <img src="/convergio_icons/download.svg" alt="" class="mr-1.5 h-3 w-3" />
-      Brief
-    </button>
-  </div>
+  <!-- Dashboard Navigation -->
+  <DashboardNavigation bind:activeSection />
 
-  <!-- Metrics Grid -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-    {#if loading}
-      <!-- Loading state -->
-      {#each Array(4) as _, i}
-        <div class="bg-white border border-gray-200 rounded p-4 animate-pulse">
-          <div class="h-4 bg-gray-200 rounded mb-2"></div>
-          <div class="h-6 bg-gray-200 rounded mb-1"></div>
-          <div class="h-3 bg-gray-200 rounded"></div>
-        </div>
-      {/each}
-    {:else}
-      {#if dashboardData?.overview?.total_revenue !== undefined}
+  <!-- Dashboard Content -->
+  {#if activeSection === 'overview'}
+    <!-- Executive Brief Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-sm font-medium text-gray-900">Executive Overview</h1>
+        <p class="mt-1 text-xs text-gray-500">Real-time business metrics and insights</p>
+      </div>
+      <button
+        on:click={requestExecutiveBrief}
+        class="inline-flex items-center px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white text-xs font-medium rounded transition-colors"
+      >
+        <img src="/convergio_icons/download.svg" alt="" class="mr-1.5 h-3 w-3" />
+        Executive Brief
+      </button>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {#if loading}
+        <!-- Loading state -->
+        {#each Array(4) as _, i}
+          <div class="bg-white border border-gray-200 rounded p-4 animate-pulse">
+            <div class="h-4 bg-gray-200 rounded mb-2"></div>
+            <div class="h-6 bg-gray-200 rounded mb-1"></div>
+            <div class="h-3 bg-gray-200 rounded"></div>
+          </div>
+        {/each}
+      {:else}
+        {#if dashboardData?.overview?.total_revenue !== undefined}
+          <DashboardMetricCard
+            title="Total Revenue"
+            value={dashboardData.overview.total_revenue}
+            change={dashboardData.overview.growth_rate}
+            changeType={dashboardData.overview.growth_rate >= 0 ? 'increase' : 'decrease'}
+            icon="/convergio_icons/cost_management.svg"
+            iconColor="text-green-600"
+            bgColor="bg-green-50"
+            formatValue={(val) => `$${formatNumber(Number(val))}`}
+            showChange={dashboardData?.overview?.growth_rate != null}
+          />
+        {/if}
+
+        <!-- Users -->
         <DashboardMetricCard
-          title="Total Revenue"
-          value={dashboardData.overview.total_revenue}
-          change={dashboardData.overview.growth_rate}
-          changeType={dashboardData.overview.growth_rate >= 0 ? 'increase' : 'decrease'}
-          icon="/convergio_icons/cost_management.svg"
-          iconColor="text-green-600"
-          bgColor="bg-green-50"
-          formatValue={(val) => `$${formatNumber(Number(val))}`}
+          title="Total Users"
+          value={dashboardData?.overview?.total_users ?? 'N/A'}
+          change={dashboardData?.overview?.growth_rate ?? 0}
+          changeType={(dashboardData?.overview?.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
           showChange={dashboardData?.overview?.growth_rate != null}
+          icon="/convergio_icons/users.svg"
+          iconColor="text-blue-600"
+          bgColor="bg-blue-50"
+        />
+
+        <!-- Active Users -->
+        <DashboardMetricCard
+          title="Active Users"
+          value={dashboardData?.overview?.active_users ?? 'N/A'}
+          change={dashboardData?.overview?.growth_rate ?? 0}
+          changeType={(dashboardData?.overview?.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
+          showChange={dashboardData?.overview?.growth_rate != null}
+          icon="/convergio_icons/user.svg"
+          iconColor="text-purple-600"
+          bgColor="bg-purple-50"
+        />
+
+        <!-- System Health -->
+        <DashboardMetricCard
+          title="System Health"
+          value={dashboardData?.overview?.system_health ?? 'Healthy'}
+          change={dashboardData?.overview?.uptime_percentage ?? 0}
+          changeType="neutral"
+          icon="/convergio_icons/analytics.svg"
+          iconColor="text-orange-600"
+          bgColor="bg-orange-50"
+          formatValue={(val) => String(val)}
+          showChange={false}
         />
       {/if}
-
-      <!-- Users -->
-      <DashboardMetricCard
-        title="Total Users"
-        value={dashboardData?.overview?.total_users ?? 'N/A'}
-        change={dashboardData?.overview?.growth_rate ?? 0}
-        changeType={(dashboardData?.overview?.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
-        showChange={dashboardData?.overview?.growth_rate != null}
-        icon="/convergio_icons/users.svg"
-        iconColor="text-blue-600"
-        bgColor="bg-blue-50"
-      />
-
-      <!-- Active Users -->
-      <DashboardMetricCard
-        title="Active Users"
-        value={dashboardData?.overview?.active_users ?? 'N/A'}
-        change={dashboardData?.overview?.growth_rate ?? 0}
-        changeType={(dashboardData?.overview?.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
-        showChange={dashboardData?.overview?.growth_rate != null}
-        icon="/convergio_icons/user.svg"
-        iconColor="text-purple-600"
-        bgColor="bg-purple-50"
-      />
-
-      <!-- System Health -->
-      <DashboardMetricCard
-        title="System Health"
-        value={dashboardData?.overview?.system_health ?? 'Healthy'}
-        change={dashboardData?.overview?.uptime_percentage ?? 0}
-        changeType="neutral"
-        icon="/convergio_icons/analytics.svg"
-        iconColor="text-orange-600"
-        bgColor="bg-orange-50"
-        formatValue={(val) => String(val)}
-        showChange={false}
-      />
-    {/if}
-  </div>
-
-  <!-- Performance & Cost Metrics -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-    <!-- Performance Metrics -->
-    <div class="bg-white border border-gray-200 rounded p-4">
-      <h3 class="text-sm font-medium text-gray-900 mb-4">Performance Metrics</h3>
-      {#if loading}
-        <div class="space-y-3 animate-pulse">
-          {#each Array(4) as _, i}
-            <div class="flex justify-between items-center">
-              <div class="h-3 bg-gray-200 rounded w-24"></div>
-              <div class="h-3 bg-gray-200 rounded w-16"></div>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="space-y-3">
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Agent Interactions</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.performance_metrics?.agent_interactions != null
-                ? formatNumber(dashboardData.performance_metrics.agent_interactions)
-                : '-'}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Avg Response Time</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.performance_metrics?.avg_response_time != null
-                ? `${dashboardData.performance_metrics.avg_response_time.toFixed(2)}s`
-                : '-'}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Success Rate</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.performance_metrics?.success_rate != null
-                ? `${dashboardData.performance_metrics.success_rate.toFixed(1)}%`
-                : '-'}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Peak Concurrent Users</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.performance_metrics?.peak_concurrent_users != null
-                ? formatNumber(dashboardData.performance_metrics.peak_concurrent_users)
-                : '-'}
-            </span>
-          </div>
-        </div>
-      {/if}
     </div>
 
-    <!-- Cost Summary -->
-    <div class="bg-white border border-gray-200 rounded p-4">
-      <h3 class="text-sm font-medium text-gray-900 mb-4">Cost Summary</h3>
-      {#if loading}
-        <div class="space-y-3 animate-pulse">
-          {#each Array(4) as _, i}
+    <!-- Performance & Cost Metrics -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Performance Metrics -->
+      <div class="bg-white border border-gray-200 rounded p-4">
+        <h3 class="text-sm font-medium text-gray-900 mb-4">Performance Metrics</h3>
+        {#if loading}
+          <div class="space-y-3 animate-pulse">
+            {#each Array(4) as _, i}
+              <div class="flex justify-between items-center">
+                <div class="h-3 bg-gray-200 rounded w-24"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <div class="h-3 bg-gray-200 rounded w-24"></div>
-              <div class="h-3 bg-gray-200 rounded w-16"></div>
+              <span class="text-xs text-gray-600">Agent Interactions</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.performance_metrics?.agent_interactions != null
+                  ? formatNumber(dashboardData.performance_metrics.agent_interactions)
+                  : '-'}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Avg Response Time</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.performance_metrics?.avg_response_time != null
+                  ? `${dashboardData.performance_metrics.avg_response_time.toFixed(2)}s`
+                  : '-'}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Success Rate</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.performance_metrics?.success_rate != null
+                  ? `${dashboardData.performance_metrics.success_rate.toFixed(1)}%`
+                  : '-'}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Peak Concurrent Users</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.performance_metrics?.peak_concurrent_users != null
+                  ? formatNumber(dashboardData.performance_metrics.peak_concurrent_users)
+                  : '-'}
+              </span>
+            </div>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Cost Summary -->
+      <div class="bg-white border border-gray-200 rounded p-4">
+        <h3 class="text-sm font-medium text-gray-900 mb-4">Cost Summary</h3>
+        {#if loading}
+          <div class="space-y-3 animate-pulse">
+            {#each Array(4) as _, i}
+              <div class="flex justify-between items-center">
+                <div class="h-3 bg-gray-200 rounded w-24"></div>
+                <div class="h-3 bg-gray-200 rounded w-16"></div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="space-y-3">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Total Cost</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.cost_summary?.total_cost_usd != null
+                  ? formatCurrency(dashboardData.cost_summary.total_cost_usd)
+                  : '-'}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Cost per Interaction</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.cost_summary?.cost_per_interaction != null
+                  ? (dashboardData.cost_summary.cost_per_interaction).toFixed(4)
+                  : '-'}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Budget Utilization</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.cost_summary?.budget_utilization != null
+                  ? `${dashboardData.cost_summary.budget_utilization.toFixed(1)}%`
+                  : '-'}
+              </span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-600">Top Model</span>
+              <span class="text-sm font-medium text-gray-900">
+                {dashboardData?.cost_summary?.top_models?.[0]?.model ?? 'N/A'}
+              </span>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+
+    <!-- Recent Activity Preview -->
+    <div class="bg-white border border-gray-200 rounded">
+      <div class="px-4 py-3 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-medium text-gray-900">Recent Projects</h3>
+          <div class="flex space-x-2">
+            <button 
+              on:click={() => createProject('product_launch')}
+              class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
+            >
+              Launch
+            </button>
+            <button 
+              on:click={() => createProject('market_analysis')}
+              class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
+            >
+              Analysis
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="p-0">
+        {#if loading}
+          <!-- Loading state for projects -->
+          {#each Array(3) as _, i}
+            <div class="px-4 py-3 border-b border-gray-100 last:border-b-0 animate-pulse">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <div class="w-4 h-4 bg-gray-200 rounded"></div>
+                  <div>
+                    <div class="h-4 bg-gray-200 rounded mb-1"></div>
+                    <div class="h-3 bg-gray-200 rounded w-32"></div>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                  <div class="w-16 h-4 bg-gray-200 rounded"></div>
+                  <div class="w-16">
+                    <div class="h-3 bg-gray-200 rounded mb-1"></div>
+                    <div class="w-16 h-1.5 bg-gray-200 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           {/each}
-        </div>
-      {:else}
-        <div class="space-y-3">
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Total Cost</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.cost_summary?.total_cost_usd != null
-                ? formatCurrency(dashboardData.cost_summary.total_cost_usd)
-                : '-'}
-            </span>
+        {:else if dashboardData?.recent_projects && dashboardData.recent_projects.length > 0}
+          {#each dashboardData.recent_projects as project}
+            <ProjectCard {project} />
+          {/each}
+        {:else}
+          <div class="px-4 py-8 text-center text-gray-500">
+            <p>No projects available</p>
           </div>
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Cost per Interaction</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.cost_summary?.cost_per_interaction != null
-                ? (dashboardData.cost_summary.cost_per_interaction).toFixed(4)
-                : '-'}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Budget Utilization</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.cost_summary?.budget_utilization != null
-                ? `${dashboardData.cost_summary.budget_utilization.toFixed(1)}%`
-                : '-'}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-xs text-gray-600">Top Model</span>
-            <span class="text-sm font-medium text-gray-900">
-              {dashboardData?.cost_summary?.top_models?.[0]?.model ?? 'N/A'}
-            </span>
-          </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
     </div>
-  </div>
-
-  <!-- Charts removed: only show real backend data (no synthetic charts) -->
-
-  <!-- Projects Section -->
-  <div class="bg-white border border-gray-200 rounded">
-    <div class="px-4 py-3 border-b border-gray-200">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-medium text-gray-900">Strategic Projects</h3>
-        <div class="flex space-x-2">
-          <button 
-            on:click={() => createProject('product_launch')}
-            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
-          >
-            Launch
-          </button>
-          <button 
-            on:click={() => createProject('market_analysis')}
-            class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded transition-colors"
-          >
-            Analysis
-          </button>
+  
+  {:else if activeSection === 'projects'}
+    <ProjectsOverview />
+  
+  {:else if activeSection === 'agents'}
+    <AgentsOverview />
+  
+  {:else if activeSection === 'talents'}
+    <TalentsOverview />
+  
+  {:else if activeSection === 'workflows'}
+    <WorkflowsOverview />
+  
+  {:else if activeSection === 'costs'}
+    <CostOverview />
+  
+  {:else if activeSection === 'feedback'}
+    <FeedbackOverview />
+  
+  {:else if activeSection === 'analytics'}
+    <!-- Advanced Analytics Section -->
+    <div class="bg-white border border-gray-200 rounded p-4">
+      <h3 class="text-sm font-medium text-gray-900 mb-4">Advanced Analytics</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Time Range Selector -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-medium text-gray-700">Time Range Analysis</h4>
+          <div class="flex space-x-2">
+            {#each ['1d', '7d', '30d'] as range}
+              <button
+                on:click={() => { timeRange = range; loadDashboardData(); }}
+                class="px-3 py-1 text-xs rounded {timeRange === range ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+              >
+                {range === '1d' ? '24 Hours' : range === '7d' ? '7 Days' : '30 Days'}
+              </button>
+            {/each}
+          </div>
+        </div>
+        
+        <!-- Performance Trends -->
+        <div class="space-y-4">
+          <h4 class="text-xs font-medium text-gray-700">Performance Trends</h4>
+          {#if dashboardData?.recent_activities}
+            <div class="space-y-2">
+              {#each dashboardData.recent_activities.slice(0, 5) as activity}
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-gray-600">{activity.description}</span>
+                  <span class="text-xs text-gray-500">{new Date(activity.timestamp).toLocaleDateString()}</span>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-xs text-gray-500">No recent activities</p>
+          {/if}
         </div>
       </div>
     </div>
-    
-    <div class="p-0">
-      {#if loading}
-        <!-- Loading state for projects -->
-        {#each Array(3) as _, i}
-          <div class="px-4 py-3 border-b border-gray-100 last:border-b-0 animate-pulse">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3">
-                <div class="w-4 h-4 bg-gray-200 rounded"></div>
-                <div>
-                  <div class="h-4 bg-gray-200 rounded mb-1"></div>
-                  <div class="h-3 bg-gray-200 rounded w-32"></div>
-                </div>
-              </div>
-              <div class="flex items-center space-x-3">
-                <div class="w-16 h-4 bg-gray-200 rounded"></div>
-                <div class="w-16">
-                  <div class="h-3 bg-gray-200 rounded mb-1"></div>
-                  <div class="w-16 h-1.5 bg-gray-200 rounded-full"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        {/each}
-      {:else if dashboardData?.recent_projects && dashboardData.recent_projects.length > 0}
-        {#each dashboardData.recent_projects as project}
-          <ProjectCard {project} />
-        {/each}
-      {:else}
-        <div class="px-4 py-8 text-center text-gray-500">
-          <p>No projects available</p>
-        </div>
-      {/if}
-    </div>
-  </div>
+  {/if}
 </div>
