@@ -1,13 +1,11 @@
 export interface Workflow {
-  id: string;
+  workflow_id: string;
   name: string;
   description: string;
-  status: 'active' | 'inactive' | 'draft';
-  steps: WorkflowStep[];
-  created_at: string;
-  updated_at: string;
-  execution_count: number;
-  success_rate: number;
+  category: string;
+  complexity: string;
+  estimated_duration: number;
+  steps_count: number;
 }
 
 export interface WorkflowStep {

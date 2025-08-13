@@ -53,11 +53,9 @@
 
   onMount(loadWorkflowsData);
 
-  $: activeWorkflows = workflows.filter(w => w.status === 'active');
-  $: totalExecutions = workflows.reduce((sum, w) => sum + w.execution_count, 0);
-  $: avgSuccessRate = workflows.length > 0 
-    ? workflows.reduce((sum, w) => sum + w.success_rate, 0) / workflows.length 
-    : 0;
+  $: activeWorkflows = workflows; // All workflows are considered active
+  $: totalExecutions = 0; // No execution count in current API
+  $: avgSuccessRate = 0; // No success rate in current API
 </script>
 
 <div class="bg-white border border-gray-200 rounded">
@@ -141,21 +139,21 @@
                   <div>
                     <p class="text-sm font-medium text-gray-900">{workflow.name}</p>
                     <p class="text-xs text-gray-500">
-                      {workflow.description} • {workflow.steps?.length || 0} steps
+                      {workflow.description} • {workflow.steps_count} steps
                     </p>
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
                   <div class="text-right">
                     <p class="text-xs text-gray-500">
-                      {workflow.execution_count} executions
+                      {workflow.complexity}
                     </p>
                     <p class="text-xs text-gray-500">
-                      {workflow.success_rate.toFixed(1)}% success
+                      {formatDuration(workflow.estimated_duration)}
                     </p>
                   </div>
-                  <span class="text-xs px-2 py-1 rounded-full {getStatusColor(workflow.status)}">
-                    {workflow.status}
+                  <span class="text-xs px-2 py-1 rounded-full {getStatusColor('active')}">
+                    active
                   </span>
                 </div>
               </div>
