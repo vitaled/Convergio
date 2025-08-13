@@ -39,18 +39,20 @@ class AliService {
     try {
       const startTime = Date.now();
       
-      const response = await fetch(`${this.baseUrl}/agents/conversation`, {
+      const response = await fetch(`${this.baseUrl}/ali/intelligence`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message,
-          user_id: context?.user_id || 'user',
           context: {
-            agent_name: 'ali_chief_of_staff',
-            agent_id: 'ali',
-            agent_role: 'Chief of Staff',
+            source: 'ali_service',
+            role: 'ceo',
+            interface: 'agent_interface',
             ...context
-          }
+          },
+          use_vector_search: true,
+          use_database_insights: true,
+          include_strategic_analysis: true
         })
       });
       
