@@ -61,23 +61,48 @@ async def list_agents(
 ) -> List[AgentInfo]:
     """List all available AI agents"""
     
-    # Get agents from orchestrator
+    # Get agents from orchestrator with original metadata
     orchestrator = await get_agent_orchestrator()
     agents = orchestrator.list_agents()
+    
+    # Get original metadata if available
+    agents_metadata = {}
+    try:
+        # Try to call the method directly (handles both direct and wrapped orchestrator)
+        if hasattr(orchestrator, 'list_agents_with_metadata'):
+            agents_metadata = orchestrator.list_agents_with_metadata()
+            logger.info(f"✅ Got metadata for {len(agents_metadata)} agents")
+        elif hasattr(orchestrator, '_target') and hasattr(orchestrator._target, 'list_agents_with_metadata'):
+            # Handle wrapped orchestrator
+            agents_metadata = orchestrator._target.list_agents_with_metadata()
+            logger.info(f"✅ Got metadata from wrapped orchestrator for {len(agents_metadata)} agents")
+        else:
+            logger.warning("❌ No list_agents_with_metadata method found")
+    except (AttributeError, Exception) as e:
+        # Fallback: no metadata available
+        logger.error(f"❌ Failed to get agent metadata: {e}")
+        pass
     
     # Convert to AgentInfo models
     agent_list = []
     for agent_id in agents:
         agent = orchestrator.get_agent(agent_id)
         if agent:
+            # Use original metadata if available, otherwise fallback to agent properties
+            metadata = agents_metadata.get(agent_id)
+            
+            # Debug metadata structure
+            if metadata:
+                logger.info(f"🔍 Agent {agent_id} metadata: type={type(metadata)}, description={getattr(metadata, 'description', 'NO_DESC')}")
+            
             agent_list.append(AgentInfo(
                 id=agent_id,
                 name=agent.name,
-                description=agent.description or "",
-                capabilities=getattr(agent, "capabilities", []),
+                description=metadata.description if metadata else (agent.description or ""),
+                capabilities=metadata.tools if metadata else getattr(agent, "capabilities", []),
                 status="available",
                 model=getattr(agent, "model", None),
-                tools=getattr(agent, "tools", [])
+                tools=metadata.tools if metadata else getattr(agent, "tools", [])
             ))
     
     return agent_list
@@ -92,19 +117,35 @@ async def get_ecosystem_status(
     orchestrator = await get_agent_orchestrator()
     agents = orchestrator.list_agents()
     
+    # Get original metadata if available
+    agents_metadata = {}
+    try:
+        # Try to call the method directly (handles both direct and wrapped orchestrator)
+        if hasattr(orchestrator, 'list_agents_with_metadata'):
+            agents_metadata = orchestrator.list_agents_with_metadata()
+        elif hasattr(orchestrator, '_target') and hasattr(orchestrator._target, 'list_agents_with_metadata'):
+            # Handle wrapped orchestrator
+            agents_metadata = orchestrator._target.list_agents_with_metadata()
+    except (AttributeError, Exception):
+        # Fallback: no metadata available
+        pass
+    
     # Build ecosystem status
     agent_infos = []
     for agent_id in agents:
         agent = orchestrator.get_agent(agent_id)
         if agent:
+            # Use original metadata if available
+            metadata = agents_metadata.get(agent_id)
+            
             agent_infos.append(AgentInfo(
                 id=agent_id,
                 name=agent.name,
-                description=agent.description or "",
-                capabilities=getattr(agent, "capabilities", []),
+                description=metadata.description if metadata else (agent.description or ""),
+                capabilities=metadata.tools if metadata else getattr(agent, "capabilities", []),
                 status="available",
                 model=getattr(agent, "model", None),
-                tools=getattr(agent, "tools", [])
+                tools=metadata.tools if metadata else getattr(agent, "tools", [])
             ))
     
     return EcosystemStatus(

@@ -66,13 +66,26 @@ async def handle_conversation(
         if user_api_key:
             context["user_api_key"] = user_api_key
         
-        # Execute conversation
-        result = await orchestrator.orchestrate_conversation(
-            message=request.message,
-            user_id=user_id,
-            conversation_id=conversation_id,
-            context=context
-        )
+        # Check if a specific agent is requested in the context
+        target_agent = context.get("agent_name")
+        if target_agent:
+            # Route to specific agent if requested
+            logger.info(f"🎯 Routing to specific agent: {target_agent}")
+            # Pass target_agent in context without modifying message
+            result = await orchestrator.orchestrate_conversation(
+                message=request.message,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                context={**context, "target_agent": target_agent}
+            )
+        else:
+            # Execute conversation normally
+            result = await orchestrator.orchestrate_conversation(
+                message=request.message,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                context=context
+            )
         
         # Cache conversation for continuity
         cache_key = f"conversation:{conversation_id}"

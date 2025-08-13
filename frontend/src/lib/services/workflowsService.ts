@@ -6,6 +6,8 @@ export interface Workflow {
   complexity: string;
   estimated_duration: number;
   steps_count: number;
+  agents_involved?: string[];
+  business_domain?: string;
 }
 
 export interface WorkflowStep {
@@ -99,6 +101,29 @@ class WorkflowsService {
       return await response.json();
     } catch (error) {
       console.error('Failed to fetch workflow details:', error);
+      throw error;
+    }
+  }
+  
+  async executeWorkflow(workflowId: string, userRequest: string, userId: string = 'dashboard-user'): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/workflows/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          user_request: userRequest,
+          user_id: userId
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to execute workflow:', error);
       throw error;
     }
   }

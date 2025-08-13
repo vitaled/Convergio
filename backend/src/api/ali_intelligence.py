@@ -472,15 +472,17 @@ async def ali_intelligence_endpoint(
         # Use the REAL unified orchestrator that has ALL agents
         orchestrator = await get_agent_orchestrator()
         
-        # Build context from request
+        # Build context from request - FORCE ALI AGENT
         context = request.context or {}
         context.update({
             "use_vector_search": request.use_vector_search,
             "use_database_insights": request.use_database_insights,
-            "include_strategic_analysis": request.include_strategic_analysis
+            "include_strategic_analysis": request.include_strategic_analysis,
+            "target_agent": "ali_chief_of_staff",  # Force Ali to respond
+            "agent_name": "ali_chief_of_staff"  # Also add this for conversation handler
         })
         
-        # Orchestrate with the unified system that has ALL agents
+        # Orchestrate with Ali specifically
         result = await orchestrator.orchestrate_conversation(
             message=request.query or request.message,
             user_id="ali_intelligence",

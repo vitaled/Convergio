@@ -214,13 +214,21 @@ async def get_workflow_details(workflow_id: str):
                     {
                         "step_id": step.step_id,
                         "agent_name": step.agent_name,
-                        "step_type": step.step_type,
-                        "description": step.description
+                        "step_type": step.step_type.value if hasattr(step.step_type, 'value') else str(step.step_type),
+                        "description": step.description,
+                        "detailed_instructions": step.detailed_instructions,
+                        "estimated_duration_minutes": step.estimated_duration_minutes,
+                        "tools_required": step.tools_required,
+                        "dependencies": step.dependencies
                     }
                     for step in workflow_def.steps
                 ],
-                "expected_duration_minutes": workflow_def.expected_duration_minutes,
-                "complexity": workflow_def.complexity
+                "sla_minutes": workflow_def.sla_minutes,
+                "business_domain": workflow_def.business_domain.value if hasattr(workflow_def.business_domain, 'value') else str(workflow_def.business_domain),
+                "priority": workflow_def.priority.value if hasattr(workflow_def.priority, 'value') else str(workflow_def.priority),
+                "success_metrics": workflow_def.success_metrics,
+                "entry_points": workflow_def.entry_points,
+                "approval_gates": workflow_def.approval_gates
             }
             return detailed_info
         else:

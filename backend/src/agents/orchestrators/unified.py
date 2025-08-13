@@ -15,8 +15,8 @@ from autogen_agentchat.messages import TextMessage
 from .base import BaseGroupChatOrchestrator
 from .resilience import CircuitBreaker, CircuitBreakerConfig, CircuitState, HealthMonitor
 from ..services.groupchat.intelligent_router import IntelligentAgentRouter
-from ..services.groupchat.rag import AdvancedRAGProcessor
-from ..services.groupchat.per_turn_rag import PerTurnRAGInjector
+# from ..services.groupchat.rag import AdvancedRAGProcessor  # TODO: Implement
+# from ..services.groupchat.per_turn_rag import PerTurnRAGInjector  # TODO: Implement
 from ..services.groupchat.metrics import extract_agents_used, estimate_cost
 from ..services.agent_intelligence import AgentIntelligence
 from ..security.ai_security_guardian import AISecurityGuardian
@@ -112,10 +112,11 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                     participants=list(self.agents.values())
                 )
             
-            # Initialize RAG processor if enabled
-            if kwargs.get("enable_rag", True):
-                # AdvancedRAGProcessor initializes in __init__; no initialize() method
-                self.rag_processor = AdvancedRAGProcessor()
+            # Initialize RAG processor if enabled (disabled - missing implementation)
+            if kwargs.get("enable_rag", False):  # Disabled by default
+                # TODO: Implement AdvancedRAGProcessor
+                # self.rag_processor = AdvancedRAGProcessor()
+                pass
             
             # Initialize safety guardian if enabled
             if kwargs.get("enable_safety", True):
@@ -135,6 +136,18 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             logger.error(f"Failed to initialize orchestrator: {e}")
             # Circuit breaker tracks failures automatically
             return False
+    
+    def get_agent_metadata(self, agent_key: str):
+        """Get original metadata for an agent"""
+        if not self.agent_loader:
+            return None
+        return self.agent_loader.agent_metadata.get(agent_key)
+    
+    def list_agents_with_metadata(self):
+        """Get list of agents with their original metadata"""
+        if not self.agent_loader:
+            return {}
+        return self.agent_loader.agent_metadata
     
     async def orchestrate(
         self,
@@ -172,18 +185,22 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                         "blocked": True
                     }
             
-            # Add RAG context if available
+            # Add RAG context if available (disabled for now - missing implementation)
             enhanced_message = message
-            if self.rag_processor and context:
-                rag_context = await self.rag_processor.get_relevant_context(
-                    message, 
-                    context.get("document_ids", [])
-                )
-                if rag_context:
-                    enhanced_message = f"{message}\n\nContext:\n{rag_context}"
+            # TODO: Re-enable when AdvancedRAGProcessor is implemented
+            # if self.rag_processor and context:
+            #     rag_context = await self.rag_processor.get_relevant_context(
+            #         message, 
+            #         context.get("document_ids", [])
+            #     )
+            #     if rag_context:
+            #         enhanced_message = f"{message}\n\nContext:\n{rag_context}"
             
-            # Determine routing strategy
-            should_use_single = self.router.should_use_single_agent(message)
+            # Check if a specific agent is requested
+            target_agent = context.get("target_agent") if context else None
+            
+            # Determine routing strategy (force single agent if target is specified)
+            should_use_single = target_agent or self.router.should_use_single_agent(message)
             
             if should_use_single:
                 # Route to single best agent
@@ -209,12 +226,12 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             return result
             
         except Exception as e:
-            logger.error(f"Orchestration failed: {e}")
+            logger.error(f"Orchestration failed: {e}", exc_info=True)
             # Circuit breaker tracks failures automatically
             
-            # Fallback response
+            # Fallback response with more details
             return {
-                "response": "I encountered an issue processing your request. Please try again.",
+                "response": f"I encountered an issue processing your request: {str(e)}",
                 "agents_used": [],
                 "turn_count": 0,
                 "duration_seconds": (datetime.now() - start_time).total_seconds(),
@@ -230,12 +247,34 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
     ) -> Dict[str, Any]:
         """Execute with a single agent for efficiency"""
         
-        # Select best agent
-        best_agent = self.router.select_best_agent(
-            message,
-            list(self.agents.values()),
-            context
-        )
+        # Check if a specific agent is requested
+        target_agent_name = context.get("target_agent") if context else None
+        best_agent = None
+        
+        if target_agent_name:
+            logger.info(f"🔍 Looking for target agent: {target_agent_name}")
+            logger.info(f"🔍 Available agents: {list(self.agents.keys())[:5]}")
+            
+            # Try to find the requested agent
+            best_agent = self.agents.get(target_agent_name)
+            if not best_agent:
+                # Try with underscores converted from hyphens
+                target_agent_name_alt = target_agent_name.replace('-', '_')
+                best_agent = self.agents.get(target_agent_name_alt)
+            
+            if best_agent:
+                logger.info(f"✅ Using requested agent: {best_agent.name}")
+            else:
+                logger.warning(f"⚠️ Requested agent not found: {target_agent_name}, available: {list(self.agents.keys())}")
+                # Fall through to normal selection
+        
+        if not best_agent:
+            # Select best agent normally
+            best_agent = self.router.select_best_agent(
+                message,
+                list(self.agents.values()),
+                context
+            )
         
         if not best_agent:
             # Fallback to first available agent
@@ -243,20 +282,21 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         
         logger.info(f"🎯 Single agent execution: {best_agent.name}")
         
-        # Get intelligent response
-        response = await self.agent_intelligence.generate_intelligent_response(
-            message,
-            context
-        )
+        # Skip agent_intelligence for now - it's overriding agent responses
+        # TODO: Fix agent_intelligence to respect agent personality
+        # response = await self.agent_intelligence.generate_intelligent_response(
+        #     message,
+        #     context
+        # )
         
-        # Execute agent
+        # Execute agent directly
         messages = []
         async for chunk in best_agent.run_stream(task=message):
             if hasattr(chunk, 'content'):
                 messages.append(chunk)
         
-        # Extract final response
-        final_response = response or " ".join(
+        # Extract final response from agent
+        final_response = " ".join(
             msg.content for msg in messages 
             if hasattr(msg, 'content') and isinstance(msg.content, str)
         )

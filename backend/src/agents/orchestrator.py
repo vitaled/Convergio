@@ -173,6 +173,18 @@ class RealAgentOrchestrator:
             return None
         return self.orchestrator.agents.get(agent_id)
     
+    def get_agent_metadata(self, agent_key: str):
+        """Get original metadata for an agent - delegates to UnifiedOrchestrator."""
+        if not self._initialized or not self.orchestrator:
+            return None
+        return self.orchestrator.get_agent_metadata(agent_key)
+    
+    def list_agents_with_metadata(self):
+        """Get list of agents with their original metadata - delegates to UnifiedOrchestrator."""
+        if not self._initialized or not self.orchestrator:
+            return {}
+        return self.orchestrator.list_agents_with_metadata()
+    
     async def reload_agents(self) -> Dict[str, Any]:
         """Reload agents in REAL system."""
         if not self._initialized:

@@ -6,6 +6,9 @@
   let recentExecutions: RecentExecution[] = [];
   let loading = true;
   let error: string | null = null;
+  let selectedWorkflow: any = null;
+  let showDetails = false;
+  let executingWorkflow = false;
 
   function getStatusColor(status: string): string {
     switch (status) {
@@ -52,6 +55,46 @@
   }
 
   onMount(loadWorkflowsData);
+
+  async function viewWorkflowDetails(workflowId: string) {
+    try {
+      const details = await workflowsService.getWorkflowDetails(workflowId);
+      selectedWorkflow = details;
+      showDetails = true;
+    } catch (err) {
+      console.error('Failed to load workflow details:', err);
+      error = 'Failed to load workflow details';
+    }
+  }
+
+  async function executeWorkflow(workflowId: string) {
+    const userRequest = prompt('Describe what you want to analyze:');
+    if (!userRequest) return;
+    
+    try {
+      executingWorkflow = true;
+      const result = await fetch('http://localhost:9000/api/v1/workflows/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          user_request: userRequest,
+          user_id: 'dashboard-user'
+        })
+      });
+      
+      if (result.ok) {
+        const data = await result.json();
+        alert(`✅ Workflow started! Execution ID: ${data.execution_id}`);
+        loadWorkflowsData();
+      }
+    } catch (err) {
+      console.error('Failed to execute workflow:', err);
+      alert('Failed to start workflow');
+    } finally {
+      executingWorkflow = false;
+    }
+  }
 
   $: activeWorkflows = workflows; // All workflows are considered active
   $: totalExecutions = 0; // No execution count in current API
@@ -139,8 +182,13 @@
                   <div>
                     <p class="text-sm font-medium text-gray-900">{workflow.name}</p>
                     <p class="text-xs text-gray-500">
-                      {workflow.description} • {workflow.steps_count} steps
+                      {workflow.steps_count} agent steps • {formatDuration(workflow.estimated_duration)}
                     </p>
+                    {#if workflow.agents_involved && workflow.agents_involved.length > 0}
+                      <p class="text-xs text-gray-400 mt-1">
+                        Agents: {workflow.agents_involved.join(', ')}
+                      </p>
+                    {/if}
                   </div>
                 </div>
                 <div class="flex items-center space-x-3">
@@ -152,9 +200,19 @@
                       {formatDuration(workflow.estimated_duration)}
                     </p>
                   </div>
-                  <span class="text-xs px-2 py-1 rounded-full {getStatusColor('active')}">
-                    active
-                  </span>
+                  <button 
+                    on:click={() => viewWorkflowDetails(workflow.workflow_id)}
+                    class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 mr-2"
+                  >
+                    Details
+                  </button>
+                  <button 
+                    on:click={() => executeWorkflow(workflow.workflow_id)}
+                    class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                    disabled={executingWorkflow}
+                  >
+                    Execute
+                  </button>
                 </div>
               </div>
             {/each}
@@ -195,3 +253,123 @@
     {/if}
   </div>
 </div>
+
+<!-- Workflow Details Modal -->
+{#if showDetails && selectedWorkflow}
+  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded max-w-4xl max-h-[90vh] overflow-y-auto p-6 w-full">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <h2 class="text-lg font-medium text-gray-900">{selectedWorkflow.name}</h2>
+          <p class="text-sm text-gray-500 mt-1">{selectedWorkflow.description}</p>
+        </div>
+        <button 
+          on:click={() => { showDetails = false; selectedWorkflow = null; }}
+          class="text-gray-400 hover:text-gray-600"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Workflow Metadata -->
+      <div class="grid grid-cols-3 gap-4 mb-6 bg-gray-50 p-4 rounded">
+        <div>
+          <p class="text-xs text-gray-500">Business Domain</p>
+          <p class="text-sm font-medium">{selectedWorkflow.business_domain || 'Strategy'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">Priority</p>
+          <p class="text-sm font-medium">{selectedWorkflow.priority || 'High'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500">SLA</p>
+          <p class="text-sm font-medium">{selectedWorkflow.sla_minutes || 180} minutes</p>
+        </div>
+      </div>
+
+      <!-- Workflow Steps -->
+      <h3 class="text-sm font-medium text-gray-900 mb-3">AutoGen Agent Orchestration Steps</h3>
+      <div class="space-y-4">
+        {#if selectedWorkflow.steps}
+          {#each selectedWorkflow.steps as step, i}
+            <div class="border border-gray-200 rounded p-4 hover:bg-gray-50">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center space-x-2 mb-2">
+                    <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                      Step {i + 1}
+                    </span>
+                    <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">
+                      {step.step_type}
+                    </span>
+                    <span class="text-xs text-gray-500">
+                      ~{step.estimated_duration_minutes} min
+                    </span>
+                  </div>
+                  <h4 class="text-sm font-medium text-gray-900">{step.description}</h4>
+                  <p class="text-xs text-gray-600 mt-1">
+                    <strong>Agent:</strong> {step.agent_name.replace(/_/g, ' ')}
+                  </p>
+                  {#if step.detailed_instructions}
+                    <details class="mt-2">
+                      <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                        View instructions
+                      </summary>
+                      <pre class="text-xs text-gray-600 mt-2 whitespace-pre-wrap bg-gray-50 p-2 rounded">
+{step.detailed_instructions.trim()}
+                      </pre>
+                    </details>
+                  {/if}
+                  {#if step.tools_required && step.tools_required.length > 0}
+                    <p class="text-xs text-gray-500 mt-2">
+                      <strong>Tools:</strong> {step.tools_required.join(', ')}
+                    </p>
+                  {/if}
+                  {#if step.dependencies && step.dependencies.length > 0}
+                    <p class="text-xs text-gray-500 mt-1">
+                      <strong>Dependencies:</strong> {step.dependencies.join(', ')}
+                    </p>
+                  {/if}
+                </div>
+              </div>
+            </div>
+          {/each}
+        {:else}
+          <p class="text-sm text-gray-500">No step details available</p>
+        {/if}
+      </div>
+
+      <!-- Success Metrics -->
+      {#if selectedWorkflow.success_metrics}
+        <div class="mt-6 bg-green-50 p-4 rounded">
+          <h3 class="text-sm font-medium text-green-900 mb-2">Success Metrics</h3>
+          <div class="space-y-1">
+            {#each Object.entries(selectedWorkflow.success_metrics) as [key, value]}
+              <p class="text-xs text-green-700">
+                <strong>{key.replace(/_/g, ' ')}:</strong> {value}
+              </p>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Action Buttons -->
+      <div class="mt-6 flex justify-end space-x-3">
+        <button 
+          on:click={() => { showDetails = false; selectedWorkflow = null; }}
+          class="px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded"
+        >
+          Close
+        </button>
+        <button 
+          on:click={() => { executeWorkflow(selectedWorkflow.workflow_id); showDetails = false; }}
+          class="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded"
+        >
+          Execute This Workflow
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
