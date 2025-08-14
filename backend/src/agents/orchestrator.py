@@ -220,3 +220,16 @@ async def get_agent_orchestrator() -> RealAgentOrchestrator:
     if not real_orchestrator._initialized:
         await real_orchestrator.initialize()
     return real_orchestrator
+
+
+# Backward-compatibility shim for tests that import OrchestratorAgent
+class OrchestratorAgent:  # noqa: D401 - compatibility shim
+    """Minimal shim to satisfy legacy tests; delegates to RealAgentOrchestrator."""
+    def __init__(self):
+        self._real = real_orchestrator
+    
+    async def initialize(self):
+        await self._real.initialize()
+    
+    async def run(self, message: str, user_id: str = "test_user", context: Optional[Dict[str, Any]] = None):
+        return await self._real.orchestrate_conversation(message=message, user_id=user_id, context=context or {})

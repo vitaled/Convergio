@@ -23,7 +23,10 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
+try:
+    from opentelemetry.instrumentation.logging import LoggingInstrumentor
+except Exception:
+    LoggingInstrumentor = None  # type: ignore
 from opentelemetry.propagate import inject, extract
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
@@ -148,7 +151,12 @@ class ConvergioTelemetry:
     
     def _init_logging(self):
         """Initialize structured logging with tracing context"""
-        LoggingInstrumentor().instrument()
+        try:
+            if LoggingInstrumentor is not None:
+                LoggingInstrumentor().instrument()
+        except Exception:
+            # Best-effort: continue without logging instrumentation in tests
+            pass
         
         # Configure structlog to include trace context
         structlog.configure(
