@@ -121,6 +121,14 @@ async def orchestrate_conversation_impl(
                 context
             )
     
+    # Compute DecisionPlan if available
+    try:
+        if getattr(orchestrator.settings, 'decision_engine_enabled', False) and hasattr(orchestrator, 'decision_engine'):
+            plan = orchestrator.decision_engine.plan(message, context or {})
+            run_metadata["plan"] = plan.__dict__
+    except Exception:
+        pass
+
     # Execute the GroupChat stream for multi-agent scenarios
     chat_messages, full_response = await run_groupchat_stream_func(
         orchestrator.group_chat,

@@ -43,6 +43,7 @@ from ..security.ai_security_guardian import AISecurityGuardian, SecurityDecision
 from ..tools.backend_api_client import query_talents_count, query_engagements_summary, query_dashboard_stats, query_skills_overview
 from ..tools.vector_search_client import get_vector_client, embed_text, search_similar
 from .hitl.approval_store import ApprovalStore
+from .decision_engine import DecisionEngine
 
 logger = structlog.get_logger()
 
@@ -88,6 +89,11 @@ class ModernGroupChatOrchestrator:
         self._initialized = False
         # Observers for telemetry
         self.observers = observers or []
+        # Decision engine (feature-flagged usage)
+        try:
+            self.decision_engine = DecisionEngine()
+        except Exception:
+            self.decision_engine = None
     
     async def initialize(self) -> None:
         """Initialize the modern GroupChat ecosystem."""

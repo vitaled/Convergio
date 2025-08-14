@@ -125,6 +125,7 @@ class Settings(BaseSettings):
     graphflow_enabled: bool = Field(default=True, env="GRAPHFLOW")
     hitl_enabled: bool = Field(default=False, env="HITL")
     cost_safety_enabled: bool = Field(default=True, env="COST_SAFETY")
+    decision_engine_enabled: bool = Field(default=True, env="DECISION_ENGINE_ENABLED")
     # Agent behavior flags
     smart_fallback_enabled: bool = Field(default=False, env="SMART_FALLBACK_ENABLED")
     # Use synthetic placeholders for internal data in AgentIntelligence._fetch_internal_data

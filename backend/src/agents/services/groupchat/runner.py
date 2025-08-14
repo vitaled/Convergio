@@ -34,13 +34,27 @@ async def run_groupchat_stream(
     
     # Initialize tool executor
     tool_executor = GroupChatToolExecutor()
+    # If metadata contains a DecisionPlan, provide it to executor
+    plan = (metadata or {}).get("plan") if metadata else None
+    try:
+        tool_executor.set_decision_plan(plan)
+    except Exception:
+        pass
     
+    # Prepare logger early
+    try:
+        import structlog
+        logger = structlog.get_logger()
+    except Exception:
+        logger = None
+
     # Check if we need to inject web search context BEFORE running the agent
     web_context = await tool_executor.inject_web_search_if_needed(task)
     if web_context:
         # Enhance the task with web search results
         enhanced_task = f"{task}{web_context}"
-        logger.info("🌐 Enhanced task with web search context")
+        if logger:
+            logger.info("🌐 Enhanced task with web search context")
     else:
         enhanced_task = task
     
@@ -55,9 +69,8 @@ async def run_groupchat_stream(
     # Proper async generator handling to prevent "generator didn't stop after throw()" errors
     stream_iterator = None
     try:
-        import structlog
-        logger = structlog.get_logger()
-        logger.info("🚀 Starting GroupChat stream", task=task[:100])
+        if logger:
+            logger.info("🚀 Starting GroupChat stream", task=task[:100])
         
         stream_iterator = aiter(group_chat.run_stream(task=enhanced_task))
         
@@ -67,7 +80,8 @@ async def run_groupchat_stream(
                 messages.append(response)
                 
                 # Debug logging to understand response structure
-                logger.debug("📨 GroupChat response", 
+                if logger:
+                    logger.debug("📨 GroupChat response", 
                            has_content=hasattr(response, "content"),
                            content_preview=str(response.content)[:100] if hasattr(response, "content") else None,
                            response_type=type(response).__name__,
@@ -77,18 +91,21 @@ async def run_groupchat_stream(
                 agent_source = getattr(response, "source", None)
                 if agent_source and agent_source != "user":
                     agents_involved.add(agent_source)
-                    logger.debug(f"🤖 Agent {agent_source} is responding")
+                    if logger:
+                        logger.debug(f"🤖 Agent {agent_source} is responding")
                 
                 # Skip user messages when building response
                 if hasattr(response, "source") and response.source == "user":
-                    logger.debug("Skipping user message in response")
+                    if logger:
+                        logger.debug("Skipping user message in response")
                     continue
                     
                 if hasattr(response, "content") and response.content:
                     # Check if content contains tool calls
                     if isinstance(response.content, list):
                         # This is a tool call - execute it
-                        logger.info("🔧 Detected tool calls in response")
+                        if logger:
+                            logger.info("🔧 Detected tool calls in response")
                         tool_results = await tool_executor.execute_tool_calls(response.content)
                         for result in tool_results:
                             full_response += f"\n{result}\n"
@@ -150,7 +167,8 @@ async def run_groupchat_stream(
     
     # If no response was captured but we have messages, try to extract content
     if not full_response and messages:
-        logger.warning("⚠️ No response captured from GroupChat, extracting from messages")
+        if logger:
+            logger.warning("⚠️ No response captured from GroupChat, extracting from messages")
         for msg in messages:
             if hasattr(msg, "content") and msg.content:
                 full_response = msg.content
@@ -164,13 +182,15 @@ async def run_groupchat_stream(
         
         # Last resort - if still no response, return empty string
         if not full_response:
-            logger.error("❌ No valid response from GroupChat, returning empty response")
+            if logger:
+                logger.error("❌ No valid response from GroupChat, returning empty response")
             full_response = ""
     
     # Log which agents were involved
-    logger.info("✅ GroupChat stream completed", 
-               agents_involved=list(agents_involved),
-               response_length=len(full_response))
+    if logger:
+        logger.info("✅ GroupChat stream completed", 
+                   agents_involved=list(agents_involved),
+                   response_length=len(full_response))
     
     # Store agents_involved in messages metadata for extraction
     if messages and agents_involved:
@@ -185,7 +205,8 @@ async def run_groupchat_stream(
             metadata_msg.agents_involved = list(agents_involved)
             messages.append(metadata_msg)
         except Exception as e:
-            logger.warning(f"Could not add metadata message: {e}")
+            if logger:
+                logger.warning(f"Could not add metadata message: {e}")
     
     return messages, full_response
 

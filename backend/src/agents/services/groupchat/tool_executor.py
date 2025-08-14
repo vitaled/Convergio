@@ -26,12 +26,20 @@ class GroupChatToolExecutor:
         """Determine if this message needs web search"""
         return self.selector.should_use_web_search(message, threshold=0.6)
     
+    def set_decision_plan(self, plan: Optional[Dict[str, Any]] = None):
+        """Optionally provide a DecisionPlan dict to guide execution order"""
+        self._plan = plan or {}
+
     async def inject_web_search_if_needed(self, message: str) -> Optional[str]:
         """
         Analyze message and inject web search results if needed.
         This is called BEFORE the agent processes the message.
         """
-        if not await self.should_use_web_search(message):
+        # If DecisionPlan explicitly requests web first, honor it
+        plan_tools = (self._plan or {}).get("tools", [])
+        force_web = "web_search" in plan_tools and (self._plan or {}).get("sources", [""])[:1] == ["web"]
+
+        if not force_web and not await self.should_use_web_search(message):
             return None
             
         try:

@@ -18,60 +18,6 @@ from .observability.otel_observer import OtelAutoGenObserver
 
 logger = structlog.get_logger()
 
-# ---------------------------------------------------------------------------
-# Backward-compatibility shims for legacy tests expecting old API
-# Some tests import `OrchestratorAgent` and patch `ConversableAgent` in this
-# module. AutoGen 0.7.2 migrated APIs under autogen-agentchat and this file now
-# exposes RealAgentOrchestrator. We provide thin shims so tests remain stable.
-# ---------------------------------------------------------------------------
-
-class ConversableAgent:  # noqa: D401 - placeholder for patching in tests
-    """Compatibility symbol so tests can patch src.agents.orchestrator.ConversableAgent.
-
-    This project uses autogen-agentchat 0.7.2 (AssistantAgent, teams, etc.).
-    The legacy `ConversableAgent` is not used anymore at runtime, but tests may
-    still patch it by name. We define this no-op class to keep that patch path
-    valid without affecting behavior.
-    """
-
-    pass
-
-
-class OrchestratorAgent:
-    """Compatibility adapter exposing the legacy interface used by tests.
-
-    Under the hood this delegates to UnifiedOrchestrator to align with the
-    AutoGen 0.7.2 integration while keeping `coordinate()` available.
-    """
-
-    def __init__(self) -> None:
-        self._real = RealAgentOrchestrator()
-        self._init_lock = asyncio.Lock()
-
-    async def _ensure_initialized(self) -> None:
-        if not self._real._initialized:
-            async with self._init_lock:
-                if not self._real._initialized:
-                    await self._real.initialize()
-
-    async def coordinate(self, message: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Legacy method expected by tests; returns a dict with 'content'."""
-        await self._ensure_initialized()
-        result = await self._real.orchestrate_conversation(
-            message=message,
-            user_id=context.get("user_id") if isinstance(context, dict) else "test_user",
-            conversation_id=context.get("conversation_id") if isinstance(context, dict) else None,
-            context=context or {},
-        )
-        # Map to expected shape: prefer 'content' key for backward compat
-        content = result.get("response") or result.get("content") or ""
-        return {
-            "content": content,
-            "agents_used": result.get("agents_used", []),
-            "cost": result.get("cost_breakdown", {}).get("total_cost_usd"),
-            "raw": result,
-        }
-
 
 class RealAgentOrchestrator:
     """REAL Agent Orchestrator using the complete original agents system."""

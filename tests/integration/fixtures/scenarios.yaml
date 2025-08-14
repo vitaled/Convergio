@@ -1,0 +1,14 @@
+scenarios:
+  - name: talents_count_internal
+    query: "How many talents do we have in the database?"
+    expect_sources_any: [backend, vector]
+  - name: financial_news_external
+    query: "What's Microsoft's Q4 FY2025 revenue? latest"
+    expect_sources_any: [web]
+  - name: strategy_general
+    query: "Outline a high-level go-to-market strategy for Q3"
+    expect_sources_any: [llm]
+  - name: vector_similarity
+    query: "Find related documents about GDPR compliance"
+    expect_sources_any: [vector]
+

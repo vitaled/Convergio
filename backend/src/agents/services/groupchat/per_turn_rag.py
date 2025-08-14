@@ -38,6 +38,8 @@ class PerTurnRAGInjector:
         
         # Track turns for context evolution
         self.turn_history: Dict[str, List[Dict[str, Any]]] = {}
+        # Shared scratchpad per conversation (constraints, assumptions, interim decisions)
+        self.scratchpad: Dict[str, Dict[str, Any]] = {}
         
         logger.info("📚 Per-turn RAG injector initialized")
     
@@ -86,10 +88,18 @@ class PerTurnRAGInjector:
                     conversation_history=conversation_history
                 )
                 
+                # Update scratchpad and detect conflicts before enhancement
+                self._init_scratchpad(conversation_id)
+                self._update_scratchpad(conversation_id, agent_name, turn_number, current_message)
+                conflicts = self._detect_conflicts(conversation_id)
+
                 # Enhance message with context
                 enhanced_message = self._enhance_message_with_context(
                     current_message, context, turn_number, agent_name
                 )
+                
+                # Attach scratchpad and conflict notes
+                enhanced_message = self._attach_scratchpad(enhanced_message, conversation_id, conflicts)
                 
                 # Cache result
                 self.context_cache[cache_key] = {
@@ -351,6 +361,63 @@ class PerTurnRAGInjector:
             self.turn_history.clear()
         
         logger.info("Cleared RAG cache", conversation_id=conversation_id)
+
+    def _init_scratchpad(self, conversation_id: str) -> None:
+        if conversation_id not in self.scratchpad:
+            self.scratchpad[conversation_id] = {
+                "constraints": [],
+                "assumptions": [],
+                "decisions": []
+            }
+
+    def _update_scratchpad(self, conversation_id: str, agent_name: str, turn_number: int, message: str) -> None:
+        pad = self.scratchpad.get(conversation_id)
+        if not pad:
+            return
+        # Heuristics: collect lines starting with markers or containing key words
+        lowered = message.lower()
+        if any(k in lowered for k in ["must", "require", "constraint", "deadline", "sla"]):
+            pad["constraints"].append({"turn": turn_number, "agent": agent_name, "text": message[:200]})
+        if any(k in lowered for k in ["assume", "we think", "likely", "hypothesis"]):
+            pad["assumptions"].append({"turn": turn_number, "agent": agent_name, "text": message[:200]})
+        if any(k in lowered for k in ["decide", "we will", "let's", "decision"]):
+            pad["decisions"].append({"turn": turn_number, "agent": agent_name, "text": message[:200]})
+
+        # Keep scratchpad bounded
+        for key in ("constraints", "assumptions", "decisions"):
+            if len(pad[key]) > 10:
+                pad[key] = pad[key][-10:]
+
+    def _detect_conflicts(self, conversation_id: str) -> List[str]:
+        """Lightweight conflict detector over recent turns"""
+        history = self.turn_history.get(conversation_id, [])
+        if len(history) < 2:
+            return []
+        last_two = history[-2:]
+        a = (last_two[0].get("content") or "").lower()
+        b = (last_two[1].get("content") or "").lower()
+        conflicts = []
+        # Naive polarity check
+        keywords = ["feasible", "secure", "available", "supported", "ready", "blocked"]
+        for kw in keywords:
+            if (kw in a and f"not {kw}" in b) or (f"not {kw}" in a and kw in b):
+                conflicts.append(f"Potential conflict on '{kw}' between last two turns")
+        return conflicts
+
+    def _attach_scratchpad(self, message: str, conversation_id: str, conflicts: List[str]) -> str:
+        pad = self.scratchpad.get(conversation_id, {})
+        parts = [message]
+        if pad:
+            parts.append("\n🗒️ Scratchpad:")
+            if pad.get("constraints"):
+                parts.append("- Constraints: " + "; ".join(x["text"] for x in pad["constraints"][-3:]))
+            if pad.get("assumptions"):
+                parts.append("- Assumptions: " + "; ".join(x["text"] for x in pad["assumptions"][-3:]))
+            if pad.get("decisions"):
+                parts.append("- Decisions: " + "; ".join(x["text"] for x in pad["decisions"][-3:]))
+        if conflicts:
+            parts.append("\n⚠️ Potential Conflicts: " + "; ".join(conflicts))
+        return "\n".join(parts)
     
     def get_turn_metrics(self, conversation_id: str) -> Dict[str, Any]:
         """Get metrics for turns in a conversation"""
