@@ -11,6 +11,10 @@ import time
 
 from ...observability.autogen_observer import AutoGenObserver
 from .tool_executor import GroupChatToolExecutor
+try:
+    from ..decision_engine import DecisionPlan
+except Exception:
+    DecisionPlan = None  # type: ignore
 
 
 async def run_groupchat_stream(
@@ -22,6 +26,7 @@ async def run_groupchat_stream(
     hard_timeout_seconds: Optional[int] = None,
     termination_markers: Optional[List[str]] = None,
     max_events: Optional[int] = None,
+    execution_plan: Optional["DecisionPlan"] = None,
 ) -> Tuple[List[Any], str]:
     messages: List[Any] = []
     full_response = ""
@@ -33,13 +38,11 @@ async def run_groupchat_stream(
     ])]
     
     # Initialize tool executor
-    tool_executor = GroupChatToolExecutor()
-    # If metadata contains a DecisionPlan, provide it to executor
-    plan = (metadata or {}).get("plan") if metadata else None
-    try:
-        tool_executor.set_decision_plan(plan)
-    except Exception:
-        pass
+    tool_executor = GroupChatToolExecutor(
+        execution_plan=execution_plan,
+        conversation_id=run_meta.get("conversation_id"),
+        user_id=run_meta.get("user_id")
+    )
     
     # Prepare logger early
     try:

@@ -9,6 +9,11 @@ from typing import Any, Dict, List, Optional
 from autogen_agentchat.messages import TextMessage
 from ...tools.smart_tool_selector import SmartToolSelector
 from ...tools.web_search_tool import WebSearchTool, WebSearchArgs
+from ..observability.telemetry import get_telemetry, TelemetryContext
+try:
+    from ..decision_engine import DecisionPlan
+except Exception:
+    DecisionPlan = None  # type: ignore
 
 logger = structlog.get_logger()
 
@@ -16,14 +21,22 @@ logger = structlog.get_logger()
 class GroupChatToolExecutor:
     """Executes tool calls emitted by agents in GroupChat"""
     
-    def __init__(self):
+    def __init__(self, execution_plan: Optional["DecisionPlan"] = None, conversation_id: Optional[str] = None, user_id: Optional[str] = None):
         self.selector = SmartToolSelector()
         self.web_search = WebSearchTool()
         self.tool_call_count = 0
         self.tool_results = []
+        self.execution_plan = execution_plan
+        self.conversation_id = conversation_id or ""
+        self.user_id = user_id or ""
     
     async def should_use_web_search(self, message: str) -> bool:
         """Determine if this message needs web search"""
+        if self.execution_plan and (
+            (hasattr(self.execution_plan, "web_first") and self.execution_plan.web_first)
+            or ("web_search" in getattr(self.execution_plan, "tools", []) )
+        ):
+            return True
         return self.selector.should_use_web_search(message, threshold=0.6)
     
     def set_decision_plan(self, plan: Optional[Dict[str, Any]] = None):
@@ -44,6 +57,11 @@ class GroupChatToolExecutor:
             
         try:
             logger.info("🌐 Injecting web search for query", query=message[:100])
+            telemetry = get_telemetry()
+            if telemetry and self.conversation_id:
+                telemetry_context = TelemetryContext(conversation_id=self.conversation_id, user_id=self.user_id)
+                with telemetry.trace_tool_call("web_search", telemetry_context):
+                    pass
             
             # Execute web search
             args = WebSearchArgs(
@@ -91,6 +109,12 @@ class GroupChatToolExecutor:
                 raw_args = function.get("arguments", "{}")
                 
                 logger.info(f"🔧 Executing tool: {tool_name}", args=raw_args[:100])
+                telemetry = get_telemetry()
+                telemetry_context = None
+                if telemetry and self.conversation_id:
+                    telemetry_context = TelemetryContext(conversation_id=self.conversation_id, user_id=self.user_id)
+                    with telemetry.trace_tool_call(tool_name or "unknown", telemetry_context):
+                        pass
                 
                 # Parse arguments
                 try:

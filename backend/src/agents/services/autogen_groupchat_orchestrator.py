@@ -25,6 +25,9 @@ from .groupchat.initializer import initialize_model_client, initialize_agent_loa
 from .groupchat.agent_factory import create_business_agents
 from .groupchat.selection_policy import select_key_agents
 from .groupchat.runner import run_groupchat_stream
+# Decision planning
+from .decision_engine import DecisionEngine, DecisionPlan
+from .observability.telemetry import get_telemetry, TelemetryContext
 from .groupchat.metrics import (
     extract_final_response,
     extract_agents_used,
@@ -89,11 +92,10 @@ class ModernGroupChatOrchestrator:
         self._initialized = False
         # Observers for telemetry
         self.observers = observers or []
-        # Decision engine (feature-flagged usage)
-        try:
-            self.decision_engine = DecisionEngine()
-        except Exception:
-            self.decision_engine = None
+<<<<<<< Updated upstream
+        # Decision engine
+        self._decision_engine = DecisionEngine()
+        self._last_decision_plan: Optional[DecisionPlan] = None
     
     async def initialize(self) -> None:
         """Initialize the modern GroupChat ecosystem."""
@@ -267,6 +269,8 @@ class ModernGroupChatOrchestrator:
         conversation_id = conversation_id or str(uuid.uuid4())
         
         try:
+            telemetry = get_telemetry()
+            telemetry_ctx = TelemetryContext(conversation_id=conversation_id, user_id=user_id)
             # Check if user wants direct agent conversation
             if context and 'agent_name' in context and context['agent_name']:
                 agent_name = context['agent_name']
@@ -295,6 +299,12 @@ class ModernGroupChatOrchestrator:
             # WS7: Cost & Safety gating
             if self.settings.cost_safety_enabled and self.cost_tracker is not None:
                 budget = await self.cost_tracker.check_budget_limits(conversation_id)
+                if telemetry:
+                    try:
+                        from .observability.telemetry import ConvergioTelemetry
+                        self._record_budget_status_telemetry(telemetry, telemetry_ctx, budget)
+                    except Exception:
+                        pass
                 if not budget.get("can_proceed", True):
                     logger.error("🚫 Budget limit reached", reason=budget.get("reason"))
                     raise RuntimeError("Budget limit exceeded: conversation halted")
@@ -304,6 +314,45 @@ class ModernGroupChatOrchestrator:
                 if validation.decision == SecurityDecision.REJECT:
                     logger.error("🚫 Security validation rejected prompt")
                     raise RuntimeError("Prompt rejected by security policy")
+
+            # Decision Engine planning (behind flag)
+            self._last_decision_plan = None
+            previous_model = None
+            previous_max_turns = None
+            if getattr(self.settings, "decision_engine_enabled", False):
+                try:
+                    plan = self._decision_engine.plan(message, context or {})
+                    self._last_decision_plan = plan
+                    # Emit a decision event using selection decision channel
+                    if telemetry:
+                        try:
+                            telemetry.record_selection_decision(
+                                selected_agent="decision_engine",
+                                reason="execution_plan",
+                                confidence=1.0,
+                                context=telemetry_ctx,
+                            )
+                        except Exception:
+                            pass
+                    # Apply model and max_turns from plan for this conversation
+                    previous_model = getattr(self.settings, 'default_ai_model', None)
+                    previous_max_turns = getattr(self.group_chat, 'max_turns', None) if self.group_chat else None
+                    if plan.model and plan.model != previous_model:
+                        try:
+                            from .groupchat.initializer import initialize_model_client
+                            # Temporarily override default model for this run
+                            self.settings.default_ai_model = plan.model  # type: ignore[attr-defined]
+                            self.model_client = initialize_model_client()
+                            await self._setup_group_chat()
+                        except Exception as e:
+                            logger.warning("Could not switch model per plan; continuing with default", error=str(e))
+                    if self.group_chat and plan.max_turns:
+                        try:
+                            self.group_chat.max_turns = plan.max_turns
+                        except Exception:
+                            pass
+                except Exception as e:
+                    logger.warning("Decision planning failed; continuing with defaults", error=str(e))
 
             result = await orchestrate_conversation_impl(
                 orchestrator=self,
@@ -316,6 +365,16 @@ class ModernGroupChatOrchestrator:
                 build_memory_context_func=build_memory_context,
             )
             logger.info("✅ GroupChat conversation completed", conversation_id=conversation_id, duration=result.duration_seconds, agents_used=result.agents_used, cost=result.cost_breakdown.get('total_cost', 0))
+            # Restore model and max_turns if overridden by plan
+            try:
+                if previous_model is not None and getattr(self.settings, 'default_ai_model', None) != previous_model:
+                    self.settings.default_ai_model = previous_model  # type: ignore[attr-defined]
+                    self.model_client = initialize_model_client()
+                    await self._setup_group_chat()
+                if self.group_chat and previous_max_turns is not None:
+                    self.group_chat.max_turns = previous_max_turns
+            except Exception:
+                pass
             return result
             
         except Exception as e:
@@ -417,3 +476,12 @@ class ModernGroupChatOrchestrator:
                 "message": f"Failed to reload agents: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             } 
+
+    def _record_budget_status_telemetry(self, telemetry, telemetry_ctx: TelemetryContext, budget: Dict[str, Any]):
+        try:
+            remaining = float(budget.get("remaining_budget_usd", 0.0))
+            limit = float(budget.get("daily_limit_usd", 0.0))
+            status = str(budget.get("status", "unknown"))
+            telemetry.record_budget_status(remaining, limit, status, telemetry_ctx)
+        except Exception:
+            pass 

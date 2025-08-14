@@ -134,10 +134,11 @@ async def orchestrate_conversation_impl(
         orchestrator.group_chat,
         task=message,
         observers=getattr(orchestrator, "observers", None),
-        metadata=run_metadata,
+        metadata={**run_metadata, "execution_plan": getattr(orchestrator, "_last_decision_plan", None)},
         hard_timeout_seconds=getattr(orchestrator.settings, 'autogen_timeout_seconds', 120),
         termination_markers=None,
         max_events=None,
+        execution_plan=getattr(orchestrator, "_last_decision_plan", None),
     )
 
     duration = (datetime.now() - start_time).total_seconds()
