@@ -92,7 +92,6 @@ class ModernGroupChatOrchestrator:
         self._initialized = False
         # Observers for telemetry
         self.observers = observers or []
-<<<<<<< Updated upstream
         # Decision engine
         self._decision_engine = DecisionEngine()
         self._last_decision_plan: Optional[DecisionPlan] = None
@@ -303,6 +302,12 @@ class ModernGroupChatOrchestrator:
                     try:
                         from .observability.telemetry import ConvergioTelemetry
                         self._record_budget_status_telemetry(telemetry, telemetry_ctx, budget)
+                        telemetry.record_budget_event(
+                            status=str(budget.get("status", "unknown")),
+                            remaining_usd=float(budget.get("remaining_budget_usd", 0.0)),
+                            limit_usd=float(budget.get("daily_limit_usd", 0.0)),
+                            context=telemetry_ctx,
+                        )
                     except Exception:
                         pass
                 if not budget.get("can_proceed", True):
@@ -326,12 +331,14 @@ class ModernGroupChatOrchestrator:
                     # Emit a decision event using selection decision channel
                     if telemetry:
                         try:
-                            telemetry.record_selection_decision(
-                                selected_agent="decision_engine",
-                                reason="execution_plan",
-                                confidence=1.0,
-                                context=telemetry_ctx,
-                            )
+                            telemetry.record_selection_decision(selected_agent="decision_engine", reason="execution_plan", confidence=1.0, context=telemetry_ctx)
+                            telemetry.record_decision_made({
+                                "sources": plan.sources,
+                                "tools": plan.tools,
+                                "model": plan.model,
+                                "max_turns": plan.max_turns,
+                                "budget_usd": plan.budget_usd,
+                            }, telemetry_ctx)
                         except Exception:
                             pass
                     # Apply model and max_turns from plan for this conversation

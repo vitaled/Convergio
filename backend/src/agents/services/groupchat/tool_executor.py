@@ -124,12 +124,20 @@ class GroupChatToolExecutor:
                 
                 # Execute based on tool name
                 if tool_name == "web_search":
+                    if telemetry and telemetry_context:
+                        telemetry.record_tool_invoked("web_search", telemetry_context)
                     result = await self._execute_web_search(args)
                 elif tool_name == "query_talents":
+                    if telemetry and telemetry_context:
+                        telemetry.record_tool_invoked("query_talents", telemetry_context)
                     result = await self._execute_talents_query(args)
                 elif tool_name == "vector_search":
+                    if telemetry and telemetry_context:
+                        telemetry.record_tool_invoked("vector_search", telemetry_context)
                     result = await self._execute_vector_search(args)
                 elif tool_name == "business_intelligence":
+                    if telemetry and telemetry_context:
+                        telemetry.record_tool_invoked("business_intelligence", telemetry_context)
                     result = await self._execute_business_intelligence(args)
                 else:
                     result = f"Tool '{tool_name}' not recognized"

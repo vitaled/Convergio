@@ -41,6 +41,10 @@ class ObservabilityEvent(Enum):
     AGENT_RESPONSE = "agent.response"
     TOOL_CALL = "tool.call"
     TOOL_RESULT = "tool.result"
+    # Plan-aligned explicit events
+    DECISION_MADE = "decision.made"
+    TOOL_INVOKED = "tool.invoked"
+    BUDGET_EVENT = "budget.event"
     WORKFLOW_START = "workflow.start"
     WORKFLOW_STEP = "workflow.step"
     WORKFLOW_END = "workflow.end"
@@ -472,6 +476,25 @@ class ConvergioTelemetry:
             "cost_usd": cost_usd,
             "tokens": tokens,
             "model": model
+        })
+
+    def record_decision_made(self, details: Dict[str, Any], context: TelemetryContext):
+        """Emit explicit decision_made event for UI alignment"""
+        self._emit_event(ObservabilityEvent.DECISION_MADE, context, details)
+
+    def record_tool_invoked(self, tool_name: str, context: TelemetryContext, attributes: Optional[Dict[str, Any]] = None):
+        """Emit explicit tool_invoked event for UI alignment"""
+        attrs = {"tool.name": tool_name}
+        if attributes:
+            attrs.update(attributes)
+        self._emit_event(ObservabilityEvent.TOOL_INVOKED, context, attrs)
+
+    def record_budget_event(self, status: str, remaining_usd: float, limit_usd: float, context: TelemetryContext):
+        """Emit explicit budget_event for UI alignment"""
+        self._emit_event(ObservabilityEvent.BUDGET_EVENT, context, {
+            "status": status,
+            "remaining_usd": remaining_usd,
+            "limit_usd": limit_usd,
         })
     
     def record_budget_status(
