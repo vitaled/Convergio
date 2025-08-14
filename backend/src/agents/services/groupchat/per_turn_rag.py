@@ -15,6 +15,7 @@ from autogen_agentchat.teams import SelectorGroupChat
 from .rag import AdvancedRAGProcessor
 from src.agents.utils.config import get_settings
 from src.agents.utils.tracing import start_span
+from .conflict_detector import detect_conflicts
 
 logger = structlog.get_logger()
 
@@ -38,8 +39,8 @@ class PerTurnRAGInjector:
         
         # Track turns for context evolution
         self.turn_history: Dict[str, List[Dict[str, Any]]] = {}
-        # Shared scratchpad per conversation (constraints, assumptions, interim decisions)
-        self.scratchpad: Dict[str, Dict[str, Any]] = {}
+        # Shared scratchpad per conversation (append-only)
+        self.scratchpad: Dict[str, List[str]] = {}
         
         logger.info("📚 Per-turn RAG injector initialized")
     
@@ -88,18 +89,22 @@ class PerTurnRAGInjector:
                     conversation_history=conversation_history
                 )
                 
-                # Update scratchpad and detect conflicts before enhancement
-                self._init_scratchpad(conversation_id)
-                self._update_scratchpad(conversation_id, agent_name, turn_number, current_message)
-                conflicts = self._detect_conflicts(conversation_id)
-
+                # Conflict detection over recent history
+                conflicts = detect_conflicts(conversation_history, window=6)
+                if conflicts:
+                    context.setdefault("insights", []).append(
+                        f"Detected {len(conflicts)} potential conflicts across recent turns"
+                    )
+                
                 # Enhance message with context
                 enhanced_message = self._enhance_message_with_context(
                     current_message, context, turn_number, agent_name
                 )
                 
-                # Attach scratchpad and conflict notes
-                enhanced_message = self._attach_scratchpad(enhanced_message, conversation_id, conflicts)
+                # Append to shared scratchpad (append-only)
+                self.scratchpad.setdefault(conversation_id, []).append(
+                    f"Turn {turn_number} · {agent_name}: {current_message[:160]}"
+                )
                 
                 # Cache result
                 self.context_cache[cache_key] = {
