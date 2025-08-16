@@ -126,6 +126,14 @@ class Settings(BaseSettings):
     hitl_enabled: bool = Field(default=False, env="HITL")
     cost_safety_enabled: bool = Field(default=True, env="COST_SAFETY")
     decision_engine_enabled: bool = Field(default=False, env="DECISION_ENGINE_ENABLED")
+    ops_ui_enabled: bool = Field(default=True, env="OPS_UI_ENABLED")
+    
+    # Rate Limiting Configuration
+    rate_limit_enabled: bool = Field(default=True, env="RATE_LIMIT_ENABLED")
+    rate_limit_requests_per_minute: int = Field(default=60, env="RATE_LIMIT_REQUESTS_PER_MINUTE")
+    rate_limit_burst_size: int = Field(default=10, env="RATE_LIMIT_BURST_SIZE")
+    rate_limit_window_size: int = Field(default=60, env="RATE_LIMIT_WINDOW_SIZE")
+    rate_limit_block_duration: int = Field(default=300, env="RATE_LIMIT_BLOCK_DURATION")
     # Agent behavior flags
     smart_fallback_enabled: bool = Field(default=False, env="SMART_FALLBACK_ENABLED")
     # Use synthetic placeholders for internal data in AgentIntelligence._fetch_internal_data

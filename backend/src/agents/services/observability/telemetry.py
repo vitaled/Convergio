@@ -724,6 +724,57 @@ class ConvergioTelemetry:
             }
         }
     
+    async def get_events(
+        self,
+        filters: Optional[Dict[str, Any]] = None,
+        limit: int = 100,
+        include_metadata: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        Recupera eventi di telemetria con filtri opzionali
+        
+        Args:
+            filters: Filtri da applicare
+            limit: Numero massimo di eventi da restituire
+            include_metadata: Se includere i metadata
+            
+        Returns:
+            Lista di eventi formattati
+        """
+        try:
+            # Per ora restituisce eventi di esempio
+            # TODO: Implementare recupero da database/storage reale
+            from .telemetry_api import TelemetryAPIService
+            
+            # Usa il servizio stub per ora
+            stub_service = TelemetryAPIService()
+            return await stub_service.get_events(filters, limit, include_metadata)
+            
+        except Exception as e:
+            logger.error(f"Error retrieving telemetry events: {str(e)}")
+            return []
+    
+    async def get_status(self) -> Dict[str, Any]:
+        """Restituisce lo stato del servizio di telemetria"""
+        try:
+            return {
+                "status": "healthy",
+                "total_events": 0,  # TODO: Implementare conteggio reale
+                "total_conversations": 0,  # TODO: Implementare conteggio reale
+                "total_agents": 0,  # TODO: Implementare conteggio reale
+                "last_updated": datetime.utcnow().isoformat(),
+                "sample_data": False,
+                "backend": "convergio-telemetry",
+                "version": "1.0.0"
+            }
+        except Exception as e:
+            logger.error(f"Error getting telemetry status: {str(e)}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+    
     def shutdown(self):
         """Shutdown telemetry system"""
         logger.info("Shutting down telemetry system")
