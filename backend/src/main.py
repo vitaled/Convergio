@@ -51,6 +51,8 @@ from src.api.admin import router as admin_router
 from src.api.approvals import router as approvals_router
 from src.api.projects import router as projects_router
 from src.api.system_status import router as system_status_router
+from src.api.telemetry import router as telemetry_router
+from src.api.governance import router as governance_router
 
 # Setup structured logging
 setup_logging()
@@ -294,6 +296,12 @@ def create_app() -> FastAPI:
     
     # Swarm Coordination System (Advanced agent coordination with swarm intelligence)
     app.include_router(swarm_coordination_router, prefix="/api/v1/swarm", tags=["Swarm Coordination"])
+    
+    # Telemetry System (Operational UX data for M4)
+    app.include_router(telemetry_router, tags=["Telemetry"])
+    
+    # Governance System (Rate limiting, SLO monitoring, Runbooks for M5)
+    app.include_router(governance_router, prefix="/api/v1/governance", tags=["Governance"])
     
     # ================================
     # 🔄 GLOBAL EXCEPTION HANDLERS

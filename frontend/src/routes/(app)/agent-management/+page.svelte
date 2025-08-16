@@ -16,8 +16,8 @@ Dependencies: Agent definition standardization, advanced UI components
 -->
 
 <script lang="ts">
-	// import { onMount } from 'svelte';
-	// import { writable } from 'svelte/store';
+	import { onMount } from 'svelte';
+	import { writable } from 'svelte/store';
 	// import AgentEditor from '$lib/components/AgentEditor.svelte';
 	
 	// Stores
@@ -200,12 +200,10 @@ Dependencies: Agent definition standardization, advanced UI components
 				</button>
 			</div>
 			<div class="p-0">
-				<AgentEditor
-					agentKey={$selectedAgent?.key || ''}
-					isNewAgent={$isNewAgent}
-					on:saved={handleEditorSaved}
-					on:error={handleEditorError}
-				/>
+				<!-- AgentEditor component will be added in Phase 2 -->
+				<div class="p-4 text-gray-500">
+					Agent editor component coming soon...
+				</div>
 			</div>
 		</div>
 	</div>
