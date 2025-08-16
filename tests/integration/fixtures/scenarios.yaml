@@ -1,14 +1,239 @@
-scenarios:
-  - name: talents_count_internal
-    query: "How many talents do we have in the database?"
-    expect_sources_any: [backend, vector]
-  - name: financial_news_external
-    query: "What's Microsoft's Q4 FY2025 revenue? latest"
-    expect_sources_any: [web]
-  - name: strategy_general
-    query: "Outline a high-level go-to-market strategy for Q3"
-    expect_sources_any: [llm]
-  - name: vector_similarity
-    query: "Find related documents about GDPR compliance"
-    expect_sources_any: [vector]
+# Scenario Test Fixtures
+# Golden outputs and test configurations
 
+scenarios:
+  strategy:
+    - name: strategic_planning
+      description: "5-year strategic plan for market expansion"
+      expected_agents:
+        - ali_chief_of_staff
+        - amy_cfo
+        - satya_board
+      expected_tools:
+        - market_research
+        - competitor_analysis
+        - financial_projection
+      max_budget: 5.00
+      max_latency_ms: 6000
+      min_accuracy: 0.95
+      
+    - name: crisis_management
+      description: "Rapid response to security breach"
+      expected_agents:
+        - ali_chief_of_staff
+        - luca_security
+        - marco_devops
+      expected_tools:
+        - security_scan
+        - alert_team
+        - containment
+        - incident_report
+      max_budget: 3.00
+      max_latency_ms: 2000
+      min_accuracy: 0.98
+      
+  finance:
+    - name: budget_optimization
+      description: "Quarterly budget allocation optimization"
+      expected_agents:
+        - amy_cfo
+        - ali_chief_of_staff
+      expected_tools:
+        - cost_analysis
+        - forecast_model
+        - optimization
+        - report_generation
+      max_budget: 4.00
+      max_latency_ms: 4000
+      min_accuracy: 0.96
+      
+    - name: investment_analysis
+      description: "M&A target evaluation"
+      expected_agents:
+        - amy_cfo
+        - satya_board
+        - bria_legal
+      expected_tools:
+        - due_diligence
+        - valuation_model
+        - risk_assessment
+        - roi_calculation
+      max_budget: 6.00
+      max_latency_ms: 5000
+      min_accuracy: 0.94
+      
+  tech:
+    - name: architecture_review
+      description: "Microservices architecture optimization"
+      expected_agents:
+        - baccio_tech_architect
+        - marco_devops
+        - dan_engineering
+      expected_tools:
+        - code_analysis
+        - dependency_check
+        - performance_test
+        - architecture_diagram
+      max_budget: 4.50
+      max_latency_ms: 4000
+      min_accuracy: 0.95
+      
+    - name: incident_resolution
+      description: "Production incident response"
+      expected_agents:
+        - marco_devops
+        - dan_engineering
+        - luca_security
+      expected_tools:
+        - log_analysis
+        - error_trace
+        - rollback
+        - health_check
+      max_budget: 2.00
+      max_latency_ms: 1500
+      min_accuracy: 0.98
+      
+  product:
+    - name: feature_planning
+      description: "Quarterly product roadmap"
+      expected_agents:
+        - luke_program_manager
+        - davide_project_manager
+        - jenny_accessibility
+      expected_tools:
+        - feedback_analysis
+        - priority_scoring
+        - roadmap_generation
+        - resource_planning
+      max_budget: 3.50
+      max_latency_ms: 4000
+      min_accuracy: 0.93
+      
+    - name: user_research
+      description: "UX improvement analysis"
+      expected_agents:
+        - omri_data_scientist
+        - natalie_designer
+        - jenny_accessibility
+      expected_tools:
+        - data_collection
+        - behavior_analysis
+        - ab_test_design
+        - ux_recommendations
+      max_budget: 3.00
+      max_latency_ms: 3500
+      min_accuracy: 0.92
+      
+  marketing:
+    - name: campaign_optimization
+      description: "Marketing ROI optimization"
+      expected_agents:
+        - sofia_marketing
+        - omri_data_scientist
+        - amy_cfo
+      expected_tools:
+        - campaign_analysis
+        - audience_segmentation
+        - channel_optimization
+        - budget_reallocation
+      max_budget: 4.00
+      max_latency_ms: 3500
+      min_accuracy: 0.91
+      
+    - name: content_strategy
+      description: "Product launch content plan"
+      expected_agents:
+        - sofia_marketing
+        - lee_writer
+        - natalie_designer
+      expected_tools:
+        - market_research
+        - content_calendar
+        - channel_planning
+        - performance_tracking
+      max_budget: 3.50
+      max_latency_ms: 4500
+      min_accuracy: 0.90
+      
+  complex:
+    - name: merger_acquisition
+      description: "Full M&A execution"
+      expected_agents:
+        - ali_chief_of_staff
+        - amy_cfo
+        - bria_legal
+        - satya_board
+        - sofia_marketing
+        - harper_hr
+      expected_tools:
+        - market_analysis
+        - due_diligence
+        - legal_review
+        - financial_modeling
+        - risk_assessment
+        - integration_planning
+      max_budget: 10.00
+      max_latency_ms: 10000
+      min_accuracy: 0.96
+      
+    - name: digital_transformation
+      description: "Enterprise digital transformation"
+      expected_agents:
+        - ali_chief_of_staff
+        - baccio_tech_architect
+        - dan_engineering
+        - harper_hr
+        - luke_program_manager
+        - marco_devops
+        - amy_cfo
+      expected_tools:
+        - current_state_assessment
+        - gap_analysis
+        - roadmap_creation
+        - resource_planning
+        - risk_mitigation
+        - change_management
+        - training_plan
+        - pilot_execution
+        - rollout_strategy
+      max_budget: 15.00
+      max_latency_ms: 12000
+      min_accuracy: 0.94
+
+# Failure mode configurations
+failure_modes:
+  - name: timeout
+    description: "Tool timeout handling"
+    timeout_ms: 100
+    expected_behavior: fallback_to_cached
+    
+  - name: empty_results
+    description: "Empty tool results handling"
+    mock_empty: true
+    expected_behavior: use_alternative_source
+    
+  - name: budget_exceeded
+    description: "Budget constraint enforcement"
+    max_budget: 0.01
+    expected_behavior: truncate_and_warn
+    
+  - name: rate_limited
+    description: "Rate limit handling"
+    requests_per_second: 1000
+    expected_behavior: queue_and_retry
+    
+  - name: conflicting_responses
+    description: "Agent conflict resolution"
+    inject_conflicts: true
+    expected_behavior: ali_arbitration
+
+# Test execution settings
+settings:
+  parallel_execution: true
+  max_workers: 4
+  timeout_default_ms: 30000
+  retry_on_failure: 2
+  update_golden: false
+  generate_html_report: true
+  generate_junit_xml: true
+  coverage_threshold: 0.90
