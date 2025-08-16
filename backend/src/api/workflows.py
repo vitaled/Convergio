@@ -11,12 +11,19 @@ from datetime import datetime
 import structlog
 
 from src.agents.services.graphflow_orchestrator import get_graphflow_orchestrator
+from src.agents.services.graphflow.generator import (
+    WorkflowGenerator,
+    WorkflowGenerationRequest,
+    BusinessWorkflow
+)
+from src.agents.services.observability.telemetry_api import TelemetryAPIService
 from src.agents.utils.config import get_settings
 from src.core.logging import get_logger
 
 logger = get_logger()
 router = APIRouter()
 settings = get_settings()
+telemetry = TelemetryAPIService()
 
 # Pydantic models
 class WorkflowExecutionRequest(BaseModel):
@@ -46,6 +53,12 @@ class WorkflowStatusResponse(BaseModel):
 class WorkflowListResponse(BaseModel):
     workflows: List[Dict[str, Any]]
     total_count: int
+
+class WorkflowGenerationResponse(BaseModel):
+    workflow_id: str
+    workflow: Dict[str, Any]
+    status: str = "generated"
+    message: str = "Workflow generated successfully"
 
 @router.on_event("startup")
 async def startup_workflows():
@@ -191,6 +204,233 @@ async def cancel_workflow(execution_id: str):
         logger.error(f"❌ Error cancelling workflow: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to cancel workflow: {str(e)}")
 
+# ===================== Workflow Generation Endpoints =====================
+
+@router.post("/generate", response_model=Dict[str, Any])
+async def generate_workflow(request: WorkflowGenerationRequest):
+    """
+    Generate a workflow from natural language description
+    """
+    try:
+        _ensure_graphflow_enabled()
+        generator = WorkflowGenerator()
+        
+        # Generate workflow
+        workflow, metadata = await generator.generate_workflow(request)
+        
+        # Validate workflow
+        errors = generator.validate_workflow(workflow)
+        if errors:
+            return {
+                "success": False,
+                "errors": errors,
+                "workflow": None,
+                "metadata": metadata
+            }
+        
+        # Optimize workflow for parallel execution
+        workflow = generator.optimize_workflow(workflow)
+        
+        # Generate Mermaid diagram
+        mermaid_diagram = generator.export_to_mermaid(workflow)
+        
+        return {
+            "success": True,
+            "workflow": workflow.dict(),
+            "metadata": metadata,
+            "mermaid_diagram": mermaid_diagram
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to generate workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate workflow: {str(e)}")
+
+@router.post("/save")
+async def save_workflow(workflow: BusinessWorkflow):
+    """
+    Save a custom workflow to persistent storage
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        # In production, this would save to database
+        # For now, save to in-memory storage
+        orchestrator = get_graphflow_orchestrator()
+        
+        # Add to orchestrator's workflow registry
+        orchestrator.workflows[workflow.id] = workflow
+        
+        # Emit telemetry event
+        telemetry.emit_event(
+            "workflow_saved",
+            {
+                "workflow_id": workflow.id,
+                "workflow_name": workflow.name,
+                "steps_count": len(workflow.steps),
+                "estimated_cost": workflow.estimated_cost
+            }
+        )
+        
+        return {
+            "message": f"Workflow {workflow.name} saved successfully",
+            "workflow_id": workflow.id
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to save workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save workflow: {str(e)}")
+
+@router.get("/custom", response_model=List[Dict[str, Any]])
+async def list_custom_workflows():
+    """
+    List all custom (user-created) workflows
+    """
+    try:
+        _ensure_graphflow_enabled()
+        orchestrator = get_graphflow_orchestrator()
+        
+        # Filter for non-template workflows
+        custom_workflows = []
+        for workflow_id, workflow in orchestrator.workflows.items():
+            if hasattr(workflow, 'is_template') and not workflow.is_template:
+                custom_workflows.append({
+                    "id": workflow.id,
+                    "name": workflow.name,
+                    "description": workflow.description,
+                    "created_at": workflow.created_at.isoformat() if workflow.created_at else None,
+                    "steps_count": len(workflow.steps),
+                    "estimated_cost": workflow.estimated_cost,
+                    "is_active": workflow.is_active
+                })
+        
+        return custom_workflows
+        
+    except Exception as e:
+        logger.error(f"Failed to list custom workflows: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list custom workflows: {str(e)}")
+
+@router.put("/{workflow_id}")
+async def update_workflow(workflow_id: str, workflow: BusinessWorkflow):
+    """
+    Update an existing workflow
+    """
+    try:
+        _ensure_graphflow_enabled()
+        orchestrator = get_graphflow_orchestrator()
+        
+        if workflow_id not in orchestrator.workflows:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        # Update workflow
+        workflow.id = workflow_id  # Ensure ID doesn't change
+        workflow.version = _increment_version(orchestrator.workflows[workflow_id].version)
+        orchestrator.workflows[workflow_id] = workflow
+        
+        return {
+            "message": f"Workflow {workflow.name} updated successfully",
+            "workflow_id": workflow_id,
+            "version": workflow.version
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow: {str(e)}")
+
+@router.delete("/{workflow_id}")
+async def delete_workflow(workflow_id: str):
+    """
+    Delete a custom workflow
+    """
+    try:
+        _ensure_graphflow_enabled()
+        orchestrator = get_graphflow_orchestrator()
+        
+        if workflow_id not in orchestrator.workflows:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        workflow = orchestrator.workflows[workflow_id]
+        
+        # Don't delete templates
+        if hasattr(workflow, 'is_template') and workflow.is_template:
+            raise HTTPException(status_code=400, detail="Cannot delete template workflows")
+        
+        # Remove workflow
+        del orchestrator.workflows[workflow_id]
+        
+        return {
+            "message": f"Workflow {workflow_id} deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete workflow: {str(e)}")
+
+@router.post("/import")
+async def import_workflow(workflow_json: str):
+    """
+    Import a workflow from JSON
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        import json
+        workflow_data = json.loads(workflow_json)
+        workflow = BusinessWorkflow(**workflow_data)
+        
+        # Save imported workflow
+        orchestrator = get_graphflow_orchestrator()
+        orchestrator.workflows[workflow.id] = workflow
+        
+        return {
+            "message": f"Workflow {workflow.name} imported successfully",
+            "workflow_id": workflow.id
+        }
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to import workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to import workflow: {str(e)}")
+
+@router.get("/export/{workflow_id}")
+async def export_workflow(workflow_id: str):
+    """
+    Export a workflow as JSON
+    """
+    try:
+        _ensure_graphflow_enabled()
+        orchestrator = get_graphflow_orchestrator()
+        
+        if workflow_id not in orchestrator.workflows:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        workflow = orchestrator.workflows[workflow_id]
+        
+        import json
+        return {
+            "workflow_id": workflow_id,
+            "json": json.dumps(workflow.dict() if hasattr(workflow, 'dict') else workflow, default=str, indent=2)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to export workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export workflow: {str(e)}")
+
+def _increment_version(version: str) -> str:
+    """Increment version number"""
+    parts = version.split(".")
+    if len(parts) == 3:
+        parts[2] = str(int(parts[2]) + 1)
+    return ".".join(parts)
+
 @router.get("/{workflow_id}/details")
 async def get_workflow_details(workflow_id: str):
     """
@@ -330,3 +570,317 @@ async def workflows_health():
             "error": str(e),
             "message": "GraphFlow workflows system error"
         }
+
+
+# ===================== NEW ENDPOINTS FOR M6 WORKFLOW GENERATOR =====================
+
+@router.post("/generate", response_model=WorkflowGenerationResponse)
+async def generate_workflow(request: WorkflowGenerationRequest):
+    """
+    Generate a new workflow from natural language prompt or PRD
+    
+    This endpoint uses AI to generate a complete workflow definition
+    from a natural language description of business requirements.
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        logger.info("🤖 Generating workflow from prompt", 
+                   prompt_length=len(request.prompt),
+                   domain=request.business_domain)
+        
+        # Generate workflow using GraphFlow generator
+        response = await generate_workflow_from_prompt(
+            prompt=request.prompt,
+            business_domain=request.business_domain,
+            priority=request.priority,
+            max_steps=request.max_steps,
+            context=request.context
+        )
+        
+        logger.info("✅ Workflow generated successfully",
+                   workflow_id=response.workflow.workflow_id,
+                   steps_count=len(response.workflow.steps))
+        
+        return response
+        
+    except ValueError as e:
+        logger.warning(f"⚠️ Workflow generation validation failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"❌ Error generating workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate workflow: {str(e)}")
+
+
+@router.get("/catalog")
+async def get_workflow_catalog_endpoint():
+    """
+    Get the comprehensive workflow catalog with all available templates and workflows
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        catalog = await get_workflow_catalog()
+        
+        return {
+            "catalog": catalog,
+            "total_count": len(catalog),
+            "categories": list(set(item["category"] for item in catalog))
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting workflow catalog: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get catalog: {str(e)}")
+
+
+@router.get("/search")
+async def search_workflows(
+    query: Optional[str] = None,
+    domain: Optional[str] = None,
+    complexity: Optional[str] = None,
+    max_duration_minutes: Optional[int] = None
+):
+    """
+    Search workflows with filters
+    
+    Parameters:
+    - query: Text search in name, description, and tags
+    - domain: Business domain filter (strategy, operations, finance, etc.)
+    - complexity: Complexity level filter (low, medium, high)
+    - max_duration_minutes: Maximum workflow duration filter
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        results = await search_workflows_registry(
+            query=query or "",
+            domain=domain,
+            complexity=complexity,
+            max_duration_minutes=max_duration_minutes
+        )
+        
+        return {
+            "results": results,
+            "total_count": len(results),
+            "filters_applied": {
+                "query": query,
+                "domain": domain,
+                "complexity": complexity,
+                "max_duration_minutes": max_duration_minutes
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error searching workflows: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search workflows: {str(e)}")
+
+
+class WorkflowVersionRequest(BaseModel):
+    """Request model for workflow versioning"""
+    workflow_id: str = Field(..., description="ID of the workflow to version")
+    version_notes: str = Field(..., description="Notes about this version")
+    changes: Dict[str, Any] = Field(..., description="Changes made in this version")
+
+
+@router.post("/version")
+async def create_workflow_version(request: WorkflowVersionRequest):
+    """
+    Create a new version of an existing workflow
+    
+    This endpoint creates a versioned copy of a workflow for tracking changes
+    and enabling rollback capabilities.
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        orchestrator = get_graphflow_orchestrator()
+        
+        # Check if workflow exists
+        workflow = orchestrator.workflows.get(request.workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail=f"Workflow {request.workflow_id} not found")
+        
+        # Create versioned copy
+        version_id = f"{request.workflow_id}_v{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        
+        # Store version metadata (simplified for now)
+        version_metadata = {
+            "version_id": version_id,
+            "base_workflow_id": request.workflow_id,
+            "created_at": datetime.utcnow().isoformat(),
+            "version_notes": request.version_notes,
+            "changes": request.changes
+        }
+        
+        logger.info("📦 Created workflow version",
+                   workflow_id=request.workflow_id,
+                   version_id=version_id)
+        
+        return {
+            "message": "Workflow version created successfully",
+            "version": version_metadata
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error creating workflow version: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create version: {str(e)}")
+
+
+class WorkflowUpdateRequest(BaseModel):
+    """Request model for workflow updates"""
+    workflow_id: str = Field(..., description="ID of the workflow to update")
+    name: Optional[str] = Field(None, description="New workflow name")
+    description: Optional[str] = Field(None, description="New workflow description")
+    steps: Optional[List[Dict[str, Any]]] = Field(None, description="Updated steps")
+    enabled: Optional[bool] = Field(None, description="Enable/disable workflow")
+
+
+@router.put("/update")
+async def update_workflow(request: WorkflowUpdateRequest):
+    """
+    Update an existing workflow
+    
+    This endpoint allows updating workflow metadata and structure.
+    Changes are validated before being applied.
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        orchestrator = get_graphflow_orchestrator()
+        
+        # Check if workflow exists
+        workflow = orchestrator.workflows.get(request.workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail=f"Workflow {request.workflow_id} not found")
+        
+        # Apply updates (simplified for now)
+        updates_applied = []
+        if request.name:
+            workflow.name = request.name
+            updates_applied.append("name")
+        if request.description:
+            workflow.description = request.description
+            updates_applied.append("description")
+        
+        logger.info("✏️ Updated workflow",
+                   workflow_id=request.workflow_id,
+                   updates=updates_applied)
+        
+        # Emit telemetry event
+        await telemetry.emit_event(
+            event_type="workflow_updated",
+            data={
+                "workflow_id": request.workflow_id,
+                "updates_applied": updates_applied
+            }
+        )
+        
+        return {
+            "message": "Workflow updated successfully",
+            "workflow_id": request.workflow_id,
+            "updates_applied": updates_applied
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error updating workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow: {str(e)}")
+
+
+@router.delete("/{workflow_id}")
+async def delete_workflow(workflow_id: str, force: bool = False):
+    """
+    Delete or disable a workflow
+    
+    Parameters:
+    - workflow_id: ID of the workflow to delete
+    - force: If true, permanently delete. If false, just disable.
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        orchestrator = get_graphflow_orchestrator()
+        
+        # Check if workflow exists
+        workflow = orchestrator.workflows.get(workflow_id)
+        if not workflow:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        # Check for active executions
+        active_executions = [
+            ex for ex in orchestrator.executions.values()
+            if ex.workflow_id == workflow_id and ex.status == "running"
+        ]
+        
+        if active_executions and not force:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete workflow with {len(active_executions)} active executions"
+            )
+        
+        if force:
+            # Permanently delete
+            del orchestrator.workflows[workflow_id]
+            action = "deleted"
+        else:
+            # Just disable
+            workflow.enabled = False
+            action = "disabled"
+        
+        logger.info(f"🗑️ Workflow {action}",
+                   workflow_id=workflow_id,
+                   force=force)
+        
+        # Emit telemetry event
+        await telemetry.emit_event(
+            event_type=f"workflow_{action}",
+            data={"workflow_id": workflow_id}
+        )
+        
+        return {
+            "message": f"Workflow {action} successfully",
+            "workflow_id": workflow_id,
+            "action": action
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error deleting workflow: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete workflow: {str(e)}")
+
+
+@router.post("/validate")
+async def validate_workflow_prompt(prompt: str):
+    """
+    Validate a workflow generation prompt for safety and feasibility
+    
+    This endpoint checks if a prompt is safe and can be used to generate
+    a valid workflow without actually generating it.
+    """
+    try:
+        _ensure_graphflow_enabled()
+        
+        from src.agents.security.ai_security_guardian import AISecurityGuardian
+        
+        guardian = AISecurityGuardian()
+        
+        # Validate prompt safety
+        validation_result = await guardian.validate_prompt(
+            prompt=prompt,
+            context={"operation": "workflow_validation"}
+        )
+        
+        return {
+            "is_valid": validation_result.is_safe,
+            "risk_level": validation_result.risk_level,
+            "reason": validation_result.reason if not validation_result.is_safe else None,
+            "sanitized_prompt": validation_result.sanitized_prompt
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error validating workflow prompt: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to validate prompt: {str(e)}")

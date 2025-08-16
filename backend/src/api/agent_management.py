@@ -1,458 +1,395 @@
 """
-Agent Management API
-CRUD operations per la gestione dinamica degli agenti con hot-reload
+Agent Management API - CRUD operations for AI agents
 """
 
-import os
-import yaml
-import json
-import asyncio
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
-from pydantic import BaseModel, Field
-import structlog
+from pathlib import Path
+import json
+import yaml
 
-from src.agents.services.agent_loader import agent_loader
-from src.core.redis import get_redis_client
+from src.agents.services.agent_loader import DynamicAgentLoader
+from pydantic import BaseModel
 
-logger = structlog.get_logger()
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/agent-management", tags=["Agent Management"])
 
-# Pydantic models for API
-class AgentMetadata(BaseModel):
-    name: str = Field(..., description="Agent name (used as key)")
-    description: str = Field(..., description="Agent description")
-    color: str = Field("#666666", description="Agent color in hex")
-    tools: List[str] = Field(default_factory=list, description="Available tools")
-    tier: Optional[str] = Field(None, description="Agent tier (auto-detected if not provided)")
+# Initialize agent loader
+agent_loader = DynamicAgentLoader(
+    "backend/src/agents/definitions",
+    enable_hot_reload=True
+)
 
-class AgentContent(BaseModel):
-    persona: str = Field(..., description="Agent persona and identity section")
-    expertise_areas: List[str] = Field(default_factory=list, description="Main expertise areas")
-    additional_content: str = Field("", description="Additional markdown content")
+# ===================== Request/Response Models =====================
 
-class AgentDefinition(BaseModel):
-    metadata: AgentMetadata
-    content: AgentContent
+class AgentCreate(BaseModel):
+    name: str
+    role: str
+    tier: str = "specialist"
+    category: str = "technical"
+    capabilities: List[str] = []
+    tools: List[Dict[str, Any]] = []
+    max_context_tokens: int = 8000
+    temperature: float = 0.7
+    model_preference: str = "gpt-4-turbo-preview"
+    cost_per_interaction: float = 0.1
+    system_prompt: str = ""
 
-class AgentUpdateRequest(BaseModel):
-    agent_key: str
-    definition: AgentDefinition
-    ali_improvements: Optional[Dict[str, Any]] = Field(None, description="Ali's suggested improvements")
 
-class AgentCreateRequest(BaseModel):
-    definition: AgentDefinition
+class AgentUpdate(BaseModel):
+    role: Optional[str] = None
+    tier: Optional[str] = None
+    category: Optional[str] = None
+    capabilities: Optional[List[str]] = None
+    tools: Optional[List[Dict[str, Any]]] = None
+    max_context_tokens: Optional[int] = None
+    temperature: Optional[float] = None
+    model_preference: Optional[str] = None
+    cost_per_interaction: Optional[float] = None
+    system_prompt: Optional[str] = None
 
-class AliAssistanceRequest(BaseModel):
-    agent_key: Optional[str] = None
-    current_definition: Optional[AgentDefinition] = None
-    improvement_focus: str = Field("general", description="Focus area for improvements")
-    user_intent: str = Field("", description="What the user wants to achieve")
 
-class AgentManagerService:
-    """Service class for managing agent definitions"""
+class AgentResponse(BaseModel):
+    id: str
+    name: str
+    role: str
+    tier: str
+    category: str
+    status: str
+    version: str
+    capabilities: List[str]
+    tools: List[Dict[str, Any]]
+    cost_per_interaction: float
+    max_context_tokens: int
+    temperature: float
+    model_preference: str
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+# ===================== Agent CRUD Endpoints =====================
+
+@router.get("/agents", response_model=List[AgentResponse])
+async def list_agents(
+    category: Optional[str] = None,
+    tier: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=500)
+):
+    """List all agents with optional filtering"""
+    agents = agent_loader.list_agents()
     
-    def __init__(self):
-        self.agents_directory = Path("src/agents/definitions")
-        self.backup_directory = Path("data/agent_backups")
-        self.backup_directory.mkdir(parents=True, exist_ok=True)
+    result = []
+    for agent_key, metadata in agents.items():
+        # Apply filters
+        if category and metadata.get("category") != category:
+            continue
+        if tier and metadata.get("tier") != tier:
+            continue
+        if status and metadata.get("status", "active") != status:
+            continue
         
-    async def list_agents(self) -> Dict[str, Any]:
-        """List all available agents with their metadata"""
-        try:
-            agents = agent_loader.scan_and_load_agents()
-            
-            agent_list = []
-            for key, agent in agents.items():
-                agent_list.append({
-                    "key": key,
-                    "name": agent.name,
-                    "description": agent.description,
-                    "color": agent.color,
-                    "tier": agent.tier,
-                    "tools_count": len(agent.tools),
-                    "expertise_count": len(agent.expertise_keywords),
-                    "file_path": f"{agent.name.replace('_', '-')}.md"
-                })
-            
-            return {
-                "total_agents": len(agent_list),
-                "agents": sorted(agent_list, key=lambda x: x["name"]),
-                "tiers": list(set(agent["tier"] for agent in agent_list)),
-                "last_updated": datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error("Failed to list agents", error=str(e))
-            raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
+        result.append(AgentResponse(
+            id=agent_key,
+            name=metadata.get("name", agent_key),
+            role=metadata.get("role", ""),
+            tier=metadata.get("tier", "specialist"),
+            category=metadata.get("category", "general"),
+            status=metadata.get("status", "active"),
+            version=metadata.get("version", "1.0.0"),
+            capabilities=metadata.get("capabilities", []),
+            tools=metadata.get("tools", []),
+            cost_per_interaction=metadata.get("cost_per_interaction", 0.1),
+            max_context_tokens=metadata.get("max_context_tokens", 8000),
+            temperature=metadata.get("temperature", 0.7),
+            model_preference=metadata.get("model_preference", "gpt-4-turbo-preview")
+        ))
     
-    async def get_agent(self, agent_key: str) -> Dict[str, Any]:
-        """Get specific agent definition"""
-        try:
-            agents = agent_loader.agent_metadata
-            
-            if agent_key not in agents:
-                raise HTTPException(status_code=404, detail=f"Agent {agent_key} not found")
-            
-            agent = agents[agent_key]
-            
-            # Read the full markdown file
-            agent_file = self.agents_directory / f"{agent_key.replace('_', '-')}.md"
-            if not agent_file.exists():
-                raise HTTPException(status_code=404, detail=f"Agent file not found: {agent_file}")
-            
-            with open(agent_file, 'r', encoding='utf-8') as f:
-                full_content = f.read()
-            
-            # Parse YAML front matter and content
-            import re
-            yaml_match = re.match(r'^---\n(.*?)\n---\n(.*)$', full_content, re.DOTALL)
-            if not yaml_match:
-                raise HTTPException(status_code=400, detail="Invalid agent file format")
-            
-            yaml_content = yaml.safe_load(yaml_match.group(1))
-            markdown_content = yaml_match.group(2)
-            
-            return {
-                "key": agent_key,
-                "metadata": {
-                    "name": yaml_content.get("name", agent_key),
-                    "description": yaml_content.get("description", ""),
-                    "color": yaml_content.get("color", "#666666"),
-                    "tools": yaml_content.get("tools", []),
-                    "tier": agent.tier
-                },
-                "content": {
-                    "persona": agent.persona,
-                    "expertise_areas": agent.expertise_keywords,
-                    "additional_content": markdown_content
-                },
-                "file_path": str(agent_file),
-                "last_modified": agent_file.stat().st_mtime if agent_file.exists() else None
-            }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error("Failed to get agent", agent_key=agent_key, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Failed to get agent: {str(e)}")
+    return result[:limit]
+
+
+@router.get("/agents/{agent_id}", response_model=AgentResponse)
+async def get_agent(agent_id: str):
+    """Get specific agent by ID"""
+    agent = agent_loader.get_agent(agent_id)
     
-    async def create_agent(self, request: AgentCreateRequest) -> Dict[str, Any]:
-        """Create a new agent definition"""
-        try:
-            agent_key = request.definition.metadata.name.lower().replace(" ", "-").replace("_", "-")
-            agent_file = self.agents_directory / f"{agent_key}.md"
-            
-            # Check if agent already exists
-            if agent_file.exists():
-                raise HTTPException(status_code=400, detail=f"Agent {agent_key} already exists")
-            
-            # Create YAML front matter
-            yaml_data = {
-                "name": agent_key,
-                "description": request.definition.metadata.description,
-                "color": request.definition.metadata.color,
-                "tools": request.definition.metadata.tools or []
-            }
-            
-            # Build markdown content
-            persona_section = f"""You are **{request.definition.metadata.name}**, {request.definition.content.persona}
-
-## MyConvergio Values Integration
-*For complete MyConvergio values and principles, see [CommonValuesAndPrinciples.md](./CommonValuesAndPrinciples.md)*
-
-## EXPERTISE AREAS
-{chr(10).join(f"- {area}" for area in request.definition.content.expertise_areas)}
-
-{request.definition.content.additional_content}
-"""
-
-            # Create full file content
-            full_content = f"""---
-{yaml.dump(yaml_data, default_flow_style=False)}---
-
-{persona_section}"""
-            
-            # Write file
-            with open(agent_file, 'w', encoding='utf-8') as f:
-                f.write(full_content)
-            
-            # Reload agents
-            await self._hot_reload_agents()
-            
-            logger.info("Created new agent", agent_key=agent_key, file=str(agent_file))
-            
-            return {
-                "success": True,
-                "agent_key": agent_key,
-                "file_path": str(agent_file),
-                "message": f"Agent {agent_key} created successfully",
-                "reload_status": "completed"
-            }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error("Failed to create agent", error=str(e))
-            raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
     
-    async def update_agent(self, request: AgentUpdateRequest) -> Dict[str, Any]:
-        """Update an existing agent definition"""
-        try:
-            agent_key = request.agent_key
-            agent_file = self.agents_directory / f"{agent_key.replace('_', '-')}.md"
-            
-            if not agent_file.exists():
-                raise HTTPException(status_code=404, detail=f"Agent {agent_key} not found")
-            
-            # Create backup
-            backup_file = self.backup_directory / f"{agent_key}_{int(datetime.now().timestamp())}.md"
-            with open(agent_file, 'r') as src, open(backup_file, 'w') as dst:
-                dst.write(src.read())
-            
-            # Create updated YAML front matter
-            yaml_data = {
-                "name": request.definition.metadata.name,
-                "description": request.definition.metadata.description,
-                "color": request.definition.metadata.color,
-                "tools": request.definition.metadata.tools or []
-            }
-            
-            # Build updated markdown content
-            persona_section = f"""You are **{request.definition.metadata.name}**, {request.definition.content.persona}
-
-## MyConvergio Values Integration
-*For complete MyConvergio values and principles, see [CommonValuesAndPrinciples.md](./CommonValuesAndPrinciples.md)*
-
-## EXPERTISE AREAS
-{chr(10).join(f"- {area}" for area in request.definition.content.expertise_areas)}
-
-{request.definition.content.additional_content}"""
-
-            # Create full updated content
-            full_content = f"""---
-{yaml.dump(yaml_data, default_flow_style=False)}---
-
-{persona_section}"""
-            
-            # Write updated file
-            with open(agent_file, 'w', encoding='utf-8') as f:
-                f.write(full_content)
-            
-            # Hot reload agents
-            await self._hot_reload_agents()
-            
-            logger.info("Updated agent", agent_key=agent_key, backup=str(backup_file))
-            
-            return {
-                "success": True,
-                "agent_key": agent_key,
-                "file_path": str(agent_file),
-                "backup_path": str(backup_file),
-                "message": f"Agent {agent_key} updated successfully",
-                "reload_status": "completed",
-                "ali_improvements_applied": bool(request.ali_improvements)
-            }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error("Failed to update agent", agent_key=request.agent_key, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Failed to update agent: {str(e)}")
+    metadata = agent.get("metadata", {})
     
-    async def delete_agent(self, agent_key: str) -> Dict[str, Any]:
-        """Delete an agent definition"""
-        try:
-            agent_file = self.agents_directory / f"{agent_key.replace('_', '-')}.md"
-            
-            if not agent_file.exists():
-                raise HTTPException(status_code=404, detail=f"Agent {agent_key} not found")
-            
-            # Create backup before deletion
-            backup_file = self.backup_directory / f"{agent_key}_deleted_{int(datetime.now().timestamp())}.md"
-            with open(agent_file, 'r') as src, open(backup_file, 'w') as dst:
-                dst.write(src.read())
-            
-            # Delete file
-            agent_file.unlink()
-            
-            # Hot reload agents
-            await self._hot_reload_agents()
-            
-            logger.info("Deleted agent", agent_key=agent_key, backup=str(backup_file))
-            
-            return {
-                "success": True,
-                "agent_key": agent_key,
-                "backup_path": str(backup_file),
-                "message": f"Agent {agent_key} deleted successfully",
-                "reload_status": "completed"
-            }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error("Failed to delete agent", agent_key=agent_key, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Failed to delete agent: {str(e)}")
-    
-    async def _hot_reload_agents(self):
-        """Hot reload agents without restarting the service"""
-        try:
-            # Reload agent definitions
-            agent_loader.scan_and_load_agents()
-            
-            # Update Ali's knowledge base
-            knowledge_base = agent_loader.generate_ali_knowledge_base()
-            
-            # Cache the updated knowledge base in Redis
-            redis_client = get_redis_client()
-            if redis_client:
-                await redis_client.setex("ali_knowledge_base", 3600, knowledge_base)
-            
-            logger.info("Hot reload completed", agent_count=len(agent_loader.agent_metadata))
-            
-        except Exception as e:
-            logger.error("Hot reload failed", error=str(e))
-            raise
-    
-    async def get_ali_assistance(self, request: AliAssistanceRequest) -> Dict[str, Any]:
-        """Get Ali's assistance for improving agent definitions"""
-        try:
-            # This would integrate with Ali's intelligence system
-            # For now, we'll provide structured improvement suggestions
-            
-            suggestions = {
-                "expertise_improvements": [],
-                "persona_enhancements": [],
-                "tool_recommendations": [],
-                "integration_suggestions": []
-            }
-            
-            # If updating existing agent
-            if request.agent_key and request.current_definition:
-                current_def = request.current_definition
-                
-                # Suggest expertise improvements
-                if len(current_def.content.expertise_areas) < 3:
-                    suggestions["expertise_improvements"].append(
-                        "Consider adding more specific expertise areas to make the agent more specialized"
-                    )
-                
-                # Suggest persona enhancements
-                if len(current_def.content.persona) < 100:
-                    suggestions["persona_enhancements"].append(
-                        "Expand the persona description to include personality traits and working style"
-                    )
-                
-                # Tool recommendations based on agent type
-                if "security" in current_def.metadata.description.lower():
-                    missing_security_tools = ["security_validation", "threat_detection", "vulnerability_scan"]
-                    current_tools = current_def.metadata.tools
-                    needed_tools = [tool for tool in missing_security_tools if tool not in current_tools]
-                    if needed_tools:
-                        suggestions["tool_recommendations"] = [
-                            f"Security agents typically benefit from these tools: {', '.join(needed_tools)}"
-                        ]
-                
-                # Integration suggestions
-                suggestions["integration_suggestions"].append(
-                    "Ensure the agent's expertise complements other agents in the ecosystem"
-                )
-            
-            # General improvement suggestions based on focus
-            if request.improvement_focus == "performance":
-                suggestions["performance_tips"] = [
-                    "Optimize tool usage for faster response times",
-                    "Consider caching frequently accessed data"
-                ]
-            elif request.improvement_focus == "collaboration":
-                suggestions["collaboration_tips"] = [
-                    "Define clear handoff points to other agents",
-                    "Specify when to escalate to Ali for coordination"
-                ]
-            
-            return {
-                "agent_key": request.agent_key,
-                "improvement_focus": request.improvement_focus,
-                "suggestions": suggestions,
-                "confidence_score": 0.85,  # Ali's confidence in the suggestions
-                "estimated_improvement": "15-25% better performance and user experience",
-                "next_steps": [
-                    "Review the suggested improvements",
-                    "Apply the changes you find most relevant",
-                    "Test the updated agent with sample interactions"
-                ]
-            }
-            
-        except Exception as e:
-            logger.error("Ali assistance failed", error=str(e))
-            raise HTTPException(status_code=500, detail=f"Ali assistance failed: {str(e)}")
+    return AgentResponse(
+        id=agent_id,
+        name=metadata.get("name", agent_id),
+        role=metadata.get("role", ""),
+        tier=metadata.get("tier", "specialist"),
+        category=metadata.get("category", "general"),
+        status=metadata.get("status", "active"),
+        version=metadata.get("version", "1.0.0"),
+        capabilities=metadata.get("capabilities", []),
+        tools=metadata.get("tools", []),
+        cost_per_interaction=metadata.get("cost_per_interaction", 0.1),
+        max_context_tokens=metadata.get("max_context_tokens", 8000),
+        temperature=metadata.get("temperature", 0.7),
+        model_preference=metadata.get("model_preference", "gpt-4-turbo-preview")
+    )
 
-# Global service instance
-agent_service = AgentManagerService()
 
-# API Endpoints
-@router.get("/agents")
-async def list_agents():
-    """List all available agents"""
-    return await agent_service.list_agents()
-
-@router.get("/agents/{agent_key}")
-async def get_agent(agent_key: str):
-    """Get specific agent definition"""
-    return await agent_service.get_agent(agent_key)
-
-@router.post("/agents")
-async def create_agent(request: AgentCreateRequest):
+@router.post("/agents", response_model=AgentResponse)
+async def create_agent(agent: AgentCreate):
     """Create a new agent"""
-    return await agent_service.create_agent(request)
+    # Generate agent ID from name
+    agent_id = agent.name.lower().replace(" ", "_").replace("-", "_")
+    
+    # Check if agent already exists
+    existing = agent_loader.get_agent(agent_id)
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Agent {agent_id} already exists")
+    
+    # Create agent definition file
+    agent_def = f"""---
+agent_id: {agent_id}
+name: {agent.name}
+role: {agent.role}
+tier: {agent.tier}
+category: {agent.category}
+version: 1.0.0
+status: active
+capabilities: {json.dumps(agent.capabilities)}
+tools: {json.dumps(agent.tools)}
+cost_per_interaction: {agent.cost_per_interaction}
+max_context_tokens: {agent.max_context_tokens}
+temperature: {agent.temperature}
+model_preference: {agent.model_preference}
+---
 
-@router.put("/agents/{agent_key}")
-async def update_agent(agent_key: str, request: AgentUpdateRequest):
+# {agent.name}
+
+## System Prompt
+
+{agent.system_prompt or f"You are {agent.name}, a {agent.role}."}
+"""
+    
+    # Save agent definition
+    agent_path = Path(f"backend/src/agents/definitions/{agent_id}.md")
+    agent_path.write_text(agent_def)
+    
+    # Reload agents
+    agent_loader.scan_and_load_agents()
+    
+    return AgentResponse(
+        id=agent_id,
+        name=agent.name,
+        role=agent.role,
+        tier=agent.tier,
+        category=agent.category,
+        status="active",
+        version="1.0.0",
+        capabilities=agent.capabilities,
+        tools=agent.tools,
+        cost_per_interaction=agent.cost_per_interaction,
+        max_context_tokens=agent.max_context_tokens,
+        temperature=agent.temperature,
+        model_preference=agent.model_preference,
+        created_at=datetime.utcnow().isoformat()
+    )
+
+
+@router.put("/agents/{agent_id}", response_model=AgentResponse)
+async def update_agent(agent_id: str, update: AgentUpdate):
     """Update an existing agent"""
-    request.agent_key = agent_key  # Ensure consistency
-    return await agent_service.update_agent(request)
+    agent = agent_loader.get_agent(agent_id)
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    
+    metadata = agent.get("metadata", {})
+    
+    # Apply updates
+    if update.role is not None:
+        metadata["role"] = update.role
+    if update.tier is not None:
+        metadata["tier"] = update.tier
+    if update.category is not None:
+        metadata["category"] = update.category
+    if update.capabilities is not None:
+        metadata["capabilities"] = update.capabilities
+    if update.tools is not None:
+        metadata["tools"] = update.tools
+    if update.max_context_tokens is not None:
+        metadata["max_context_tokens"] = update.max_context_tokens
+    if update.temperature is not None:
+        metadata["temperature"] = update.temperature
+    if update.model_preference is not None:
+        metadata["model_preference"] = update.model_preference
+    if update.cost_per_interaction is not None:
+        metadata["cost_per_interaction"] = update.cost_per_interaction
+    
+    # Update version
+    version_parts = metadata.get("version", "1.0.0").split(".")
+    version_parts[2] = str(int(version_parts[2]) + 1)
+    metadata["version"] = ".".join(version_parts)
+    
+    # Save updated agent (simplified - in production would update the .md file)
+    agent_loader.agents[agent_id]["metadata"] = metadata
+    
+    return AgentResponse(
+        id=agent_id,
+        name=metadata.get("name", agent_id),
+        role=metadata.get("role", ""),
+        tier=metadata.get("tier", "specialist"),
+        category=metadata.get("category", "general"),
+        status=metadata.get("status", "active"),
+        version=metadata.get("version", "1.0.0"),
+        capabilities=metadata.get("capabilities", []),
+        tools=metadata.get("tools", []),
+        cost_per_interaction=metadata.get("cost_per_interaction", 0.1),
+        max_context_tokens=metadata.get("max_context_tokens", 8000),
+        temperature=metadata.get("temperature", 0.7),
+        model_preference=metadata.get("model_preference", "gpt-4-turbo-preview"),
+        updated_at=datetime.utcnow().isoformat()
+    )
 
-@router.delete("/agents/{agent_key}")
-async def delete_agent(agent_key: str):
+
+@router.delete("/agents/{agent_id}")
+async def delete_agent(agent_id: str):
     """Delete an agent"""
-    return await agent_service.delete_agent(agent_key)
+    agent = agent_loader.get_agent(agent_id)
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    
+    # Mark as deprecated instead of deleting
+    metadata = agent.get("metadata", {})
+    metadata["status"] = "deprecated"
+    agent_loader.agents[agent_id]["metadata"] = metadata
+    
+    return {"message": f"Agent {agent_id} marked as deprecated"}
 
-@router.post("/agents/hot-reload")
-async def hot_reload_agents():
-    """Hot reload all agents without restarting"""
-    await agent_service._hot_reload_agents()
+
+# ===================== Agent Operations =====================
+
+@router.post("/agents/{agent_id}/validate")
+async def validate_agent(agent_id: str):
+    """Validate agent configuration"""
+    agent = agent_loader.get_agent(agent_id)
+    
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    
+    # Run validation
+    errors = []
+    warnings = []
+    metadata = agent.get("metadata", {})
+    
+    # Check required fields
+    if not metadata.get("role"):
+        errors.append("Missing required field: role")
+    if not metadata.get("capabilities"):
+        warnings.append("No capabilities defined")
+    if metadata.get("temperature", 0.7) > 1.5:
+        warnings.append("Temperature is very high, may produce inconsistent results")
+    
+    # Check system prompt
+    system_prompt = agent.get("system_prompt", "")
+    if len(system_prompt) < 50:
+        warnings.append("System prompt is very short")
+    if len(system_prompt) > 5000:
+        warnings.append("System prompt is very long")
+    
     return {
-        "success": True,
-        "message": "Agents reloaded successfully",
-        "agent_count": len(agent_loader.agent_metadata)
+        "valid": len(errors) == 0,
+        "errors": errors,
+        "warnings": warnings,
+        "message": "Validation passed" if not errors else f"Validation failed: {', '.join(errors)}"
     }
 
-@router.post("/agents/ali-assistance")
-async def get_ali_assistance(request: AliAssistanceRequest):
-    """Get Ali's assistance for improving agents"""
-    return await agent_service.get_ali_assistance(request)
 
-@router.get("/agents/backups")
-async def list_agent_backups():
-    """List all agent backups"""
-    backup_dir = Path("data/agent_backups")
-    if not backup_dir.exists():
-        return {"backups": []}
+@router.post("/agents/{agent_id}/reload")
+async def reload_agent(agent_id: str):
+    """Hot-reload an agent"""
+    agent = agent_loader.get_agent(agent_id)
     
-    backups = []
-    for backup_file in backup_dir.glob("*.md"):
-        stat = backup_file.stat()
-        backups.append({
-            "filename": backup_file.name,
-            "size_bytes": stat.st_size,
-            "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-            "agent_key": backup_file.stem.split("_")[0]
-        })
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    
+    # Trigger hot-reload
+    agent_loader.reload_agent(agent_id)
     
     return {
-        "backups": sorted(backups, key=lambda x: x["created"], reverse=True),
-        "total_backups": len(backups)
+        "message": f"Agent {agent_id} reloaded successfully",
+        "version": agent.get("metadata", {}).get("version", "1.0.0")
+    }
+
+
+@router.get("/agents/{agent_id}/history")
+async def get_agent_history(agent_id: str):
+    """Get agent version history"""
+    history = agent_loader.get_version_history(agent_id)
+    
+    if not history:
+        raise HTTPException(status_code=404, detail=f"No history found for agent {agent_id}")
+    
+    return {
+        "agent_id": agent_id,
+        "versions": history,
+        "current_version": agent_loader.get_agent(agent_id).get("metadata", {}).get("version", "1.0.0")
+    }
+
+
+@router.post("/agents/{agent_id}/rollback")
+async def rollback_agent(agent_id: str, version: str):
+    """Rollback agent to previous version"""
+    success = agent_loader.rollback_agent(agent_id, version)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Failed to rollback agent {agent_id} to version {version}")
+    
+    return {
+        "message": f"Agent {agent_id} rolled back to version {version}",
+        "current_version": version
+    }
+
+
+# ===================== Bulk Operations =====================
+
+@router.post("/agents/bulk/validate")
+async def validate_all_agents():
+    """Validate all agents"""
+    agents = agent_loader.list_agents()
+    results = {}
+    
+    for agent_id in agents:
+        agent = agent_loader.get_agent(agent_id)
+        metadata = agent.get("metadata", {})
+        
+        errors = []
+        if not metadata.get("role"):
+            errors.append("Missing role")
+        if not agent.get("system_prompt"):
+            errors.append("Missing system prompt")
+        
+        results[agent_id] = {
+            "valid": len(errors) == 0,
+            "errors": errors
+        }
+    
+    valid_count = sum(1 for r in results.values() if r["valid"])
+    
+    return {
+        "total": len(results),
+        "valid": valid_count,
+        "invalid": len(results) - valid_count,
+        "results": results
+    }
+
+
+@router.post("/agents/bulk/reload")
+async def reload_all_agents():
+    """Hot-reload all agents"""
+    agent_loader.scan_and_load_agents()
+    
+    return {
+        "message": "All agents reloaded successfully",
+        "agent_count": len(agent_loader.agents)
     }

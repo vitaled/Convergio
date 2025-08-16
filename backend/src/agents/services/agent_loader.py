@@ -1,18 +1,25 @@
 """
-CONVERGIO 2029 - DYNAMIC AGENT LOADER
-Auto-discovery system for MyConvergio agents from MD files
+CONVERGIO 2029 - DYNAMIC AGENT LOADER WITH HOT-RELOAD
+Auto-discovery system for MyConvergio agents from MD files with file watching
 """
 
 import os
 import re
 import yaml
+import asyncio
+import threading
+import time
+import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
+from datetime import datetime
 
 import structlog
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 
 logger = structlog.get_logger()
 
@@ -28,14 +35,82 @@ class AgentMetadata:
     tier: str
     class_name: str
     key: str
+    file_hash: Optional[str] = None
+    last_modified: Optional[datetime] = None
+    version: str = "1.0.0"
+
+class AgentFileWatcher(FileSystemEventHandler):
+    """File watcher for agent definition files"""
+    
+    def __init__(self, loader: 'DynamicAgentLoader'):
+        self.loader = loader
+        self.debounce_timers: Dict[str, threading.Timer] = {}
+        
+    def on_modified(self, event):
+        if event.is_directory:
+            return
+            
+        file_path = Path(event.src_path)
+        if file_path.suffix == '.md':
+            # Debounce file changes (wait 1 second before reloading)
+            if str(file_path) in self.debounce_timers:
+                self.debounce_timers[str(file_path)].cancel()
+            
+            timer = threading.Timer(1.0, self._reload_agent, args=[file_path])
+            self.debounce_timers[str(file_path)] = timer
+            timer.start()
+    
+    def _reload_agent(self, file_path: Path):
+        """Reload a single agent file"""
+        try:
+            logger.info(f"🔄 Hot-reloading agent: {file_path.name}")
+            
+            # Store previous version for rollback
+            agent_key = file_path.stem.replace('-', '_')
+            previous_metadata = self.loader.agent_metadata.get(agent_key)
+            
+            # Parse the updated file
+            new_metadata = self.loader._parse_agent_file(file_path)
+            
+            if new_metadata:
+                # Validate the new agent definition
+                if self.loader._validate_agent(new_metadata):
+                    # Update the agent
+                    self.loader.agent_metadata[new_metadata.key] = new_metadata
+                    self.loader._build_agent_registry()
+                    
+                    # Trigger reload callbacks
+                    for callback in self.loader.reload_callbacks:
+                        try:
+                            callback(new_metadata.key, new_metadata)
+                        except Exception as e:
+                            logger.error(f"Reload callback failed: {e}")
+                    
+                    logger.info(f"✅ Successfully reloaded agent: {new_metadata.name}")
+                else:
+                    # Rollback to previous version
+                    if previous_metadata:
+                        self.loader.agent_metadata[agent_key] = previous_metadata
+                    logger.warning(f"⚠️ Agent validation failed, rolled back: {file_path.name}")
+            else:
+                logger.error(f"❌ Failed to parse agent file: {file_path.name}")
+                
+        except Exception as e:
+            logger.error(f"Error during hot-reload: {e}")
+
 
 class DynamicAgentLoader:
-    """Dynamic agent loader that auto-discovers agents from MD files."""
+    """Dynamic agent loader with hot-reload support"""
     
-    def __init__(self, agents_directory: str):
+    def __init__(self, agents_directory: str, enable_hot_reload: bool = True):
         self.agents_directory = Path(agents_directory)
         self.agent_metadata: Dict[str, AgentMetadata] = {}
         self.agent_registry: Dict[str, str] = {}  # name -> description mapping
+        self.agent_backups: Dict[str, List[AgentMetadata]] = {}  # Version history
+        self.reload_callbacks: List[Callable] = []
+        self.enable_hot_reload = enable_hot_reload
+        self.file_observer: Optional[Observer] = None
+        self.watcher: Optional[AgentFileWatcher] = None
         
     def scan_and_load_agents(self) -> Dict[str, AgentMetadata]:
         """Scan directory and load all agent definitions."""
@@ -115,6 +190,10 @@ class DynamicAgentLoader:
             class_name = ''.join(word.capitalize() for word in name.replace('-', '_').split('_'))
             key = name.replace('-', '_')
             
+            # Calculate file hash for change detection
+            file_hash = self._calculate_file_hash(md_file)
+            last_modified = datetime.fromtimestamp(md_file.stat().st_mtime)
+            
             return AgentMetadata(
                 name=name,
                 description=description,
@@ -124,7 +203,10 @@ class DynamicAgentLoader:
                 expertise_keywords=expertise_keywords,
                 tier=tier,
                 class_name=class_name,
-                key=key
+                key=key,
+                file_hash=file_hash,
+                last_modified=last_modified,
+                version=metadata.get('version', '1.0.0')
             )
             
         except Exception as e:
@@ -297,6 +379,56 @@ ROUTING INTELLIGENCE:
 - Match request keywords to agent expertise areas
 - Consider collaboration patterns for complex requests
 - Always explain your routing decision briefly"""
+    
+    def _calculate_file_hash(self, file_path: Path) -> str:
+        """Calculate MD5 hash of file content"""
+        with open(file_path, 'rb') as f:
+            return hashlib.md5(f.read()).hexdigest()
+    
+    def _validate_agent(self, metadata: AgentMetadata) -> bool:
+        """Validate agent metadata"""
+        # Basic validation rules
+        if not metadata.name or not metadata.description:
+            return False
+        if not metadata.persona or len(metadata.persona) < 50:
+            return False
+        if not metadata.tier:
+            return False
+        return True
+    
+    def start_watching(self):
+        """Start file watcher for hot-reload"""
+        if not self.enable_hot_reload:
+            return
+        
+        if self.file_observer:
+            self.stop_watching()
+        
+        self.watcher = AgentFileWatcher(self)
+        self.file_observer = Observer()
+        self.file_observer.schedule(
+            self.watcher,
+            str(self.agents_directory),
+            recursive=False
+        )
+        self.file_observer.start()
+        logger.info("🔥 Hot-reload enabled for agent definitions")
+    
+    def stop_watching(self):
+        """Stop file watcher"""
+        if self.file_observer:
+            self.file_observer.stop()
+            self.file_observer.join()
+            self.file_observer = None
+            logger.info("🛑 Hot-reload stopped")
+    
+    def register_reload_callback(self, callback: Callable):
+        """Register callback for agent reload events"""
+        self.reload_callbacks.append(callback)
+    
+    def get_agent_version_history(self, agent_key: str) -> List[AgentMetadata]:
+        """Get version history for an agent"""
+        return self.agent_backups.get(agent_key, [])
     
     def get_agent_count(self) -> int:
         """Get total number of loaded agents."""
