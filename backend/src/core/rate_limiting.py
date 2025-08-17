@@ -208,21 +208,30 @@ class RateLimitMiddleware:
 # Global rate limiter instance
 _rate_limiter: Optional[RateLimiter] = None
 
-async def get_rate_limiter() -> RateLimiter:
+async def get_rate_limiter() -> Optional[RateLimiter]:
     """Get global rate limiter instance"""
     global _rate_limiter
     if _rate_limiter is None:
-        # Initialize Redis client
-        redis_client = redis.Redis(
-            host=get_settings().redis_host,
-            port=get_settings().redis_port,
-            db=get_settings().redis_db,
-            decode_responses=False
-        )
-        _rate_limiter = RateLimiter(redis_client)
+        try:
+            # Initialize Redis client
+            redis_client = redis.Redis(
+                host=get_settings().redis_host,
+                port=get_settings().redis_port,
+                db=get_settings().redis_db,
+                decode_responses=False
+            )
+            # Test connection
+            await redis_client.ping()
+            _rate_limiter = RateLimiter(redis_client)
+        except Exception as e:
+            print(f"⚠️ Warning: Could not connect to Redis for rate limiting: {e}")
+            print("Rate limiting will be disabled for this session")
+            return None
     return _rate_limiter
 
-async def create_rate_limit_middleware() -> RateLimitMiddleware:
+async def create_rate_limit_middleware() -> Optional[RateLimitMiddleware]:
     """Create rate limit middleware instance"""
     rate_limiter = await get_rate_limiter()
+    if not rate_limiter:
+        return None
     return RateLimitMiddleware(rate_limiter)

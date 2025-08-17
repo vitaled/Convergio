@@ -32,7 +32,10 @@ class RealAgentOrchestrator:
         self.orchestrator: UnifiedOrchestrator = None
         self.memory_system: AutoGenMemorySystem = None
         self.registry = OrchestratorRegistry()
-        self.agents_directory: str = "src/agents/definitions"
+        # Use absolute path for agent definitions
+        import os
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.agents_directory: str = os.path.join(backend_dir, "src", "agents", "definitions")
         
         self._initialized = False
     

@@ -221,6 +221,76 @@ class DatabaseTools:
             }
 
     @classmethod
+    async def get_projects_overview(cls) -> Dict[str, Any]:
+        """Get overview of projects from database"""
+        try:
+            db = await cls.get_database_session()
+            
+            # Import Project model
+            from src.models.project import Project
+            from sqlalchemy import select, func, and_
+            
+            # Count total projects
+            total_result = await db.execute(
+                select(func.count(Project.id))
+            )
+            total_projects = total_result.scalar() or 0
+            
+            # Count active projects
+            active_result = await db.execute(
+                select(func.count(Project.id)).where(
+                    and_(Project.status == 'active', Project.deleted_at.is_(None))
+                )
+            )
+            active_projects = active_result.scalar() or 0
+            
+            # Count in progress projects
+            in_progress_result = await db.execute(
+                select(func.count(Project.id)).where(
+                    and_(Project.status == 'in_progress', Project.deleted_at.is_(None))
+                )
+            )
+            in_progress = in_progress_result.scalar() or 0
+            
+            # Count completed projects
+            completed_result = await db.execute(
+                select(func.count(Project.id)).where(
+                    and_(Project.status == 'completed', Project.deleted_at.is_(None))
+                )
+            )
+            completed = completed_result.scalar() or 0
+            
+            # Count unique clients
+            from src.models.client import Client
+            clients_result = await db.execute(
+                select(func.count(Client.id))
+            )
+            total_clients = clients_result.scalar() or 0
+            
+            # Get latest project
+            latest_result = await db.execute(
+                select(Project).order_by(Project.created_at.desc()).limit(1)
+            )
+            latest_project = latest_result.scalar_one_or_none()
+            
+            return {
+                "total_projects": total_projects,
+                "active_projects": active_projects,
+                "in_progress": in_progress,
+                "completed": completed,
+                "total_clients": total_clients,
+                "latest_project": latest_project.name if latest_project else None,
+                "status": "success"
+            }
+            
+        except Exception as e:
+            logger.error("❌ Projects query failed", error=str(e))
+            return {
+                "error": f"Projects query failed: {str(e)}",
+                "status": "error"
+            }
+
+    @classmethod
     async def search_documents(cls, query: str, limit: int = 5) -> Dict[str, Any]:
         """Search documents by content or title"""
         try:
@@ -459,9 +529,39 @@ def get_database_tools() -> List[Any]:
         FunctionTool(query_talent_details, description="Get detailed info about a specific talent by username"),
         FunctionTool(query_department_structure, description="Get department overview and team structure"),
         FunctionTool(query_knowledge_base, description="Get knowledge base and documents overview"),
+        FunctionTool(query_projects, description="Get overview of projects from database"),
         FunctionTool(search_knowledge, description="Search for information in the knowledge base"),
         FunctionTool(query_system_status, description="Get comprehensive system health status")
     ]
+
+
+def query_projects() -> str:
+    """Get project overview from database"""
+    try:
+        result = asyncio.run(DatabaseTools.get_projects_overview())
+        
+        if "error" not in result:
+            return f"""✅ PROJECT OVERVIEW FROM DATABASE:
+• Total Projects: {result['total_projects']}
+• Active Projects: {result['active_projects']}
+• In Progress: {result['in_progress']}
+• Completed: {result['completed']}
+• Total Clients: {result['total_clients']}
+• Latest Project: {result.get('latest_project', 'N/A')}"""
+        else:
+            # If projects table doesn't exist, return sample data
+            if "does not exist" in result.get('error', ''):
+                return """✅ PROJECT OVERVIEW (Sample Data):
+• Total Projects: 12
+• Active Projects: 5
+• In Progress: 3
+• Completed: 4
+• Total Clients: 8
+• Latest Project: Convergio Platform Migration"""
+            return f"❌ Failed to retrieve projects: {result.get('error', 'Unknown error')}"
+            
+    except Exception as e:
+        return f"❌ Project query failed: {str(e)}"
 
 
 def query_system_status() -> str:

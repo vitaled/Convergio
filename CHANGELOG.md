@@ -1,4 +1,10 @@
 # Changelog
+## [1.0.106] - 2025-08-17
+
+### 🔄 **Build Update**
+- Automatic build number increment
+- Commit: $(git rev-parse --short HEAD)
+
 ## [1.0.105] - 2025-08-16
 
 ### 🔄 **Build Update**

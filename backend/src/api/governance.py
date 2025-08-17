@@ -26,6 +26,8 @@ async def get_rate_limit_status(
     """Get rate limit status for a specific identifier"""
     try:
         rate_limiter = await get_rate_limiter()
+        if not rate_limiter:
+            return {"message": "Rate limiting is disabled (Redis not available)"}
         status = await rate_limiter.get_rate_limit_status(identifier)
         return status
     except Exception as e:
@@ -40,6 +42,8 @@ async def block_identifier(
     """Manually block an identifier for rate limiting"""
     try:
         rate_limiter = await get_rate_limiter()
+        if not rate_limiter:
+            return {"message": "Rate limiting is disabled (Redis not available)"}
         # This would need to be implemented in the RateLimiter class
         return {"message": f"Identifier {identifier} blocked for {duration} seconds"}
     except Exception as e:

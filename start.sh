@@ -130,11 +130,31 @@ fi
 echo "✅ All system checks passed!"
 echo ""
 
+# ----------------------------------------------------------------------------------
+# Load environment variables from backend/.env file
+# ----------------------------------------------------------------------------------
+if [[ -f "backend/.env" ]]; then
+  echo "📋 Loading environment variables from backend/.env file..."
+  set -a
+  source backend/.env
+  set +a
+elif [[ -f ".env" ]]; then
+  echo "📋 Loading environment variables from .env file..."
+  set -a
+  source .env
+  set +a
+else
+  echo "❌ .env file not found! Please create one from .env.example"
+  exit 1
+fi
+
 # ----------------------------------------------------------------------------------  
 # Start Backend and Frontend on fixed ports
 # ----------------------------------------------------------------------------------
 echo "🚀 Starting backend on port $BACKEND_PORT..."
 cd backend
+# Export PYTHONPATH to ensure proper module resolution
+export PYTHONPATH="${PWD}:${PYTHONPATH:-}"
 uvicorn src.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload &
 BACKEND_PID=$!
 cd ..

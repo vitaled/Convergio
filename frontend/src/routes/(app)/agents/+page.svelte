@@ -322,22 +322,25 @@
       if (response.ok) {
         const data = await response.json();
         
+        // The backend now returns an array directly, not wrapped in {agents: [...]}
+        const agentsArray = Array.isArray(data) ? data : (data.agents || []);
+        
         // Transform backend agent data to frontend format with proper names and descriptions
-        const transformedAgents = data.agents.map((backendAgent: any, index: number) => {
-          // Convert backend name to proper display name (ali-chief-of-staff -> Ali)
+        const transformedAgents = agentsArray.map((backendAgent: any, index: number) => {
+          // Convert backend name to proper display name (ethan-ic6da -> Ethan)
           const displayName = backendAgent.name.split('-')[0].charAt(0).toUpperCase() + 
                               backendAgent.name.split('-')[0].slice(1);
           
-          // Create simple role from description
-          const role = getSimpleRole(backendAgent.key);
-          const description = getSimpleDescription(backendAgent.key);
-          const specialty = getSimpleSpecialty(backendAgent.key);
-          const personality = getSimplePersonality(backendAgent.key);
+          // Use backend data or fallback to helper functions
+          const role = backendAgent.tier || getSimpleRole(backendAgent.id);
+          const description = backendAgent.role || getSimpleDescription(backendAgent.id);
+          const specialty = backendAgent.category || getSimpleSpecialty(backendAgent.id);
+          const personality = getSimplePersonality(backendAgent.id);
           
           return {
             id: index + 1,
             name: displayName,
-            key: backendAgent.key,
+            key: backendAgent.id, // backend uses 'id' not 'key'
             role: role,
             description: description,
             specialty: specialty,

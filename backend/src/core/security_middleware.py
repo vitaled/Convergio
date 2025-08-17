@@ -3,11 +3,15 @@ Security Middleware for Convergio
 Implements security headers and protections
 """
 
-from fastapi import Request
+from fastapi import Request, Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable
+from typing import Callable, Optional
 import time
+import jwt
+from datetime import datetime, timedelta
+import os
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses"""
@@ -95,3 +99,51 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/api/costs"
         ]
         return any(path.startswith(p) for p in sensitive_paths)
+
+
+# Authentication helpers
+security = HTTPBearer(auto_error=False)
+
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+):
+    """
+    Get the current authenticated user.
+    For now, returns a mock user for development.
+    In production, this should validate JWT tokens and fetch user from database.
+    """
+    # Import here to avoid circular dependency
+    from src.models.user import User
+    
+    # For development, return a mock admin user
+    # In production, validate the JWT token and fetch user from database
+    if not credentials:
+        # Allow anonymous access for development
+        return User(
+            email="anonymous@convergio.ai",
+            username="anonymous",
+            full_name="Anonymous User"
+        )
+    
+    try:
+        # In production, decode JWT token
+        # payload = jwt.decode(
+        #     credentials.credentials,
+        #     os.getenv("JWT_SECRET", "development-secret"),
+        #     algorithms=["HS256"]
+        # )
+        # user_id = payload.get("sub")
+        # Fetch user from database...
+        
+        # For now, return mock admin user
+        return User(
+            email="admin@convergio.ai",
+            username="admin",
+            full_name="Admin User"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )

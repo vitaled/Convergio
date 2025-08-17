@@ -12,11 +12,18 @@ import yaml
 from src.agents.services.agent_loader import DynamicAgentLoader
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/v1/agent-management", tags=["Agent Management"])
+router = APIRouter(tags=["Agent Management"])
 
 # Initialize agent loader
+import os
+from pathlib import Path
+
+# Get absolute path to agent definitions
+current_dir = Path(__file__).parent.parent  # Go up to src/
+agent_definitions_path = current_dir / "agents" / "definitions"
+
 agent_loader = DynamicAgentLoader(
-    "backend/src/agents/definitions",
+    str(agent_definitions_path),
     enable_hot_reload=True
 )
 
@@ -77,32 +84,40 @@ async def list_agents(
     limit: int = Query(100, ge=1, le=500)
 ):
     """List all agents with optional filtering"""
-    agents = agent_loader.list_agents()
+    # Ensure agents are loaded
+    if not agent_loader.agent_metadata:
+        agent_loader.scan_and_load_agents()
+    
+    agents = agent_loader.agent_metadata
     
     result = []
     for agent_key, metadata in agents.items():
+        # metadata is an AgentMetadata dataclass object
         # Apply filters
-        if category and metadata.get("category") != category:
+        if category and getattr(metadata, "category", "general") != category:
             continue
-        if tier and metadata.get("tier") != tier:
+        if tier and metadata.tier != tier:
             continue
-        if status and metadata.get("status", "active") != status:
+        if status and getattr(metadata, "status", "active") != status:
             continue
+        
+        # Convert tools list of strings to list of dicts
+        tools_as_dicts = [{"name": tool, "enabled": True} for tool in metadata.tools]
         
         result.append(AgentResponse(
             id=agent_key,
-            name=metadata.get("name", agent_key),
-            role=metadata.get("role", ""),
-            tier=metadata.get("tier", "specialist"),
-            category=metadata.get("category", "general"),
-            status=metadata.get("status", "active"),
-            version=metadata.get("version", "1.0.0"),
-            capabilities=metadata.get("capabilities", []),
-            tools=metadata.get("tools", []),
-            cost_per_interaction=metadata.get("cost_per_interaction", 0.1),
-            max_context_tokens=metadata.get("max_context_tokens", 8000),
-            temperature=metadata.get("temperature", 0.7),
-            model_preference=metadata.get("model_preference", "gpt-4-turbo-preview")
+            name=metadata.name,
+            role=metadata.description,
+            tier=metadata.tier,
+            category=getattr(metadata, "category", "general"),
+            status=getattr(metadata, "status", "active"),
+            version=metadata.version,
+            capabilities=getattr(metadata, "capabilities", []),
+            tools=tools_as_dicts,
+            cost_per_interaction=getattr(metadata, "cost_per_interaction", 0.1),
+            max_context_tokens=getattr(metadata, "max_context_tokens", 8000),
+            temperature=getattr(metadata, "temperature", 0.7),
+            model_preference=getattr(metadata, "model_preference", "gpt-4-turbo-preview")
         ))
     
     return result[:limit]
