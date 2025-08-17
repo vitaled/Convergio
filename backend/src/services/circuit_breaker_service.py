@@ -13,8 +13,8 @@ from enum import Enum
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_async_session, get_async_read_session
-from src.services.budget_monitor_service import budget_monitor
+from core.database import get_async_session, get_async_read_session
+# from services.budget_monitor_service import budget_monitor
 
 logger = structlog.get_logger()
 
@@ -436,7 +436,7 @@ class CircuitBreakerService:
         """Create a circuit breaker alert"""
         
         try:
-            from src.models.cost_tracking import CostAlert
+            from models.cost_tracking import CostAlert
             
             async with get_async_session() as db:
                 alert = CostAlert(

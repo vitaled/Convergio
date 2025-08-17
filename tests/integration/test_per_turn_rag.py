@@ -8,9 +8,9 @@ import asyncio
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime, timedelta
 
-from src.agents.services.groupchat.per_turn_rag import PerTurnRAGInjector
-from src.agents.services.groupchat.conflict_detector import detect_conflicts
-from src.agents.utils.config import get_settings
+from agents.services.groupchat.per_turn_rag import PerTurnRAGInjector
+from agents.services.groupchat.conflict_detector import detect_conflicts
+from agents.utils.config import get_settings
 
 
 class TestPerTurnRAG:

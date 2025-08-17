@@ -26,36 +26,36 @@ from prometheus_client import make_asgi_app
 # from slowapi.errors import RateLimitExceeded
 # from slowapi.util import get_remote_address
 
-from src.core.config import get_settings
-from src.core.database import init_db, close_db
-from src.core.redis import init_redis, close_redis
-from src.core.logging import setup_logging
-from src.core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
+from core.config import get_settings
+from core.database import init_db, close_db
+from core.redis import init_redis, close_redis
+from core.logging_utils import setup_async_logging
+from core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
 
 # Import routers
-from src.api.talents import router as talents_router
-from src.api.agents import router as agents_router
-from src.api.vector import router as vector_router
-from src.api.health import router as health_router
-from src.api.user_keys import router as user_keys_router
-from src.api.ali_intelligence import router as ali_intelligence_router
-from src.api.cost_management import router as cost_management_router
-from src.api.analytics import router as analytics_router
-from src.api.workflows import router as workflows_router
-from src.api.agent_signatures import router as agent_signatures_router
-from src.api.component_serialization import router as serialization_router
-from src.api.agent_management import router as agent_management_router
-from src.api.swarm_coordination import router as swarm_coordination_router
-from src.api.agents_ecosystem import router as agents_ecosystem_router
-from src.api.admin import router as admin_router
-from src.api.approvals import router as approvals_router
-from src.api.projects import router as projects_router
-from src.api.system_status import router as system_status_router
-from src.api.telemetry import router as telemetry_router
-from src.api.governance import router as governance_router
+from api.talents import router as talents_router
+from api.agents import router as agents_router
+from api.vector import router as vector_router
+from api.health import router as health_router
+from api.user_keys import router as user_keys_router
+from api.ali_intelligence import router as ali_intelligence_router
+from api.cost_management import router as cost_management_router
+from api.analytics import router as analytics_router
+from api.workflows import router as workflows_router
+from api.agent_signatures import router as agent_signatures_router
+from api.component_serialization import router as serialization_router
+from api.agent_management import router as agent_management_router
+from api.swarm_coordination import router as swarm_coordination_router
+from api.agents_ecosystem import router as agents_ecosystem_router
+from api.admin import router as admin_router
+from api.approvals import router as approvals_router
+from api.projects import router as projects_router
+from api.system_status import router as system_status_router
+from api.telemetry import router as telemetry_router
+from api.governance import router as governance_router
 
-# Setup structured logging
-setup_logging()
+# Setup non-blocking structured logging for asyncio
+setup_async_logging()
 logger = structlog.get_logger()
 
 # Rate limiting
@@ -71,31 +71,44 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     try:
         # Initialize database
         logger.info("📊 Initializing database connection pool...")
-        await init_db()
+        try:
+            await init_db()
+        except Exception as e:
+            # In test environment, allow backend to run without DB
+            if get_settings().ENVIRONMENT in ("test", "development"):
+                logger.warning(f"⚠️ DB init failed, continuing in {get_settings().ENVIRONMENT}: {e}")
+            else:
+                raise
         # Auto-create tables in development for smoother E2E/dev experience
         try:
             if get_settings().ENVIRONMENT == "development":
                 from sqlalchemy import text as _sql_text
-                from src.core.database import async_engine
+                from core.database import async_engine
                 async with async_engine.begin() as conn:
                     # Create tables if not exist
-                    from src.core.database import Base
+                    from core.database import Base
                     await conn.run_sync(Base.metadata.create_all)
                 logger.info("🧱 Database tables ensured (development mode)")
                 # Ensure specific dev schema consistency (lightweight auto-migrations)
-                from src.core.database import ensure_dev_schema
+                from core.database import ensure_dev_schema
                 await ensure_dev_schema()
         except Exception as _e:
             logger.warning(f"⚠️ Table auto-create skipped/failed: {_e}")
         
         # Initialize Redis
         logger.info("🚀 Initializing Redis connection pool...")  
-        await init_redis()
+        try:
+            await init_redis()
+        except Exception as e:
+            if get_settings().ENVIRONMENT in ("test", "development"):
+                logger.warning(f"⚠️ Redis init failed, continuing in {get_settings().ENVIRONMENT}: {e}")
+            else:
+                raise
         
         # Initialize AI agent system
         logger.info("🤖 Initializing AI agent orchestration system...")
         try:
-            from src.agents.orchestrator import initialize_agents
+            from agents.orchestrator import initialize_agents
             await initialize_agents()
             logger.info("✅ AI Agent System initialized successfully")
         except Exception as agent_error:
@@ -105,7 +118,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize streaming orchestrator system
         logger.info("🌊 Initializing streaming orchestrator system...")
         try:
-            from src.agents.services.streaming_orchestrator import get_streaming_orchestrator
+            from agents.services.streaming_orchestrator import get_streaming_orchestrator
             streaming_orchestrator = get_streaming_orchestrator()
             await streaming_orchestrator.initialize()
             logger.info("✅ Streaming Orchestrator initialized successfully")
@@ -119,7 +132,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize database maintenance scheduler
         logger.info("🔧 Initializing database maintenance scheduler...")
         try:
-            from src.core.db_maintenance import get_db_maintenance
+            from core.db_maintenance import get_db_maintenance
             db_maintenance = get_db_maintenance()
             # Schedule VACUUM ANALYZE at 3:00 AM UTC daily
             db_maintenance.schedule_maintenance(vacuum_hour=3, vacuum_minute=0)
@@ -142,7 +155,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     try:
         # Stop database maintenance scheduler
         try:
-            from src.core.db_maintenance import get_db_maintenance
+            from core.db_maintenance import get_db_maintenance
             db_maintenance = get_db_maintenance()
             db_maintenance.stop_maintenance()
             logger.info("✅ Database maintenance scheduler stopped")

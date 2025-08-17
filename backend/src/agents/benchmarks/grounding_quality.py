@@ -11,11 +11,11 @@ from dataclasses import dataclass, field, asdict
 import structlog
 from pathlib import Path
 
-from ..services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-from ..services.redis_state_manager import RedisStateManager
-from ..services.cost_tracker import CostTracker
-from ..utils.config import get_settings
-from ..utils.feature_flags import FeatureFlagName, get_feature_flags
+from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+from agents.services.redis_state_manager import RedisStateManager
+from agents.services.cost_tracker import CostTracker
+from agents.utils.config import get_settings
+from agents.utils.feature_flags import FeatureFlagName, get_feature_flags
 
 logger = structlog.get_logger()
 

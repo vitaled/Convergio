@@ -16,12 +16,12 @@ from autogen_agentchat.teams import RoundRobinGroupChat, SelectorGroupChat
 from autogen_agentchat.messages import HandoffMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from .cost_tracker import CostTracker
-from .redis_state_manager import RedisStateManager
-from .agent_loader import DynamicAgentLoader, AgentMetadata
-from ..utils.config import get_settings
-from ..tools.backend_api_client import query_talents_count, query_engagements_summary, query_dashboard_stats, query_skills_overview
-from ..tools.vector_search_client import search_talents_by_skills, search_projects_by_requirements, search_knowledge_base, semantic_search, contextual_business_search
+from cost_tracker import CostTracker
+from redis_state_manager import RedisStateManager
+from agent_loader import DynamicAgentLoader, AgentMetadata
+from agents.utils.config import get_settings
+from agents.tools.backend_api_client import query_talents_count, query_engagements_summary, query_dashboard_stats, query_skills_overview
+from agents.tools.vector_search_client import search_talents_by_skills, search_projects_by_requirements, search_knowledge_base, semantic_search, contextual_business_search
 
 logger = structlog.get_logger()
 

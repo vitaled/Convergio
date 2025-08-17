@@ -19,9 +19,9 @@ from sqlalchemy import text, select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
-from .ai_clients import batch_create_embeddings, get_embedding
-from .vector_utils import VectorOperations
-from .database import get_async_session
+from ai_clients import batch_create_embeddings, get_embedding
+from vector_utils import VectorOperations
+from database import get_async_session
 
 logger = structlog.get_logger()
 

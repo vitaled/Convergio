@@ -331,7 +331,7 @@ class AIClientManager:
         api_key = None
         if request:
             # Import only if needed
-            from src.api.user_keys import get_user_api_key, get_user_default_model
+            from api.user_keys import get_user_api_key, get_user_default_model
             api_key = get_user_api_key(request, provider)
             model = model or get_user_default_model(request)
         
@@ -376,7 +376,7 @@ class AIClientManager:
         # Get API key
         api_key = None
         if request:
-            from src.api.user_keys import get_user_api_key, get_user_default_model
+            from api.user_keys import get_user_api_key, get_user_default_model
             api_key = get_user_api_key(request, provider)
             model = model or get_user_default_model(request)
         

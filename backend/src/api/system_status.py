@@ -8,17 +8,15 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
-from src.core.database import get_db_session
-from src.core.config import get_settings
+from core.database import get_db_session
+from core.config import get_settings
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/system", tags=["System"])
 
 
 @router.get("/api-status")
-async def get_system_api_status(
-    db: AsyncSession = Depends(get_db_session)
-) -> Dict[str, Any]:
+async def get_system_api_status() -> Dict[str, Any]:
     """
     Get system-wide API configuration status.
     Checks both .env configuration and user-provided keys.
@@ -75,9 +73,7 @@ async def get_system_api_status(
 
 
 @router.get("/health-detailed")
-async def get_detailed_health(
-    db: AsyncSession = Depends(get_db_session)
-) -> Dict[str, Any]:
+async def get_detailed_health(db: AsyncSession = Depends(get_db_session)) -> Dict[str, Any]:
     """
     Get detailed system health including all services.
     """
@@ -94,7 +90,7 @@ async def get_detailed_health(
     
     # Check Redis
     try:
-        from src.core.redis import redis_client
+        from core.redis import redis_client
         if redis_client:
             await redis_client.ping()
             redis_connected = True
@@ -116,4 +112,15 @@ async def get_detailed_health(
             },
             "apis": api_status
         }
+    }
+
+
+# Legacy simple status for tests that just need a heartbeat
+@router.get("/status")
+async def simple_status() -> Dict[str, Any]:
+    settings = get_settings()
+    return {
+        "version": settings.app_version,
+        "environment": settings.ENVIRONMENT,
+        "status": "ok"
     }

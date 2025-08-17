@@ -1,13 +1,5 @@
 import pytest
-import sys
-from pathlib import Path
-
-# Ensure backend/src is importable as 'src.*'
-project_root = Path(__file__).parent.parent.parent
-backend_path = project_root / "backend"
-sys.path.insert(0, str(backend_path))
-
-from src.agents.services.decision_engine import DecisionEngine
+from agents.services.decision_engine import DecisionEngine
 
 
 @pytest.mark.integration

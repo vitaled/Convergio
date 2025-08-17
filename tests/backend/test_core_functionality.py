@@ -35,11 +35,11 @@ from unittest.mock import Mock, patch, AsyncMock
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
-from src.core.config import get_settings
-from src.core.database import get_db_session
-from src.agents.orchestrator import OrchestratorAgent
-from src.agents.ali_ceo import AliCEO
-from src.agents.amy_cfo import AmyCFO
+from core.config import get_settings
+from core.database import get_db_session
+from agents.orchestrator import OrchestratorAgent
+from agents.ali_ceo import AliCEO
+from agents.amy_cfo import AmyCFO
 
 # Configure logging with timestamp
 LOG_DIR = Path(__file__).resolve().parents[1] / "logs"
@@ -84,7 +84,7 @@ class TestCoreBackendFunctionality:
         logger.info(f"Log file saved to: {LOG_FILE}")
     
     @pytest.mark.asyncio
-    async def test_api_health_endpoints(self):
+    async def test_api_health_endpoints(self, test_client):
         """
         Test API health and status endpoints.
         
@@ -95,32 +95,31 @@ class TestCoreBackendFunctionality:
         """
         logger.info("Testing API health endpoints...")
         
-        async with httpx.AsyncClient(base_url="http://localhost:9000") as client:
-            # Test basic health
-            response = await client.get("/health")
-            assert response.status_code == 200
-            data = response.json()
-            assert data["status"] in ["healthy", "degraded"]
-            logger.info(f"✓ Health check passed: {data['status']}")
-            
-            # Test system status
-            response = await client.get("/api/v1/system/status")
-            assert response.status_code == 200
-            data = response.json()
-            assert "version" in data
-            assert "environment" in data
-            logger.info(f"✓ System status: v{data['version']} - {data['environment']}")
-            
-            # Test API status
-            response = await client.get("/api/v1/system/api-status")
-            assert response.status_code == 200
-            data = response.json()
-            assert "openai" in data
-            assert "anthropic" in data
-            assert "perplexity" in data
-            logger.info(f"✓ API status checked: OpenAI={data['openai']['connected']}, "
-                       f"Anthropic={data['anthropic']['connected']}, "
-                       f"Perplexity={data['perplexity']['connected']}")
+        # Test basic health
+        response = test_client.get("/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] in ["healthy", "degraded"]
+        logger.info(f"✓ Health check passed: {data['status']}")
+        
+        # Test system status
+        response = test_client.get("/api/v1/system/status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "version" in data
+        assert "environment" in data
+        logger.info(f"✓ System status: v{data['version']} - {data['environment']}")
+        
+        # Test API status
+        response = test_client.get("/api/v1/system/api-status")
+        assert response.status_code == 200
+        data = response.json()
+        assert "openai" in data
+        assert "anthropic" in data
+        assert "perplexity" in data
+        logger.info(f"✓ API status checked: OpenAI={data['openai']['connected']}, "
+                   f"Anthropic={data['anthropic']['connected']}, "
+                   f"Perplexity={data['perplexity']['connected']}")
     
     @pytest.mark.asyncio
     async def test_agent_initialization(self):
@@ -160,7 +159,7 @@ class TestCoreBackendFunctionality:
         """
         logger.info("Testing orchestrator coordination...")
         
-        with patch('src.agents.orchestrator.ConversableAgent') as mock_agent:
+        with patch('agents.orchestrator.ConversableAgent') as mock_agent:
             # Setup mock
             mock_instance = AsyncMock()
             mock_instance.initiate_chat = AsyncMock(return_value={
@@ -186,7 +185,7 @@ class TestCoreBackendFunctionality:
             logger.info("✓ Orchestrator coordination successful")
     
     @pytest.mark.asyncio
-    async def test_conversation_api(self):
+    async def test_conversation_api(self, test_client):
         """
         Test conversation API endpoints.
         
@@ -197,32 +196,30 @@ class TestCoreBackendFunctionality:
         """
         logger.info("Testing conversation API...")
         
-        async with httpx.AsyncClient(base_url="http://localhost:9000") as client:
-            # Test conversation endpoint
-            payload = {
-                "message": "What is the company strategy?",
-                "agent": "ali",
-                "context": {}
-            }
-            
-            response = await client.post(
-                "/api/v1/agents/conversation",
-                json=payload,
-                timeout=30.0
-            )
-            
-            # Check response
-            if response.status_code == 200:
-                data = response.json()
-                assert "response" in data or "content" in data
-                assert "agent" in data
-                logger.info(f"✓ Conversation API responded: {data.get('agent', 'unknown')}")
-            else:
-                logger.warning(f"Conversation API returned {response.status_code}")
-                # This is acceptable in test environment
+        # Test conversation endpoint
+        payload = {
+            "message": "What is the company strategy?",
+            "agent": "ali",
+            "context": {}
+        }
+        
+        response = test_client.post(
+            "/api/v1/agents/conversation",
+            json=payload
+        )
+        
+        # Check response
+        if response.status_code == 200:
+            data = response.json()
+            assert "response" in data or "content" in data
+            assert "agent" in data
+            logger.info(f"✓ Conversation API responded: {data.get('agent', 'unknown')}")
+        else:
+            logger.warning(f"Conversation API returned {response.status_code}")
+            # This is acceptable in test environment
     
     @pytest.mark.asyncio
-    async def test_cost_tracking(self):
+    async def test_cost_tracking(self, test_client):
         """
         Test cost tracking functionality.
         
@@ -241,25 +238,23 @@ class TestCoreBackendFunctionality:
         logger.info(f"✓ Cost limit configured: ${settings.MAX_CONVERSATION_COST}")
         
         # Test cost tracking in conversation
-        async with httpx.AsyncClient(base_url="http://localhost:9000") as client:
-            response = await client.post(
-                "/api/v1/agents/conversation",
-                json={
-                    "message": "Hi",
-                    "agent": "ali",
-                    "context": {"track_cost": True}
-                },
-                timeout=30.0
-            )
-            
-            if response.status_code == 200:
-                data = response.json()
-                if "cost" in data:
-                    assert isinstance(data["cost"], (int, float))
-                    assert data["cost"] >= 0
-                    logger.info(f"✓ Cost tracked: ${data['cost']}")
-                else:
-                    logger.info("✓ Cost tracking configured (not in response)")
+        response = test_client.post(
+            "/api/v1/agents/conversation",
+            json={
+                "message": "Hi",
+                "agent": "ali",
+                "context": {"track_cost": True}
+            }
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if "cost" in data:
+                assert isinstance(data["cost"], (int, float))
+                assert data["cost"] >= 0
+                logger.info(f"✓ Cost tracked: ${data['cost']}")
+            else:
+                logger.info("✓ Cost tracking configured (not in response)")
     
     @pytest.mark.asyncio
     async def test_database_connectivity(self):
@@ -285,7 +280,7 @@ class TestCoreBackendFunctionality:
             # This is acceptable in test environment
     
     @pytest.mark.asyncio
-    async def test_security_framework(self):
+    async def test_security_framework(self, test_client):
         """
         Test security framework components.
         
@@ -296,26 +291,25 @@ class TestCoreBackendFunctionality:
         """
         logger.info("Testing security framework...")
         
-        async with httpx.AsyncClient(base_url="http://localhost:9000") as client:
-            # Test CORS headers
-            response = await client.options("/api/v1/agents/conversation")
-            if "access-control-allow-origin" in response.headers:
-                logger.info(f"✓ CORS configured: {response.headers['access-control-allow-origin']}")
-            
-            # Test rate limiting (if configured)
-            responses = []
-            for i in range(5):
-                r = await client.get("/health")
-                responses.append(r.status_code)
-            
-            # Check if rate limiting kicks in (429 status)
-            if 429 in responses:
-                logger.info("✓ Rate limiting active")
-            else:
-                logger.info("✓ Rate limiting configured (not triggered)")
+        # Test CORS headers
+        response = test_client.options("/api/v1/agents/conversation")
+        if "access-control-allow-origin" in response.headers:
+            logger.info(f"✓ CORS configured: {response.headers['access-control-allow-origin']}")
+        
+        # Test rate limiting (if configured)
+        responses = []
+        for i in range(5):
+            r = test_client.get("/health")
+            responses.append(r.status_code)
+        
+        # Check if rate limiting kicks in (429 status)
+        if 429 in responses:
+            logger.info("✓ Rate limiting active")
+        else:
+            logger.info("✓ Rate limiting configured (not triggered)")
     
     @pytest.mark.asyncio
-    async def test_websocket_streaming(self):
+    async def test_websocket_streaming(self, test_client):
         """
         Test WebSocket streaming functionality.
         
@@ -328,13 +322,12 @@ class TestCoreBackendFunctionality:
         
         # Note: This requires websocket-client library
         # For now, just test that the endpoint exists
-        async with httpx.AsyncClient(base_url="http://localhost:9000") as client:
-            response = await client.get("/ws")
-            # WebSocket endpoints typically return 426 Upgrade Required
-            if response.status_code in [426, 101, 404]:
-                logger.info("✓ WebSocket endpoint configured")
-            else:
-                logger.warning(f"WebSocket endpoint returned: {response.status_code}")
+        response = test_client.get("/ws")
+        # WebSocket endpoints typically return 426 Upgrade Required
+        if response.status_code in [426, 101, 404]:
+            logger.info("✓ WebSocket endpoint configured")
+        else:
+            logger.warning(f"WebSocket endpoint returned: {response.status_code}")
 
 
 def run_tests():

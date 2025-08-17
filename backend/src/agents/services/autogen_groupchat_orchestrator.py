@@ -18,39 +18,39 @@ from autogen_agentchat.teams import RoundRobinGroupChat, SelectorGroupChat
 from autogen_agentchat.messages import HandoffMessage, TextMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from .cost_tracker import CostTracker
-from .redis_state_manager import RedisStateManager
-from .agent_loader import DynamicAgentLoader, AgentMetadata
-from .groupchat.initializer import initialize_model_client, initialize_agent_loader
-from .groupchat.agent_factory import create_business_agents
-from .groupchat.selection_policy import select_key_agents
-from .groupchat.runner import run_groupchat_stream
+from cost_tracker import CostTracker
+from redis_state_manager import RedisStateManager
+from agent_loader import DynamicAgentLoader, AgentMetadata
+from groupchat.initializer import initialize_model_client, initialize_agent_loader
+from groupchat.agent_factory import create_business_agents
+from groupchat.selection_policy import select_key_agents
+from groupchat.runner import run_groupchat_stream
 # Decision planning
-from .decision_engine import DecisionEngine, DecisionPlan
-from .observability.telemetry import get_telemetry, TelemetryContext
-from .groupchat.metrics import (
+from decision_engine import DecisionEngine, DecisionPlan
+from agents.observability.telemetry import get_telemetry, TelemetryContext
+from groupchat.metrics import (
     extract_final_response,
     extract_agents_used,
     estimate_cost,
     serialize_chat_history,
 )
-from .groupchat.setup import create_groupchat
-from .groupchat.rag import build_memory_context, AdvancedRAGProcessor
-from .groupchat.context import enhance_message_with_context
-from .groupchat.orchestrator_conversation import orchestrate_conversation_impl, direct_agent_conversation_impl
-from .groupchat.per_turn_rag import PerTurnRAGInjector, initialize_per_turn_rag
-from .groupchat.turn_by_turn_selector import IntelligentSpeakerSelector as TurnSelector
-from ..utils.config import get_settings
-from ..utils.tracing import start_span
-from ..security.ai_security_guardian import AISecurityGuardian, SecurityDecision
-from ..tools.backend_api_client import query_talents_count, query_engagements_summary, query_dashboard_stats, query_skills_overview
-from ..tools.vector_search_client import get_vector_client, embed_text, search_similar
-from .hitl.approval_store import ApprovalStore
-from .decision_engine import DecisionEngine
+from groupchat.setup import create_groupchat
+from groupchat.rag import build_memory_context, AdvancedRAGProcessor
+from groupchat.context import enhance_message_with_context
+from groupchat.orchestrator_conversation import orchestrate_conversation_impl, direct_agent_conversation_impl
+from groupchat.per_turn_rag import PerTurnRAGInjector, initialize_per_turn_rag
+from groupchat.turn_by_turn_selector import IntelligentSpeakerSelector as TurnSelector
+from agents.utils.config import get_settings
+from agents.utils.tracing import start_span
+from agents.security.ai_security_guardian import AISecurityGuardian, SecurityDecision
+from agents.tools.backend_api_client import query_talents_count, query_engagements_summary, query_dashboard_stats, query_skills_overview
+from agents.tools.vector_search_client import get_vector_client, embed_text, search_similar
+from hitl.approval_store import ApprovalStore
+from decision_engine import DecisionEngine
 
 logger = structlog.get_logger()
 
-from .groupchat.types import GroupChatResult
+from groupchat.types import GroupChatResult
 
 class ModernGroupChatOrchestrator:
     """Modern AutoGen GroupChat orchestrator for Convergio agents."""
@@ -300,7 +300,7 @@ class ModernGroupChatOrchestrator:
                 budget = await self.cost_tracker.check_budget_limits(conversation_id)
                 if telemetry:
                     try:
-                        from .observability.telemetry import ConvergioTelemetry
+                        from agents.observability.telemetry import ConvergioTelemetry
                         self._record_budget_status_telemetry(telemetry, telemetry_ctx, budget)
                         telemetry.record_budget_event(
                             status=str(budget.get("status", "unknown")),
@@ -346,7 +346,7 @@ class ModernGroupChatOrchestrator:
                     previous_max_turns = getattr(self.group_chat, 'max_turns', None) if self.group_chat else None
                     if plan.model and plan.model != previous_model:
                         try:
-                            from .groupchat.initializer import initialize_model_client
+                            from groupchat.initializer import initialize_model_client
                             # Temporarily override default model for this run
                             self.settings.default_ai_model = plan.model  # type: ignore[attr-defined]
                             self.model_client = initialize_model_client()

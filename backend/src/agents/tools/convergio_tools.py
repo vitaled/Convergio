@@ -11,10 +11,15 @@ from datetime import datetime
 import structlog
 from autogen_core.tools import BaseTool
 from pydantic import BaseModel
-import httpx
-
 from .vector_search_client import search_similar, embed_text
-from .web_search_tool import WebSearchTool, WebBrowseTool, get_web_tools, WebSearchArgs, WebBrowseArgs
+from .web_search_tool import (
+    WebSearchTool,
+    WebBrowseTool,
+    get_web_tools,
+    WebSearchArgs,
+    WebBrowseArgs,
+)
+import httpx
 
 logger = structlog.get_logger()
 

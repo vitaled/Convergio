@@ -9,10 +9,10 @@ can subscribe to stream events without coupling to AutoGen internals.
 from typing import List, Tuple, Any, Dict, Iterable, Optional
 import time
 
-from ...observability.autogen_observer import AutoGenObserver
+from agents.observability.autogen_observer import AutoGenObserver
 from .tool_executor import GroupChatToolExecutor
 try:
-    from ..decision_engine import DecisionPlan
+    from agents.decision_engine import DecisionPlan
 except Exception:
     DecisionPlan = None  # type: ignore
 

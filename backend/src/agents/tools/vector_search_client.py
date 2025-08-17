@@ -6,7 +6,7 @@ Provides authenticated access to Convergio vector service for embeddings and sea
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from utils.config import get_settings
+from agents.utils.config import get_settings
 
 # Import generated protobuf
 try:

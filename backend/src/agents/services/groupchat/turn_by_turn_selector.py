@@ -20,8 +20,8 @@ from .selection_policy import (
     ExpertiseDomain
 )
 from .selection_metrics import record_selection_metrics, get_selection_history
-from ...utils.tracing import start_span
-from ...utils.config import get_settings
+from agents.utils.tracing import start_span
+from agents.utils.config import get_settings
 
 logger = structlog.get_logger()
 

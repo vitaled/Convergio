@@ -12,7 +12,7 @@ from collections import defaultdict, deque
 import statistics
 
 import structlog
-from prometheus_client import Counter, Histogram, Gauge, Summary, generate_latest, REGISTRY
+from .prometheus_client import Counter, Histogram, Gauge, Summary, generate_latest, REGISTRY
 
 logger = structlog.get_logger()
 

@@ -9,7 +9,7 @@ import structlog
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from ..agent_loader import DynamicAgentLoader, AgentMetadata
+from agents.services.agent_loader import DynamicAgentLoader, AgentMetadata
 from .agent_instructions import optimize_agent_prompt
 
 
@@ -41,7 +41,7 @@ def create_business_agents(
 def _select_tools_for_agent(agent_id: str):
     """Select appropriate tool functions for each agent"""
     try:
-        from ...tools.autogen_tools import (
+        from agents.tools.autogen_tools import (
             web_search,
             query_talents,
             business_intelligence,

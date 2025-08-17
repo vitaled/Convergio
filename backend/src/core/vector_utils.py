@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import structlog
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from .local_embeddings import get_local_embedding_provider
+from local_embeddings import get_local_embedding_provider
 
 logger = structlog.get_logger()
 
@@ -54,7 +54,7 @@ class VectorOperations:
         else:
             try:
                 # Try AI client first
-                from .ai_clients import batch_create_embeddings
+                from ai_clients import batch_create_embeddings
                 embeddings = await batch_create_embeddings(texts, batch_size=batch_size)
                 logger.info(f"Created {len(embeddings)} embeddings using AI client")
                 

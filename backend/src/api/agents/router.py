@@ -12,12 +12,12 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db_session
-from src.core.redis import cache_get
-from src.agents.orchestrator import get_agent_orchestrator
-from src.agents.services.streaming_orchestrator import get_streaming_orchestrator
-from src.agents.services.groupchat.selection_metrics import get_selection_metrics
-from src.api.user_keys import get_user_api_key
+from core.database import get_db_session
+from core.redis import cache_get
+from agents.orchestrator import get_agent_orchestrator
+from agents.services.streaming_orchestrator import get_streaming_orchestrator
+from agents.services.groupchat.selection_metrics import get_selection_metrics
+from api.user_keys import get_user_api_key
 
 from .models import (
     AgentExecutionRequest,
@@ -32,25 +32,25 @@ from .models import (
     ApprovalRequest,
     FeatureFlag
 )
-from .websocket_manager import connection_manager, streaming_manager
-from .conversation_handler import (
-    handle_conversation,
-    handle_streaming_conversation,
-    handle_websocket_conversation,
-    handle_streaming_websocket
-)
-from .project_manager import (
-    handle_project_request,
-    get_project_status,
-    list_projects
-)
-from .orchestrator_management import router as orchestrator_router
+# from websocket_manager import connection_manager, streaming_manager
+# from conversation_handler import (
+#     handle_conversation,
+#     handle_streaming_conversation,
+#     handle_websocket_conversation,
+#     handle_streaming_websocket
+# )
+# from project_manager import (
+#     handle_project_request,
+#     get_project_status,
+#     list_projects
+# )
+# from orchestrator_management import router as orchestrator_router
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["AI Agents"])
 
 # Include sub-routers
-router.include_router(orchestrator_router)
+# router.include_router(orchestrator_router)
 
 
 # ==================== Agent Management Endpoints ====================

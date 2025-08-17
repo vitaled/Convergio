@@ -10,15 +10,16 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import structlog
 
-from src.agents.services.graphflow_orchestrator import get_graphflow_orchestrator
-from src.agents.services.graphflow.generator import (
+from agents.services.graphflow_orchestrator import get_graphflow_orchestrator
+from agents.services.graphflow.generator import (
     WorkflowGenerator,
-    WorkflowGenerationRequest,
-    BusinessWorkflow
+    WorkflowGenerationRequest,  # alias to payload (non-Pydantic)
+    BusinessWorkflow,
+    generate_workflow_from_prompt,
 )
-from src.agents.services.observability.telemetry_api import TelemetryAPIService
-from src.agents.utils.config import get_settings
-from src.core.logging import get_logger
+from agents.services.observability.telemetry_api import TelemetryAPIService
+from agents.utils.config import get_settings
+from core.logging import get_logger
 
 logger = get_logger()
 router = APIRouter()
@@ -59,6 +60,15 @@ class WorkflowGenerationResponse(BaseModel):
     workflow: Dict[str, Any]
     status: str = "generated"
     message: str = "Workflow generated successfully"
+
+class WorkflowGenerationRequestModel(BaseModel):
+    """Pydantic model for workflow generation request body"""
+    prompt: str = Field(..., description="Natural language description of the workflow")
+    business_domain: Optional[str] = Field("operations", description="Business domain, e.g., operations, finance")
+    priority: Optional[str] = Field("medium", description="Priority: low, medium, high, critical")
+    max_steps: int = Field(10, ge=1, le=50, description="Maximum number of steps to generate")
+    context: Dict[str, Any] = Field(default_factory=dict, description="Additional generation context")
+    safety_check: bool = Field(True, description="Enable prompt safety validation")
 
 @router.on_event("startup")
 async def startup_workflows():
@@ -204,48 +214,7 @@ async def cancel_workflow(execution_id: str):
         logger.error(f"❌ Error cancelling workflow: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to cancel workflow: {str(e)}")
 
-# ===================== Workflow Generation Endpoints =====================
-
-@router.post("/generate", response_model=Dict[str, Any])
-async def generate_workflow(request: WorkflowGenerationRequest):
-    """
-    Generate a workflow from natural language description
-    """
-    try:
-        _ensure_graphflow_enabled()
-        generator = WorkflowGenerator()
-        
-        # Generate workflow
-        workflow, metadata = await generator.generate_workflow(request)
-        
-        # Validate workflow
-        errors = generator.validate_workflow(workflow)
-        if errors:
-            return {
-                "success": False,
-                "errors": errors,
-                "workflow": None,
-                "metadata": metadata
-            }
-        
-        # Optimize workflow for parallel execution
-        workflow = generator.optimize_workflow(workflow)
-        
-        # Generate Mermaid diagram
-        mermaid_diagram = generator.export_to_mermaid(workflow)
-        
-        return {
-            "success": True,
-            "workflow": workflow.dict(),
-            "metadata": metadata,
-            "mermaid_diagram": mermaid_diagram
-        }
-        
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Failed to generate workflow: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate workflow: {str(e)}")
+# ===================== Workflow Generation Endpoints (V2) =====================
 
 @router.post("/save")
 async def save_workflow(workflow: BusinessWorkflow):
@@ -574,8 +543,8 @@ async def workflows_health():
 
 # ===================== NEW ENDPOINTS FOR M6 WORKFLOW GENERATOR =====================
 
-@router.post("/generate", response_model=WorkflowGenerationResponse)
-async def generate_workflow(request: WorkflowGenerationRequest):
+@router.post("/generate", response_model=Dict[str, Any])
+async def generate_workflow(request: WorkflowGenerationRequestModel):
     """
     Generate a new workflow from natural language prompt or PRD
     
@@ -590,26 +559,32 @@ async def generate_workflow(request: WorkflowGenerationRequest):
                    domain=request.business_domain)
         
         # Generate workflow using GraphFlow generator
-        response = await generate_workflow_from_prompt(
+        resp = await generate_workflow_from_prompt(
             prompt=request.prompt,
-            business_domain=request.business_domain,
-            priority=request.priority,
+            business_domain=request.business_domain or "operations",
+            priority=request.priority or "medium",
             max_steps=request.max_steps,
-            context=request.context
+            context=request.context or {},
         )
         
         logger.info("✅ Workflow generated successfully",
-                   workflow_id=response.workflow.workflow_id,
-                   steps_count=len(response.workflow.steps))
+                   workflow_id=resp.workflow.workflow_id,
+                   steps_count=len(resp.workflow.steps))
         
-        return response
+        return {
+            "workflow_id": resp.workflow.workflow_id,
+            "workflow": resp.workflow.dict() if hasattr(resp.workflow, "dict") else resp.workflow,
+            "status": "generated",
+            "message": "Workflow generated successfully",
+            "metadata": resp.generation_metadata,
+        }
         
     except ValueError as e:
         logger.warning(f"⚠️ Workflow generation validation failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"❌ Error generating workflow: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate workflow: {str(e)}")
+    raise HTTPException(status_code=500, detail=f"Failed to generate workflow: {str(e)}")
 
 
 @router.get("/catalog")
@@ -864,7 +839,7 @@ async def validate_workflow_prompt(prompt: str):
     try:
         _ensure_graphflow_enabled()
         
-        from src.agents.security.ai_security_guardian import AISecurityGuardian
+        from agents.security.ai_security_guardian import AISecurityGuardian
         
         guardian = AISecurityGuardian()
         

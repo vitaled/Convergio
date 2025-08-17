@@ -14,7 +14,6 @@ from enum import Enum
 import structlog
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage, HandoffMessage, ToolCallRequestEvent, ToolCallExecutionEvent, ToolCallSummaryMessage
-from autogen_core import AgentRuntime
 
 from .response_types import StreamingResponse
 

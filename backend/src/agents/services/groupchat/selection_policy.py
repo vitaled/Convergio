@@ -737,9 +737,20 @@ def pick_next_speaker(message_text: str, participants: List[AssistantAgent]) -> 
             intelligent_speaker_selection(message_text, participants)
         )
         
-        # Record legacy-compatible metrics
+        # Map to legacy keyword reasons for backward compatibility in metrics
+        text_l = message_text.lower()
+        if any(word in text_l for word in ["budget", "cost", "finance"]):
+            reason = "finance_keywords"
+        elif any(word in text_l for word in ["risk", "security", "compliance"]):
+            reason = "security_keywords"
+        elif any(word in text_l for word in ["strategy", "decision", "plan", "vision", "planning"]):
+            reason = "strategy_keywords"
+        else:
+            reason = rationale.get("primary_reason", "intelligent_selection")
+
+        # Record legacy-compatible metrics with mapped reason
         record_selection_metrics({
-            "reason": rationale.get("primary_reason", "intelligent_selection"),
+            "reason": reason,
             "picked": selected_agent.name,
             "confidence": rationale.get("confidence_score", 0.0)
         })

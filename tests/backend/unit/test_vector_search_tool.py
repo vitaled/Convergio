@@ -1,6 +1,6 @@
 import pytest
 
-from src.agents.tools.convergio_tools import VectorSearchTool, VectorSearchArgs
+from agents.tools.convergio_tools import VectorSearchTool, VectorSearchArgs
 
 
 @pytest.mark.asyncio

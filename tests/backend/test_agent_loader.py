@@ -10,7 +10,7 @@ import sys
 import os
 from pathlib import Path
 
-from src.agents.services.agent_loader import DynamicAgentLoader
+from agents.services.agent_loader import DynamicAgentLoader
 import structlog
 
 # Setup basic logging

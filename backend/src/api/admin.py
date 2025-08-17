@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List, Optional
 import structlog
 
-from src.core.database import get_db_session
-from src.core.db_maintenance import get_db_maintenance
+from core.database import get_db_session
+from core.db_maintenance import get_db_maintenance
 
 logger = structlog.get_logger()
 

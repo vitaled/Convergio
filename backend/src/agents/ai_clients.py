@@ -10,8 +10,8 @@ import structlog
 import httpx
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from src.agents.utils.config import get_settings
-from src.api.user_keys import get_user_api_key, get_user_default_model
+from agents.utils.config import get_settings
+from api.user_keys import get_user_api_key, get_user_default_model
 
 logger = structlog.get_logger()
 settings = get_settings()

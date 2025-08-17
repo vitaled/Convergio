@@ -11,7 +11,7 @@ import structlog
 from structlog.processors import JSONRenderer
 from structlog.stdlib import add_log_level, filter_by_level
 
-from src.core.config import get_settings
+from core.config import get_settings
 
 
 def setup_logging() -> None:

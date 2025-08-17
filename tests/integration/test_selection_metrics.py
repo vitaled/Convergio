@@ -1,7 +1,7 @@
-from src.agents.services.groupchat.selection_policy import (
+from agents.services.groupchat.selection_policy import (
     pick_next_speaker,
 )
-from src.agents.services.groupchat.selection_metrics import (
+from agents.services.groupchat.selection_metrics import (
     get_selection_metrics,
     reset_selection_metrics,
 )

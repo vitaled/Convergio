@@ -12,13 +12,13 @@ import structlog
 from fastapi import HTTPException, Request, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.orchestrator import get_agent_orchestrator
-from src.agents.services.streaming_orchestrator import get_streaming_orchestrator
-from src.agents.services.groupchat.selection_metrics import get_selection_metrics
-from src.core.redis import cache_get, cache_set
-from src.api.user_keys import get_user_api_key
-from .models import ConversationRequest, StreamingConversationRequest
-from .websocket_manager import connection_manager, streaming_manager
+from agents.orchestrator import get_agent_orchestrator
+from agents.services.streaming_orchestrator import get_streaming_orchestrator
+from agents.services.groupchat.selection_metrics import get_selection_metrics
+from core.redis import cache_get, cache_set
+from api.user_keys import get_user_api_key
+from models import ConversationRequest, StreamingConversationRequest
+from websocket_manager import connection_manager, streaming_manager
 
 logger = structlog.get_logger()
 

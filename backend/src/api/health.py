@@ -11,9 +11,9 @@ import structlog
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db_session, check_database_health
-from src.core.redis import get_redis_client
-from src.core.config import get_settings
+from core.database import get_db_session, check_database_health
+from core.redis import get_redis_client
+from core.config import get_settings
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Health"])
@@ -168,8 +168,8 @@ async def agents_health():
     
     try:
         # Implement actual agents health check
-        from src.agents.orchestrator import get_agent_orchestrator
-        from src.agents.services.agent_loader import DynamicAgentLoader
+        from agents.orchestrator import get_agent_orchestrator
+        from agents.services.agent_loader import DynamicAgentLoader
         
         try:
             orchestrator = await get_agent_orchestrator()
@@ -220,8 +220,8 @@ async def vector_health():
     
     try:
         # Implement actual vector health check
-        from src.core.database import get_db_session
-        from src.models.document import Document
+        from core.database import get_db_session
+        from models.document import Document
         
         try:
             # Test database connection and vector extension

@@ -18,13 +18,13 @@ backend_path = project_root / "backend"
 sys.path.insert(0, str(backend_path))
 
 try:
-    from src.agents.services.agent_loader import DynamicAgentLoader
-    from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
-    from src.core.config import get_settings
+    from agents.services.agent_loader import DynamicAgentLoader
+    from agents.memory.autogen_memory_system import AutoGenMemorySystem
+    from core.config import get_settings
 except ImportError as e:
     print(f"❌ Import error: {e}")
     print("Note: This test requires backend dependencies to be installed")
-    sys.exit(1)
+    raise e
 
 class MultiAgentConversationTester:
     """Test suite for multi-agent conversations"""

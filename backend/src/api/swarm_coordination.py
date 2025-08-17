@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 import structlog
 
-from src.agents.services.swarm_coordinator import (
+from agents.services.swarm_coordinator import (
     swarm_coordinator, 
     SwarmTask, 
     SwarmAgent,
@@ -17,7 +17,7 @@ from src.agents.services.swarm_coordinator import (
     SwarmRole
 )
 try:
-    from src.agents.services.agent_loader import agent_loader
+    from agents.services.agent_loader import agent_loader
 except ImportError:
     # Fallback to alternative import
     import sys

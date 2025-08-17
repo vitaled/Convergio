@@ -31,14 +31,10 @@ import pytest
 import httpx
 from unittest.mock import Mock, patch
 
-# Setup paths
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
-
-from src.core.config import get_settings
-from src.agents.orchestrator import OrchestratorAgent
-from src.services.vector_search import VectorSearchService
-from src.services.web_search import WebSearchService
+from core.config import get_settings
+from agents.orchestrator import OrchestratorAgent
+from services.vector_search import VectorSearchService
+from services.web_search import WebSearchService
 
 # Configure logging
 LOG_DIR = Path(__file__).resolve().parents[1] / "logs"

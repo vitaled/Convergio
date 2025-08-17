@@ -16,14 +16,14 @@ from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
 from autogen_agentchat.messages import TextMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from src.core.config import settings
-from src.agents.services.agent_loader import agent_loader
-from .graphflow.definitions import WorkflowStep, BusinessWorkflow, WorkflowExecution
-from .graphflow.registry import load_predefined_workflows
-from .graphflow.runner import create_execution_graph, save_execution_state
-from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
-from src.agents.security.ai_security_guardian import AISecurityGuardian
-from src.core.redis import get_redis_client
+from core.config import settings
+from agents.services.agent_loader import agent_loader
+from agents.services.graphflow.definitions import WorkflowStep, BusinessWorkflow, WorkflowExecution
+from agents.services.graphflow.registry import load_predefined_workflows
+from agents.services.graphflow.runner import create_execution_graph, save_execution_state
+from agents.memory.autogen_memory_system import AutoGenMemorySystem
+from agents.security.ai_security_guardian import AISecurityGuardian
+from core.redis import get_redis_client
 
 logger = structlog.get_logger()
 
@@ -68,12 +68,12 @@ class GraphFlowOrchestrator:
                 agent_config = {
                     "name": step.agent_name,
                     "description": f"Agent for {step.step_type}",
-                    "model": self.settings.default_ai_model
+                    "model": settings.OPENAI_MODEL
                 }
             
             # Create AutoGen agent
             client = OpenAIChatCompletionClient(
-                model=agent_config.get("model", self.settings.default_ai_model),
+                model=agent_config.get("model", settings.OPENAI_MODEL),
                 api_key=settings.OPENAI_API_KEY
             )
             

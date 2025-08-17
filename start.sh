@@ -61,28 +61,18 @@ if [[ ! -f backend/venv/bin/activate ]]; then
   "$PY_BIN" -m venv backend/venv
 fi
 
-# Attiva venv
+# Activate venv once and verify python version
+echo "🐍 Activating Python virtual environment..."
 source backend/venv/bin/activate
+echo "✅ Virtual environment activated: $(which python)"
 VENV_PY_VER=$(python -c 'import sys; print("{}.{}".format(*sys.version_info[:2]))')
 if [[ "$VENV_PY_VER" != "3.11" ]]; then
-  echo "⚠️  Virtualenv usa Python $VENV_PY_VER: la ricreo con 3.11"
+  echo "⚠️  Virtualenv usa Python $VENV_PY_VER: ricreo con 3.11"
   deactivate || true
   rm -rf backend/venv
   "$PY_BIN" -m venv backend/venv
   source backend/venv/bin/activate
-fi
-
-# ----------------------------------------------------------------------------------
-# Activate virtual environment CRITICAL for uvicorn to work
-# ----------------------------------------------------------------------------------
-if [[ -f "backend/venv/bin/activate" ]]; then
-  echo "🐍 Activating Python virtual environment..."
-  source backend/venv/bin/activate
-  echo "✅ Virtual environment activated: $(which python)"
-else
-  echo "❌ Virtual environment not found at backend/venv/"
-  echo "Please run: cd backend && python3.11 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
-  exit 1
+  echo "✅ Virtual environment re-created: $(python -V)"
 fi
 
 # Install requirements (sempre, per evitare moduli mancanti)
@@ -153,18 +143,25 @@ fi
 # ----------------------------------------------------------------------------------
 echo "🚀 Starting backend on port $BACKEND_PORT..."
 cd backend
-# Export PYTHONPATH to ensure proper module resolution
-export PYTHONPATH="${PWD}:${PYTHONPATH:-}"
-uvicorn src.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload &
+# Export PYTHONPATH to ensure proper module resolution (src first)
+export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH:-}"
+"$(python -c 'import sys,shutil; print(shutil.which("uvicorn") or "uvicorn")')" src.main:app \
+  --host 0.0.0.0 --port $BACKEND_PORT --reload &
 BACKEND_PID=$!
 cd ..
 
-# Wait for backend to start
 echo "⏳ Waiting for backend to initialize..."
-sleep 8
+# Robust health check loop (max ~40s)
+HEALTH_OK=false
+for i in {1..20}; do
+  if curl -sf "http://localhost:$BACKEND_PORT/health/" >/dev/null; then
+    HEALTH_OK=true
+    break
+  fi
+  sleep 2
+done
 
-# Check if backend is responding
-if ! curl -s http://localhost:$BACKEND_PORT/health/ >/dev/null; then
+if [[ "$HEALTH_OK" != true ]]; then
   echo "❌ Backend failed to start on port $BACKEND_PORT"
   kill $BACKEND_PID 2>/dev/null || true
   exit 1
@@ -212,7 +209,7 @@ cleanup() {
   echo ""
   echo "🛑 Shutting down services..."
   if [[ -n "$BACKEND_PID" ]]; then
-    kill $BACKEND_PID 2>/dev/null || true
+  kill $BACKEND_PID 2>/dev/null || true
     echo "✅ Backend stopped"
   fi
   if [[ -n "$FRONTEND_PID" ]]; then

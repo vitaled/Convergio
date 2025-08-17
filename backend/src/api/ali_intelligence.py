@@ -15,13 +15,13 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
-from src.core.database import get_db_session
-from src.core.redis import cache_get, cache_set
-from src.api.user_keys import get_user_api_key, get_user_default_model
-from src.core.config import get_settings
-from src.models.talent import Talent
-from src.models.document import Document
-from src.agents.orchestrator import get_agent_orchestrator
+from core.database import get_db_session
+from core.redis import cache_get, cache_set
+from api.user_keys import get_user_api_key, get_user_default_model
+from core.config import get_settings
+from models.talent import Talent
+from models.document import Document
+from agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 router = APIRouter()

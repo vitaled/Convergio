@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
-from src.services.template_library import (
+from agents.services.template_library import (
     template_library,
     TemplateDefinition,
     FieldDefinition

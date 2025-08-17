@@ -14,17 +14,17 @@ from autogen_agentchat.messages import TextMessage
 
 from .base import BaseGroupChatOrchestrator
 from .resilience import CircuitBreaker, CircuitBreakerConfig, CircuitState, HealthMonitor
-from ..services.groupchat.intelligent_router import IntelligentAgentRouter
-# from ..services.groupchat.rag import AdvancedRAGProcessor  # TODO: Implement
-# from ..services.groupchat.per_turn_rag import PerTurnRAGInjector  # TODO: Implement
-from ..services.groupchat.metrics import extract_agents_used, estimate_cost
-from ..services.agent_intelligence import AgentIntelligence
-from ..security.ai_security_guardian import AISecurityGuardian
-from ..services.agent_loader import DynamicAgentLoader
-from ..tools.web_search_tool import get_web_tools
-from ..tools.database_tools import get_database_tools
-from ..tools.vector_search_tool import get_vector_tools
-from ...core.ai_clients import get_autogen_client
+from agents.services.groupchat.intelligent_router import IntelligentAgentRouter
+# from agents.services.groupchat.rag import AdvancedRAGProcessor  # TODO: Implement
+# from agents.services.groupchat.per_turn_rag import PerTurnRAGInjector  # TODO: Implement
+from agents.services.groupchat.metrics import extract_agents_used, estimate_cost
+from agents.services.agent_intelligence import AgentIntelligence
+from agents.security.ai_security_guardian import AISecurityGuardian
+from agents.services.agent_loader import DynamicAgentLoader
+from agents.tools.web_search_tool import get_web_tools
+from agents.tools.database_tools import get_database_tools
+from agents.tools.vector_search_tool import get_vector_tools
+from core.ai_clients import get_autogen_client
 
 logger = structlog.get_logger()
 

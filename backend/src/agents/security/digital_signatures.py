@@ -16,8 +16,8 @@ from cryptography.hazmat.backends import default_backend
 import jwt
 from pathlib import Path
 
-from src.core.config import settings
-from src.core.redis import get_redis_client
+from core.config import settings
+from core.redis import get_redis_client
 
 logger = structlog.get_logger()
 

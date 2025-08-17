@@ -6,9 +6,9 @@ import asyncio
 import sys
 sys.path.append('.')
 
-from src.core.redis import init_redis, close_redis
-from src.core.database import init_db, close_db
-from src.agents.services.graphflow_orchestrator import GraphFlowOrchestrator
+from core.redis import init_redis, close_redis
+from core.database import init_db, close_db
+from agents.services.graphflow_orchestrator import GraphFlowOrchestrator
 
 async def test_graphflow_workflows():
     """Test GraphFlow Workflows end-to-end"""
@@ -68,7 +68,7 @@ async def test_graphflow_workflows():
         
         # Create a mock execution for testing
         from datetime import datetime
-        from src.agents.services.graphflow_orchestrator import WorkflowExecution
+        from agents.services.graphflow_orchestrator import WorkflowExecution
         
         mock_execution = WorkflowExecution(
             execution_id="test_exec_001",

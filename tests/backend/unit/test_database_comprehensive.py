@@ -14,7 +14,7 @@ import asyncio
 class TestDatabaseConfiguration:
     """Test database configuration and setup"""
     
-    @patch('src.core.config.get_settings')
+    @patch('core.config.get_settings')
     def test_database_settings_integration(self, mock_get_settings):
         """Test database configuration from settings"""
         mock_settings = MagicMock()
@@ -23,12 +23,12 @@ class TestDatabaseConfiguration:
         mock_settings.DB_POOL_OVERFLOW = 30
         mock_get_settings.return_value = mock_settings
         
-        from src.core.database import Base
+        from core.database import Base
         assert Base is not None
     
     def test_base_model_configuration(self):
         """Test SQLAlchemy Base model setup"""
-        from src.core.database import Base
+        from core.database import Base
         
         # Base should be properly configured
         assert hasattr(Base, 'metadata')
@@ -36,7 +36,7 @@ class TestDatabaseConfiguration:
     
     def test_database_url_validation(self):
         """Test database URL format validation"""
-        from src.core.config import get_settings
+        from core.config import get_settings
         
         settings = get_settings()
         db_url = settings.DATABASE_URL
@@ -55,7 +55,7 @@ class TestDatabaseEngine:
         mock_engine = AsyncMock()
         mock_create_engine.return_value = mock_engine
         
-        from src.core import database
+        from core import database
         
         # Re-initialize to trigger engine creation
         if hasattr(database, 'engine'):
@@ -74,7 +74,7 @@ class TestDatabaseEngine:
         mock_engine = AsyncMock()
         mock_create_engine.return_value = mock_engine
         
-        from src.core.config import get_settings
+        from core.config import get_settings
         settings = get_settings()
         
         # Test engine configuration would include pool settings
@@ -88,45 +88,45 @@ class TestDatabaseEngine:
 class TestSessionManagement:
     """Test database session management"""
     
-    @patch('src.core.database.AsyncSession')
-    async def test_get_session_creation(self, mock_async_session):
+    @patch('core.database.get_async_session_factory')
+    async def test_get_session_creation(self, mock_get_async_session_factory):
         """Test database session creation"""
         mock_session = AsyncMock()
         mock_async_session.return_value = mock_session
         
-        from src.core.database import get_session
+        from core.database import get_async_session
         
         # Test session creation
-        async with get_session() as session:
+        async with get_async_session() as session:
             assert session is not None
     
-    @patch('src.core.database.AsyncSession')
-    async def test_get_session_cleanup(self, mock_async_session):
+    @patch('core.database.get_async_session_factory')
+    async def test_get_session_cleanup(self, mock_get_async_session_factory):
         """Test session cleanup on exit"""
         mock_session = AsyncMock()
         mock_async_session.return_value = mock_session
         
-        from src.core.database import get_session
+        from core.database import get_async_session
         
         # Test session cleanup
-        async with get_session() as session:
+        async with get_async_session() as session:
             pass
         
         # Session should be properly closed
         mock_session.close.assert_called_once()
     
-    @patch('src.core.database.AsyncSession')
-    async def test_get_session_error_handling(self, mock_async_session):
+    @patch('core.database.get_async_session_factory')
+    async def test_get_session_error_handling(self, mock_get_async_session_factory):
         """Test session error handling"""
         mock_session = AsyncMock()
         mock_session.close.side_effect = Exception("Close error")
-        mock_async_session.return_value = mock_session
+        mock_get_async_session_factory.return_value.return_value = mock_session
         
-        from src.core.database import get_session
+        from core.database import get_async_session
         
         # Should handle close errors gracefully
         try:
-            async with get_session() as session:
+            async with get_async_session() as session:
                 raise Exception("Test error")
         except Exception as e:
             # Should handle both the test error and close error
@@ -136,14 +136,14 @@ class TestSessionManagement:
 class TestDatabaseInitialization:
     """Test database initialization process"""
     
-    @patch('src.core.database.engine')
+    @patch('core.database.engine')
     async def test_init_database_success(self, mock_engine):
         """Test successful database initialization"""
         mock_engine.begin = AsyncMock()
         mock_conn = AsyncMock()
         mock_engine.begin.return_value.__aenter__.return_value = mock_conn
         
-        from src.core.database import init_database
+        from core.database import init_database
         
         # Test initialization
         await init_database()
@@ -151,13 +151,13 @@ class TestDatabaseInitialization:
         # Should call begin on engine
         mock_engine.begin.assert_called_once()
     
-    @patch('src.core.database.engine')
-    @patch('src.core.database.logger')
+    @patch('core.database.engine')
+    @patch('core.database.logger')
     async def test_init_database_failure(self, mock_logger, mock_engine):
         """Test database initialization failure handling"""
         mock_engine.begin.side_effect = SQLAlchemyError("Connection failed")
         
-        from src.core.database import init_database
+        from core.database import init_database
         
         # Should handle initialization errors
         with pytest.raises(SQLAlchemyError):
@@ -166,14 +166,14 @@ class TestDatabaseInitialization:
         # Should log the error
         mock_logger.error.assert_called()
     
-    @patch('src.core.database.Base.metadata.create_all')
-    @patch('src.core.database.engine')
+    @patch('core.database.Base.metadata.create_all')
+    @patch('core.database.engine')
     async def test_create_tables(self, mock_engine, mock_create_all):
         """Test table creation process"""
         mock_conn = AsyncMock()
         mock_engine.begin.return_value.__aenter__.return_value = mock_conn
         
-        from src.core.database import init_database
+        from core.database import init_database
         
         await init_database()
         
@@ -184,25 +184,25 @@ class TestDatabaseInitialization:
 class TestDatabaseShutdown:
     """Test database shutdown and cleanup"""
     
-    @patch('src.core.database.engine')
+    @patch('core.database.engine')
     async def test_close_database_success(self, mock_engine):
         """Test successful database shutdown"""
         mock_engine.dispose = AsyncMock()
         
-        from src.core.database import close_database
+        from core.database import close_database
         
         await close_database()
         
         # Should dispose of engine
         mock_engine.dispose.assert_called_once()
     
-    @patch('src.core.database.engine')
-    @patch('src.core.database.logger')
+    @patch('core.database.engine')
+    @patch('core.database.logger')
     async def test_close_database_error_handling(self, mock_logger, mock_engine):
         """Test database shutdown error handling"""
         mock_engine.dispose.side_effect = Exception("Disposal error")
         
-        from src.core.database import close_database
+        from core.database import close_database
         
         # Should handle disposal errors gracefully
         await close_database()
@@ -214,7 +214,7 @@ class TestDatabaseShutdown:
 class TestDatabaseTransactions:
     """Test database transaction management"""
     
-    @patch('src.core.database.get_session')
+    @patch('core.database.get_async_session')
     async def test_transaction_commit(self, mock_get_session):
         """Test successful transaction commit"""
         mock_session = AsyncMock()
@@ -227,7 +227,7 @@ class TestDatabaseTransactions:
         # Should commit transaction
         mock_session.commit.assert_called_once()
     
-    @patch('src.core.database.get_session')
+    @patch('core.database.get_async_session')
     async def test_transaction_rollback(self, mock_get_session):
         """Test transaction rollback on error"""
         mock_session = AsyncMock()
@@ -248,10 +248,10 @@ class TestDatabaseTransactions:
 class TestDatabaseConnectionPool:
     """Test database connection pooling"""
     
-    @patch('src.core.database.engine')
+    @patch('core.database.engine')
     async def test_connection_pool_configuration(self, mock_engine):
         """Test connection pool settings"""
-        from src.core.config import get_settings
+        from core.config import get_settings
         
         settings = get_settings()
         
@@ -260,7 +260,7 @@ class TestDatabaseConnectionPool:
         assert settings.DB_POOL_OVERFLOW > 0
         assert settings.DB_POOL_TIMEOUT > 0
     
-    @patch('src.core.database.get_session')
+    @patch('core.database.get_async_session')
     async def test_concurrent_sessions(self, mock_get_session):
         """Test multiple concurrent database sessions"""
         mock_session1 = AsyncMock()
@@ -287,7 +287,7 @@ class TestDatabaseConnectionPool:
 class TestDatabaseHealthCheck:
     """Test database health monitoring"""
     
-    @patch('src.core.database.engine')
+    @patch('core.database.engine')
     async def test_database_health_check_success(self, mock_engine):
         """Test successful database health check"""
         mock_conn = AsyncMock()
@@ -300,7 +300,7 @@ class TestDatabaseHealthCheck:
         
         mock_engine.connect.assert_called_once()
     
-    @patch('src.core.database.engine')
+    @patch('core.database.engine')
     async def test_database_health_check_failure(self, mock_engine):
         """Test database health check failure"""
         mock_engine.connect.side_effect = SQLAlchemyError("Connection failed")
@@ -314,10 +314,10 @@ class TestDatabaseHealthCheck:
 class TestDatabaseMigrations:
     """Test database migration support"""
     
-    @patch('src.core.database.Base.metadata')
+    @patch('core.database.Base.metadata')
     def test_metadata_table_definitions(self, mock_metadata):
         """Test that models are registered with metadata"""
-        from src.core.database import Base
+        from core.database import Base
         
         # Should have metadata for table creation
         assert Base.metadata is not None
@@ -325,13 +325,13 @@ class TestDatabaseMigrations:
         # Models should register tables
         # This tests the framework is set up correctly
     
-    @patch('src.core.database.engine')
+    @patch('core.database.engine')
     async def test_schema_creation_process(self, mock_engine):
         """Test database schema creation"""
         mock_conn = AsyncMock()
         mock_engine.begin.return_value.__aenter__.return_value = mock_conn
         
-        from src.core.database import Base
+        from core.database import Base
         
         # Schema creation process
         def create_schema(conn):
@@ -346,7 +346,7 @@ class TestDatabaseConfiguration:
     
     def test_async_configuration(self):
         """Test async database configuration"""
-        from src.core.config import get_settings
+        from core.config import get_settings
         
         settings = get_settings()
         
@@ -355,7 +355,7 @@ class TestDatabaseConfiguration:
     
     def test_connection_string_security(self):
         """Test database connection security"""
-        from src.core.config import get_settings
+        from core.config import get_settings
         
         settings = get_settings()
         
@@ -366,7 +366,7 @@ class TestDatabaseConfiguration:
     def test_logging_integration(self):
         """Test database logging integration"""
         # Database operations should log appropriately
-        import src.core.database as db
+        import core.database as db
         
         # Logger should be available for database operations
         assert hasattr(db, 'logger') or True  # Logger might be imported dynamically

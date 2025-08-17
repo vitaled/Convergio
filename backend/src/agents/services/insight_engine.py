@@ -17,9 +17,9 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from src.agents.services.event_bus import Event, EventType, EventPriority, event_bus
-from src.agents.services.telemetry import TelemetryService
-from src.models.project import Task, Project, TaskStatus
+from agents.services.event_bus import Event, EventType, EventPriority, event_bus
+from agents.services.telemetry import TelemetryService
+from models.project import Task, Project, TaskStatus
 
 logger = structlog.get_logger()
 

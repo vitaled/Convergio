@@ -58,6 +58,39 @@ global.console = {
   // error: vi.fn(),
 };
 
+// Mock SvelteKit environment variables
+Object.defineProperty(global, '$app/environment', {
+  value: {
+    browser: true,
+    dev: false,
+    building: false,
+    version: 'test'
+  }
+});
+
+// Mock SvelteKit navigation
+Object.defineProperty(global, '$app/navigation', {
+  value: {
+    goto: vi.fn(),
+    invalidate: vi.fn(),
+    invalidateAll: vi.fn(),
+    preloadData: vi.fn(),
+    preloadCode: vi.fn(),
+    onNavigate: vi.fn(),
+    beforeNavigate: vi.fn(),
+    afterNavigate: vi.fn()
+  }
+});
+
+// Mock SvelteKit stores
+Object.defineProperty(global, '$app/stores', {
+  value: {
+    page: { subscribe: vi.fn() },
+    navigating: { subscribe: vi.fn() },
+    updated: { subscribe: vi.fn() }
+  }
+});
+
 // Setup global test utilities
 global.testUtils = {
   // Helper to wait for next tick

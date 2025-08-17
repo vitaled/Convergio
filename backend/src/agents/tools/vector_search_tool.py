@@ -212,13 +212,13 @@ VECTOR_TOOLS = [
 
 def get_vector_tools(base_url: str = "http://localhost:9000") -> List[BaseTool]:
     """
-    Get all vector-related tools for AutoGen agents.
+    Get all vector-related tools for AutoGen 0.7.2 agents.
     
     Args:
         base_url: Base URL for vector service
     
     Returns:
-        List of vector tools
+        List of properly configured vector tools for AutoGen
     """
     return [
         VectorSearchTool(base_url),

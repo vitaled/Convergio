@@ -20,8 +20,8 @@ from .definitions import (
     BusinessWorkflow, WorkflowStep, WorkflowStatus, 
     StepType, WorkflowPriority
 )
-from ...utils.config import get_settings
-from ...observability.otel_integration import get_otel_manager
+from agents.utils.config import get_settings
+from agents.observability.otel_integration import get_otel_manager
 
 logger = structlog.get_logger()
 

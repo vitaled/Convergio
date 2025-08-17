@@ -6,243 +6,233 @@ Tests all major functionality with gpt-4o-mini model
 
 import asyncio
 import json
-import httpx
 from typing import Any, Dict
 
 BASE_URL = "http://localhost:9000"
 
-async def test_health_endpoints():
+async def test_health_endpoints(test_client):
     """Test health check endpoints"""
     print("\n🏥 Testing: Health endpoints")
-    async with httpx.AsyncClient() as client:
-        # Basic health
-        response = await client.get(f"{BASE_URL}/health/")
-        assert response.status_code == 200
-        health = response.json()
-        print(f"✅ Basic health: {health['status']}")
-        
-        # System health
-        response = await client.get(f"{BASE_URL}/health/system")
-        assert response.status_code == 200
-        system_health = response.json()
-        print(f"✅ System health: Database={system_health['database']}, Redis={system_health['redis']}")
-        
-        # Agent health
-        response = await client.get(f"{BASE_URL}/health/agents")
-        assert response.status_code == 200
-        agent_health = response.json()
-        print(f"✅ Agent health: {agent_health['status']}, Count={agent_health.get('agent_count', 0)}")
-        
-        return True
+    
+    # Basic health
+    response = test_client.get("/health/")
+    assert response.status_code == 200
+    health = response.json()
+    print(f"✅ Basic health: {health['status']}")
+    
+    # System health
+    response = test_client.get("/health/system")
+    assert response.status_code == 200
+    system_health = response.json()
+    print(f"✅ System health: Database={system_health['database']}, Redis={system_health['redis']}")
+    
+    # Agent health
+    response = test_client.get("/health/agents")
+    assert response.status_code == 200
+    agent_health = response.json()
+    print(f"✅ Agent health: {agent_health['status']}, Count={agent_health.get('agent_count', 0)}")
+    
+    return True
 
-async def test_api_status():
+async def test_api_status(test_client):
     """Test API status endpoint"""
     print("\n🔌 Testing: API status")
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/api/v1/system/api-status")
-        assert response.status_code == 200
-        status = response.json()
-        
-        print(f"✅ Backend: {status['backend']['connected']} - v{status['backend'].get('version', 'Unknown')}")
-        print(f"✅ OpenAI: {status['openai']['connected']} - Model: {status['openai'].get('model', 'None')}")
-        print(f"✅ Perplexity: {status['perplexity']['connected']}")
-        
-        # Check if OpenAI is configured with gpt-4o-mini
-        assert status['openai']['connected'], "OpenAI should be connected"
-        assert 'gpt-4o-mini' in status['openai'].get('model', ''), f"Model should be gpt-4o-mini, got {status['openai'].get('model')}"
-        
-        return status
+    
+    response = test_client.get("/api/v1/system/api-status")
+    assert response.status_code == 200
+    status = response.json()
+    
+    print(f"✅ Backend: {status['backend']['connected']} - v{status['backend'].get('version', 'Unknown')}")
+    print(f"✅ OpenAI: {status['openai']['connected']} - Model: {status['openai'].get('model', 'None')}")
+    print(f"✅ Perplexity: {status['perplexity']['connected']}")
+    
+    # Check if OpenAI is configured with gpt-4o-mini
+    assert status['openai']['connected'], "OpenAI should be connected"
+    assert 'gpt-4o-mini' in status['openai'].get('model', ''), f"Model should be gpt-4o-mini, got {status['openai'].get('model')}"
+    
+    return status
 
-async def test_agent_ecosystem():
+async def test_agent_ecosystem(test_client):
     """Test agent ecosystem endpoint"""
     print("\n🤖 Testing: Agent ecosystem")
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/api/v1/agents/agents-ecosystem/")
-        assert response.status_code == 200
-        ecosystem = response.json()
-        
-        print(f"✅ Agent Ecosystem Status: {ecosystem['status']}")
-        print(f"   Total agents: {ecosystem['agent_count']}")
-        print(f"   Orchestrators: {ecosystem['orchestrator_count']}")
-        
-        # Show some agents
-        if ecosystem.get('agents'):
-            print("   Sample agents:")
-            for agent in list(ecosystem['agents'].values())[:5]:
-                print(f"     • {agent['name']}: {agent['role']}")
-        
-        return ecosystem
+    response = test_client.get("/api/v1/agents/agents-ecosystem/")
+    assert response.status_code == 200
+    ecosystem = response.json()
+    print(f"✅ Agent Ecosystem Status: {ecosystem['status']}")
+    print(f"   Total agents: {ecosystem['agent_count']}")
+    print(f"   Orchestrators: {ecosystem['orchestrator_count']}")
+    
+    # Show some agents
+    if ecosystem.get('agents'):
+        print("   Sample agents:")
+        for agent in list(ecosystem['agents'].values())[:5]:
+            print(f"     • {agent['name']}: {agent['role']}")
+    
+    return ecosystem
 
-async def test_ali_intelligence():
+async def test_ali_intelligence(test_client):
     """Test Ali Intelligence endpoint with simple query"""
     print("\n🧠 Testing: Ali Intelligence (CEO assistant)")
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"{BASE_URL}/api/v1/ali-intelligence/ask",
-            json={
-                "query": "What is 2+2?",
-                "context": {"test": True}
-            }
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            print(f"✅ Ali responded: {result.get('response', '')[:100]}...")
-            print(f"   Processing time: {result.get('processing_time', 0):.2f}s")
-        else:
-            print(f"⚠️ Ali Intelligence not available: {response.text}")
-        
-        return response.status_code == 200
+    response = test_client.post(
+        "/api/v1/ali-intelligence/ask",
+        json={
+            "query": "What is 2+2?",
+            "context": {"test": True}
+        }
+    )
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"✅ Ali responded: {result.get('response', '')[:100]}...")
+        print(f"   Processing time: {result.get('processing_time', 0):.2f}s")
+    else:
+        print(f"⚠️ Ali Intelligence not available: {response.text}")
+    
+    return response.status_code == 200
 
-async def test_vector_search():
+async def test_vector_search(test_client):
     """Test vector search functionality"""
     print("\n🔍 Testing: Vector search")
-    async with httpx.AsyncClient() as client:
-        # Create embedding
-        response = await client.post(
-            f"{BASE_URL}/api/v1/vector/embeddings",
-            json={"texts": ["Microsoft Q4 earnings", "Apple financial performance"]}
-        )
-        
-        if response.status_code == 200:
-            embeddings = response.json()
-            print(f"✅ Created {len(embeddings['embeddings'])} embeddings")
-            print(f"   Model: {embeddings.get('model', 'Unknown')}")
-            print(f"   Dimension: {len(embeddings['embeddings'][0]) if embeddings['embeddings'] else 0}")
-        else:
-            print(f"⚠️ Embeddings creation failed: {response.text}")
-        
-        # Test search
-        response = await client.post(
-            f"{BASE_URL}/api/v1/vector/search",
-            json={
-                "query": "financial earnings",
-                "table": "documents",
-                "limit": 5
-            }
-        )
-        
-        if response.status_code == 200:
-            results = response.json()
-            print(f"✅ Vector search returned {len(results.get('results', []))} results")
-        else:
-            print(f"⚠️ Vector search failed: {response.text}")
-        
-        return True
+    # Create embedding
+    response = test_client.post(
+        "/api/v1/vector/embeddings",
+        json={"texts": ["Microsoft Q4 earnings", "Apple financial performance"]}
+    )
+    
+    if response.status_code == 200:
+        embeddings = response.json()
+        print(f"✅ Created {len(embeddings['embeddings'])} embeddings")
+        print(f"   Model: {embeddings.get('model', 'Unknown')}")
+        print(f"   Dimension: {len(embeddings['embeddings'][0]) if embeddings['embeddings'] else 0}")
+    else:
+        print(f"⚠️ Embeddings creation failed: {response.text}")
+    
+    # Test search
+    response = test_client.post(
+        "/api/v1/vector/search",
+        json={
+            "query": "financial earnings",
+            "table": "documents",
+            "limit": 5
+        }
+    )
+    
+    if response.status_code == 200:
+        results = response.json()
+        print(f"✅ Vector search returned {len(results.get('results', []))} results")
+    else:
+        print(f"⚠️ Vector search failed: {response.text}")
+    
+    return True
 
-async def test_cost_management():
+async def test_cost_management(test_client):
     """Test cost management endpoints"""
     print("\n💰 Testing: Cost management")
-    async with httpx.AsyncClient() as client:
-        # Get current costs
-        response = await client.get(f"{BASE_URL}/api/v1/cost-management/current")
+    # Get current costs
+    response = test_client.get("/api/v1/cost-management/current")
+    
+    if response.status_code == 200:
+        costs = response.json()
+        print(f"✅ Cost tracking active:")
+        print(f"   Total cost: ${costs.get('total_cost', 0):.4f}")
+        print(f"   Total tokens: {costs.get('total_tokens', 0)}")
+        print(f"   API calls: {costs.get('api_calls', 0)}")
         
+        # Get optimization suggestions
+        response = test_client.get("/api/v1/cost-management/optimization-suggestions")
         if response.status_code == 200:
-            costs = response.json()
-            print(f"✅ Cost tracking active:")
-            print(f"   Total cost: ${costs.get('total_cost', 0):.4f}")
-            print(f"   Total tokens: {costs.get('total_tokens', 0)}")
-            print(f"   API calls: {costs.get('api_calls', 0)}")
-            
-            # Get optimization suggestions
-            response = await client.get(f"{BASE_URL}/api/v1/cost-management/optimization-suggestions")
-            if response.status_code == 200:
-                suggestions = response.json()
-                print(f"✅ Got {len(suggestions.get('suggestions', []))} optimization suggestions")
-        else:
-            print(f"⚠️ Cost management not available: {response.text}")
-        
-        return True
+            suggestions = response.json()
+            print(f"✅ Got {len(suggestions.get('suggestions', []))} optimization suggestions")
+    else:
+        print(f"⚠️ Cost management not available: {response.text}")
+    
+    return True
 
-async def test_workflow_catalog():
+async def test_workflow_catalog(test_client):
     """Test workflow catalog"""
     print("\n📋 Testing: Workflow catalog")
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/api/v1/workflows/catalog")
-        
-        if response.status_code == 200:
-            catalog = response.json()
-            workflows = catalog.get('workflows', [])
-            print(f"✅ Found {len(workflows)} workflow templates:")
-            for wf in workflows:
-                print(f"   • {wf['name']}: {wf['description'][:50]}...")
-        else:
-            print(f"⚠️ Workflow catalog not available: {response.text}")
-        
-        return True
+    response = test_client.get("/api/v1/workflows/catalog")
+    
+    if response.status_code == 200:
+        catalog = response.json()
+        workflows = catalog.get('workflows', [])
+        print(f"✅ Found {len(workflows)} workflow templates:")
+        for wf in workflows:
+            print(f"   • {wf['name']}: {wf['description'][:50]}...")
+    else:
+        print(f"⚠️ Workflow catalog not available: {response.text}")
 
-async def test_agent_signatures():
+    return True
+
+async def test_agent_signatures(test_client):
     """Test agent signature generation and verification"""
     print("\n🔐 Testing: Agent signatures")
-    async with httpx.AsyncClient() as client:
-        # Generate signature
-        response = await client.post(
-            f"{BASE_URL}/api/v1/agent-signatures/generate",
+    # Generate signature
+    response = test_client.post(
+        "/api/v1/agent-signatures/generate",
+        json={
+            "agent_id": "amy_cfo",
+            "message": "Test financial analysis"
+        }
+    )
+
+    if response.status_code == 200:
+        sig_data = response.json()
+        print(f"✅ Signature generated for amy_cfo")
+        print(f"   Signature: {sig_data['signature'][:40]}...")
+        
+        # Verify signature
+        response = test_client.post(
+            "/api/v1/agent-signatures/verify",
             json={
                 "agent_id": "amy_cfo",
-                "message": "Test financial analysis"
+                "message": "Test financial analysis",
+                "signature": sig_data['signature']
             }
         )
         
         if response.status_code == 200:
-            sig_data = response.json()
-            print(f"✅ Signature generated for amy_cfo")
-            print(f"   Signature: {sig_data['signature'][:40]}...")
-            
-            # Verify signature
-            response = await client.post(
-                f"{BASE_URL}/api/v1/agent-signatures/verify",
-                json={
-                    "agent_id": "amy_cfo",
-                    "message": "Test financial analysis",
-                    "signature": sig_data['signature']
-                }
-            )
-            
-            if response.status_code == 200:
-                verify = response.json()
-                print(f"✅ Signature verification: {verify['valid']}")
-                assert verify['valid'], "Signature should be valid"
-        else:
-            print(f"⚠️ Signature generation failed: {response.text}")
-        
-        return True
+            verify = response.json()
+            print(f"✅ Signature verification: {verify['valid']}")
+            assert verify['valid'], "Signature should be valid"
+    else:
+        print(f"⚠️ Signature generation failed: {response.text}")
 
-async def test_database_maintenance():
+    return True
+
+async def test_database_maintenance(test_client):
     """Test database maintenance endpoints"""
     print("\n🔧 Testing: Database maintenance")
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BASE_URL}/api/v1/admin/maintenance/status")
-        
-        if response.status_code == 200:
-            status = response.json()
-            print(f"✅ Maintenance scheduler: {status['scheduler_running']}")
-            print(f"   Next VACUUM: {status.get('next_vacuum', 'Not scheduled')}")
-            print(f"   Next analysis: {status.get('next_analysis', 'Not scheduled')}")
-        else:
-            print(f"⚠️ Maintenance status not available: {response.text}")
-        
-        return True
+    response = test_client.get("/api/v1/admin/maintenance/status")
 
-async def test_talent_management():
+    if response.status_code == 200:
+        status = response.json()
+        print(f"✅ Maintenance scheduler: {status['scheduler_running']}")
+        print(f"   Next VACUUM: {status.get('next_vacuum', 'Not scheduled')}")
+        print(f"   Next analysis: {status.get('next_analysis', 'Not scheduled')}")
+    else:
+        print(f"⚠️ Maintenance status not available: {response.text}")
+
+    return True
+
+async def test_talent_management(test_client):
     """Test talent management endpoints"""
     print("\n👥 Testing: Talent management")
-    async with httpx.AsyncClient() as client:
-        # List talents
-        response = await client.get(f"{BASE_URL}/api/v1/talents")
-        
-        if response.status_code == 200:
-            talents = response.json()
-            print(f"✅ Found {len(talents)} talents")
-            if talents:
-                for talent in talents[:3]:
-                    print(f"   • {talent.get('name', 'Unknown')}: {talent.get('role', 'Unknown')}")
-        else:
-            print(f"⚠️ Talents API not available: {response.text}")
-        
-        return True
+    # List talents
+    response = test_client.get("/api/v1/talents")
 
-async def test_openai_model():
+    if response.status_code == 200:
+        talents = response.json()
+        print(f"✅ Found {len(talents)} talents")
+        if talents:
+            for talent in talents[:3]:
+                print(f"   • {talent.get('name', 'Unknown')}: {talent.get('role', 'Unknown')}")
+    else:
+        print(f"⚠️ Talents API not available: {response.text}")
+
+    return True
+
+async def test_openai_model(test_client):
     """Test OpenAI model configuration"""
     print("\n🤖 Testing: OpenAI Model (gpt-4o-mini)")
     
@@ -286,9 +276,8 @@ async def main():
     
     # Check if backend is running
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BASE_URL}/health/")
-            if response.status_code != 200:
+        response = test_client.get("/health/")
+        if response.status_code != 200:
                 print("❌ Backend is not running! Please start it first.")
                 return
     except Exception as e:

@@ -16,10 +16,10 @@ class TestAgentOrchestratorInitialization:
     
     def test_orchestrator_import(self):
         """Test RealAgentOrchestrator can be imported"""
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         assert RealAgentOrchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_orchestrator_initialization(self, mock_get_settings):
         """Test AgentOrchestrator initializes correctly"""
         mock_settings = MagicMock()
@@ -27,7 +27,7 @@ class TestAgentOrchestratorInitialization:
         mock_settings.DATABASE_URL = "postgresql+asyncpg://test"
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -35,21 +35,21 @@ class TestAgentOrchestratorInitialization:
         # New RealAgentOrchestrator wires services; ensure orchestrator attribute exists
         assert hasattr(orchestrator, 'orchestrator')
     
-    @patch('src.agents.orchestrator.logger')
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.logger')
+    @patch('agents.orchestrator.get_settings')
     def test_orchestrator_logging_setup(self, mock_get_settings, mock_logger):
         """Test orchestrator logging is properly configured"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
         # Should have logger available
         assert mock_logger is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_orchestrator_default_configuration(self, mock_get_settings):
         """Test orchestrator default configuration"""
         mock_settings = MagicMock()
@@ -57,7 +57,7 @@ class TestAgentOrchestratorInitialization:
         mock_settings.TASK_TIMEOUT = 300
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -72,13 +72,13 @@ class TestAgentOrchestratorInitialization:
 class TestAgentManagement:
     """Test agent registration and management"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_register_agent(self, mock_get_settings):
         """Test agent registration"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -93,13 +93,13 @@ class TestAgentManagement:
         # Instance existence is sufficient for this alignment
         assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_unregister_agent(self, mock_get_settings):
         """Test agent unregistration"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -112,13 +112,13 @@ class TestAgentManagement:
             # Method might not exist - test that orchestrator exists
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_list_agents(self, mock_get_settings):
         """Test listing registered agents"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -130,13 +130,13 @@ class TestAgentManagement:
             # Method might not exist - test basic structure
             assert hasattr(orchestrator, 'agents') or True
     
-    @patch('src.agents.orchestrator.get_settings')  
+    @patch('agents.orchestrator.get_settings')  
     def test_get_agent_by_id(self, mock_get_settings):
         """Test getting agent by ID"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -153,13 +153,13 @@ class TestAgentManagement:
 class TestTaskManagement:
     """Test task assignment and management"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_assign_task(self, mock_get_settings):
         """Test task assignment to agents"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -184,13 +184,13 @@ class TestTaskManagement:
                 # Method doesn't exist - test basic structure
                 assert hasattr(orchestrator, 'active_tasks') or True
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_get_task_status(self, mock_get_settings):
         """Test getting task status"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -207,13 +207,13 @@ class TestTaskManagement:
                 # Method doesn't exist
                 assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_cancel_task(self, mock_get_settings):
         """Test task cancellation"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -230,13 +230,13 @@ class TestTaskManagement:
                 # Method doesn't exist
                 assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_get_task_queue(self, mock_get_settings):
         """Test getting task queue status"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -252,13 +252,13 @@ class TestTaskManagement:
 class TestAgentCommunication:
     """Test agent-to-agent communication"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_send_message_to_agent(self, mock_get_settings):
         """Test sending message to specific agent"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -282,13 +282,13 @@ class TestAgentCommunication:
                 # Method doesn't exist
                 assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_broadcast_message(self, mock_get_settings):
         """Test broadcasting message to all agents"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -315,13 +315,13 @@ class TestAgentCommunication:
 class TestLoadBalancing:
     """Test load balancing across agents"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_get_agent_load(self, mock_get_settings):
         """Test getting agent load information"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator
         
         orchestrator = RealAgentOrchestrator()
         
@@ -333,13 +333,13 @@ class TestLoadBalancing:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_find_best_agent_for_task(self, mock_get_settings):
         """Test finding best agent for task assignment"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -358,13 +358,13 @@ class TestLoadBalancing:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_balance_load_across_agents(self, mock_get_settings):
         """Test load balancing mechanism"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -380,13 +380,13 @@ class TestLoadBalancing:
 class TestHealthMonitoring:
     """Test agent health monitoring"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_check_agent_health(self, mock_get_settings):
         """Test checking individual agent health"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -398,13 +398,13 @@ class TestHealthMonitoring:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_get_system_health(self, mock_get_settings):
         """Test getting overall system health"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -416,13 +416,13 @@ class TestHealthMonitoring:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_heartbeat_monitoring(self, mock_get_settings):
         """Test agent heartbeat monitoring"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -443,13 +443,13 @@ class TestHealthMonitoring:
 class TestConfigurationManagement:
     """Test orchestrator configuration management"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_update_configuration(self, mock_get_settings):
         """Test updating orchestrator configuration"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -467,13 +467,13 @@ class TestConfigurationManagement:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_get_configuration(self, mock_get_settings):
         """Test getting current configuration"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -489,13 +489,13 @@ class TestConfigurationManagement:
 class TestEventHandling:
     """Test event handling and notifications"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_register_event_handler(self, mock_get_settings):
         """Test registering event handlers"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -510,13 +510,13 @@ class TestEventHandling:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_emit_event(self, mock_get_settings):
         """Test emitting events"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -545,13 +545,13 @@ class TestEventHandling:
 class TestMetricsAndAnalytics:
     """Test metrics collection and analytics"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_get_agent_metrics(self, mock_get_settings):
         """Test getting agent performance metrics"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -563,13 +563,13 @@ class TestMetricsAndAnalytics:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_get_system_metrics(self, mock_get_settings):
         """Test getting system-wide metrics"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -587,13 +587,13 @@ class TestMetricsAndAnalytics:
             # Method might not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_reset_metrics(self, mock_get_settings):
         """Test resetting metrics"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -609,12 +609,12 @@ class TestMetricsAndAnalytics:
 class TestErrorHandling:
     """Test error handling and recovery"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_orchestrator_error_handling(self, mock_get_settings):
         """Test orchestrator handles initialization errors"""
         mock_get_settings.side_effect = Exception("Settings error")
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         # Should handle settings error gracefully (import path only)
         try:
@@ -623,14 +623,14 @@ class TestErrorHandling:
         except Exception:
             pass
     
-    @patch('src.agents.orchestrator.logger')
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.logger')
+    @patch('agents.orchestrator.get_settings')
     def test_error_logging(self, mock_get_settings, mock_logger):
         """Test error logging functionality"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -648,13 +648,13 @@ class TestErrorHandling:
 class TestConcurrencyAndThreadSafety:
     """Test concurrent operations and thread safety"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_concurrent_task_assignment(self, mock_get_settings):
         """Test concurrent task assignments"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -685,13 +685,13 @@ class TestConcurrencyAndThreadSafety:
             # Method might be synchronous or not exist
             assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_thread_safety(self, mock_get_settings):
         """Test thread safety of orchestrator operations"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -705,13 +705,13 @@ class TestConcurrencyAndThreadSafety:
 class TestCleanupAndShutdown:
     """Test cleanup and shutdown procedures"""
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     async def test_graceful_shutdown(self, mock_get_settings):
         """Test graceful shutdown of orchestrator"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -728,13 +728,13 @@ class TestCleanupAndShutdown:
                 # Method doesn't exist
                 assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_settings')
     def test_cleanup_resources(self, mock_get_settings):
         """Test resource cleanup"""
         mock_settings = MagicMock()
         mock_get_settings.return_value = mock_settings
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
@@ -750,8 +750,8 @@ class TestCleanupAndShutdown:
 class TestOrchestratorIntegration:
     """Test orchestrator integration with other components"""
     
-    @patch('src.agents.orchestrator.get_redis_client')
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_redis_client')
+    @patch('agents.orchestrator.get_settings')
     def test_redis_integration(self, mock_get_settings, mock_get_redis):
         """Test Redis integration for state management"""
         mock_settings = MagicMock()
@@ -760,15 +760,15 @@ class TestOrchestratorIntegration:
         mock_redis_client = AsyncMock()
         mock_get_redis.return_value = mock_redis_client
         
-        from src.agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
+        from agents.orchestrator import RealAgentOrchestrator as AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         
         # Should integrate with Redis if available
         assert orchestrator is not None
     
-    @patch('src.agents.orchestrator.get_db_session')
-    @patch('src.agents.orchestrator.get_settings')
+    @patch('agents.orchestrator.get_db_session')
+    @patch('agents.orchestrator.get_settings')
     async def test_database_integration(self, mock_get_settings, mock_get_db):
         """Test database integration for persistence"""
         mock_settings = MagicMock()
@@ -777,7 +777,7 @@ class TestOrchestratorIntegration:
         mock_db_session = AsyncMock()
         mock_get_db.return_value = mock_db_session
         
-        from src.agents.orchestrator import AgentOrchestrator
+        from agents.orchestrator import AgentOrchestrator
         
         orchestrator = AgentOrchestrator()
         

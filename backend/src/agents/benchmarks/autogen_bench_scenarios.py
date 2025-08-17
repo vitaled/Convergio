@@ -13,11 +13,11 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 import structlog
 
-from ..services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-from ..services.redis_state_manager import RedisStateManager
-from ..services.cost_tracker import CostTracker
-from ..observability.otel_integration import initialize_otel, record_conversation_metrics
-from ..utils.config import get_settings
+from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+from agents.services.redis_state_manager import RedisStateManager
+from agents.services.cost_tracker import CostTracker
+from agents.observability.otel_integration import initialize_otel, record_conversation_metrics
+from agents.utils.config import get_settings
 
 logger = structlog.get_logger()
 

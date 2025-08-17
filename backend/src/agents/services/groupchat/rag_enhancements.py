@@ -16,7 +16,7 @@ import structlog
 import redis.asyncio as redis
 from sentence_transformers import SentenceTransformer
 
-from ...utils.config import get_settings
+from agents.utils.config import get_settings
 
 logger = structlog.get_logger()
 

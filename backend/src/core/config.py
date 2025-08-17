@@ -268,7 +268,14 @@ class Settings(BaseSettings):
     RATE_LIMIT_BURST: int = Field(default=200, description="Rate limit burst")
     
     # ================================
-    # 🔧 FEATURE FLAGS
+    # � COST MANAGEMENT
+    # ================================
+    
+    # Max allowed cost per conversation in USD (test-friendly default)
+    MAX_CONVERSATION_COST: float = Field(default=5.0, description="Maximum allowed cost per conversation (USD)")
+    
+    # ================================
+    # �🔧 FEATURE FLAGS
     # ================================
     
     ENABLE_DOCS: bool = Field(default=True, description="Enable API documentation")

@@ -327,7 +327,7 @@ class ResilientOrchestrator:
             elif hasattr(self.orchestrator, 'is_healthy'):
                 return self.orchestrator.is_healthy()
             return True
-        except:
+        except Exception:
             return False
             
     def get_circuit_status(self) -> Dict[str, Any]:
@@ -335,37 +335,52 @@ class ResilientOrchestrator:
         return self.circuit_breaker.get_status()
 
 
-# Prometheus metrics support (optional)
+"""Prometheus metrics support (optional). Avoid duplicate registration in tests."""
 try:
-    from prometheus_client import Counter, Histogram, Gauge
-    
-    # Metrics
-    orchestrator_health_gauge = Gauge(
+    from prometheus_client import Counter, Histogram, Gauge, REGISTRY
+
+    def _get_or_create(metric_cls, name, documentation, labelnames=None):
+        try:
+            existing = REGISTRY._names_to_collectors.get(name)  # type: ignore[attr-defined]
+            if existing:
+                return existing
+            if labelnames is None:
+                return metric_cls(name, documentation)
+            return metric_cls(name, documentation, labelnames)
+        except Exception:
+            # On any error, return a dummy no-op gauge/counter/histogram
+            pass
+
+    orchestrator_health_gauge = _get_or_create(
+        Gauge,
         'orchestrator_health_status',
         'Health status of orchestrators (1=healthy, 0=unhealthy)',
         ['orchestrator_name']
     )
-    
-    circuit_breaker_state_gauge = Gauge(
+
+    circuit_breaker_state_gauge = _get_or_create(
+        Gauge,
         'circuit_breaker_state',
         'Circuit breaker state (0=closed, 1=open, 2=half_open)',
-        ['orchestrator_name']
+        ['orchestrator_name'],
     )
-    
-    orchestrator_failures_counter = Counter(
+
+    orchestrator_failures_counter = _get_or_create(
+        Counter,
         'orchestrator_failures_total',
         'Total number of orchestrator failures',
-        ['orchestrator_name']
+        ['orchestrator_name'],
     )
-    
-    orchestrator_latency_histogram = Histogram(
+
+    orchestrator_latency_histogram = _get_or_create(
+        Histogram,
         'orchestrator_response_time_seconds',
         'Response time of orchestrators',
-        ['orchestrator_name']
+        ['orchestrator_name'],
     )
-    
+
     METRICS_ENABLED = True
-    
+
 except ImportError:
     METRICS_ENABLED = False
     logger.info("Prometheus metrics not available - install prometheus_client to enable")

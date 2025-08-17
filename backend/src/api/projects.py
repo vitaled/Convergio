@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db_session
-from src.models.client import Client
-from src.models.engagement import Engagement
-from src.models.activity import Activity
+from core.database import get_db_session
+from models.client import Client
+from models.engagement import Engagement
+from models.activity import Activity
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Projects & Clients"])

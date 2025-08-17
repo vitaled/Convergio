@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import structlog
 
-from src.agents.services.observability.telemetry import get_telemetry
+from agents.services.observability.telemetry import get_telemetry
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/telemetry", tags=["telemetry"])

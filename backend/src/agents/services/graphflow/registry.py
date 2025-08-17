@@ -1,6 +1,6 @@
 """
 GraphFlow Registry - Complete Workflow Library and Management System
-Comprehensive registry for business workflows with template management, 
+Comprehensive registry for business workflows with template management,
 customization, and dynamic workflow generation capabilities.
 """
 
@@ -14,9 +14,16 @@ from dataclasses import asdict, dataclass
 import structlog
 
 from .definitions import (
-    BusinessWorkflow, WorkflowStep, WorkflowTemplate, BusinessDomain, 
-    WorkflowPriority, StepType, WorkflowStatus,
-    STRATEGIC_ANALYSIS_TEMPLATE, PRODUCT_LAUNCH_TEMPLATE, MARKET_ENTRY_TEMPLATE
+    BusinessWorkflow,
+    WorkflowStep,
+    WorkflowTemplate,
+    BusinessDomain,
+    WorkflowPriority,
+    StepType,
+    WorkflowStatus,
+    STRATEGIC_ANALYSIS_TEMPLATE,
+    PRODUCT_LAUNCH_TEMPLATE,
+    MARKET_ENTRY_TEMPLATE,
 )
 
 logger = structlog.get_logger()

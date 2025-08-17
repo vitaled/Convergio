@@ -15,10 +15,10 @@ from collections import deque
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.services.event_bus import Event, EventType, EventPriority, event_bus
-from src.agents.services.insight_engine import Insight, InsightType, InsightSeverity, insight_engine
-from src.agents.services.ali_swarm_orchestrator import AliSwarmOrchestrator
-from src.agents.services.telemetry import TelemetryService
+from agents.services.event_bus import Event, EventType, EventPriority, event_bus
+from agents.services.insight_engine import Insight, InsightType, InsightSeverity, insight_engine
+from agents.services.ali_swarm_orchestrator import AliSwarmOrchestrator
+from agents.services.telemetry import TelemetryService
 
 logger = structlog.get_logger()
 

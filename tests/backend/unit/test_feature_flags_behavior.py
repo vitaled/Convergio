@@ -10,7 +10,7 @@ if _BACKEND_PATH not in sys.path:
 @pytest.mark.asyncio
 async def test_cost_safety_gating_blocks_on_budget(monkeypatch):
     # Arrange settings
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
     base_envs = {
@@ -32,9 +32,9 @@ async def test_cost_safety_gating_blocks_on_budget(monkeypatch):
     monkeypatch.setenv("COST_SAFETY", "true")
 
     # Patch cost tracker to force denial
-    from src.agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-    from src.agents.services.redis_state_manager import RedisStateManager
-    from src.agents.services.cost_tracker import CostTracker
+    from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+    from agents.services.redis_state_manager import RedisStateManager
+    from agents.services.cost_tracker import CostTracker
 
     class FakeState(RedisStateManager):
         async def initialize(self):
@@ -62,7 +62,7 @@ async def test_cost_safety_gating_blocks_on_budget(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_security_guardian_blocks_rejected_prompt(monkeypatch):
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
     base_envs = {
@@ -85,7 +85,7 @@ async def test_security_guardian_blocks_rejected_prompt(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_speaker_policy_flag_controls_selection(monkeypatch):
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
     base_envs = {
@@ -106,9 +106,9 @@ async def test_speaker_policy_flag_controls_selection(monkeypatch):
         monkeypatch.setenv(k, v)
 
     from types import SimpleNamespace
-    from src.agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-    from src.agents.services.redis_state_manager import RedisStateManager
-    from src.agents.services.cost_tracker import CostTracker
+    from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+    from agents.services.redis_state_manager import RedisStateManager
+    from agents.services.cost_tracker import CostTracker
 
     class FakeState(RedisStateManager):
         async def initialize(self):
@@ -122,7 +122,7 @@ async def test_speaker_policy_flag_controls_selection(monkeypatch):
     orch.model_client = SimpleNamespace(model="gpt-4o-mini")
 
     # Stub create_groupchat to avoid requiring real AssistantAgent instances
-    import src.agents.services.autogen_groupchat_orchestrator as orch_mod
+    import agents.services.autogen_groupchat_orchestrator as orch_mod
     orch_mod.create_groupchat = lambda participants, model_client, max_turns: SimpleNamespace(agents=participants)  # type: ignore
 
     # speaker policy enabled -> selection may reduce agent set or equal
@@ -145,7 +145,7 @@ async def test_speaker_policy_flag_controls_selection(monkeypatch):
 @pytest.mark.asyncio
 async def test_rag_flag_controls_memory_fetch(monkeypatch):
     # Arrange
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
     base_envs = {
@@ -166,10 +166,10 @@ async def test_rag_flag_controls_memory_fetch(monkeypatch):
     for k, v in base_envs.items():
         monkeypatch.setenv(k, v)
 
-    from src.agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-    from src.agents.services.redis_state_manager import RedisStateManager
-    from src.agents.services.cost_tracker import CostTracker
-    import src.agents.services.autogen_groupchat_orchestrator as orch_mod
+    from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+    from agents.services.redis_state_manager import RedisStateManager
+    from agents.services.cost_tracker import CostTracker
+    import agents.services.autogen_groupchat_orchestrator as orch_mod
 
     # Stub groupchat creation and runner
     orch_mod.create_groupchat = lambda participants, model_client, max_turns: SimpleNamespace(agents=participants)  # type: ignore
@@ -213,7 +213,7 @@ async def test_rag_flag_controls_memory_fetch(monkeypatch):
 
 
 def test_graphflow_flag_toggle(monkeypatch):
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
     base_envs = {

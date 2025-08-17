@@ -7,7 +7,7 @@ project_root = Path(__file__).parent.parent.parent
 backend_path = project_root / "backend"
 sys.path.insert(0, str(backend_path))
 
-from src.agents.services.groupchat.runner import run_groupchat_stream
+from agents.services.groupchat.runner import run_groupchat_stream
 
 
 @pytest.mark.integration

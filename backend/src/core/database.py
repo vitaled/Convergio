@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
-from src.core.config import get_settings
+from core.config import get_settings
 
 logger = structlog.get_logger()
 
@@ -368,6 +368,10 @@ async def get_read_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with get_async_read_session() as session:
         yield session
 
+# Backward-compatible alias expected by some tests
+# get_session should provide a write-capable session context manager
+get_session = get_async_session
+
 
 # Database event listeners for monitoring
 # @event.listens_for(async_engine, "connect")
@@ -477,3 +481,10 @@ async def drop_tables():
         await conn.run_sync(Base.metadata.drop_all)
     
     logger.warning("🗑️ Database tables dropped")
+
+
+# Backward compatibility aliases for tests
+get_session = get_db_session
+init_database = init_db
+close_database = close_db
+engine = async_engine

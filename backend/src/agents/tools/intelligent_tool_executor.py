@@ -12,7 +12,7 @@ from autogen_core.tools import BaseTool
 from .smart_tool_selector import SmartToolSelector
 from .web_search_tool import WebSearchTool
 from .vector_search_client import VectorSearchClient
-from ..ai_clients import get_ai_client_manager
+from agents.ai_clients import get_ai_client_manager
 
 logger = structlog.get_logger()
 
@@ -125,7 +125,7 @@ class IntelligentToolExecutor:
     async def _execute_web_search(self, query: str) -> Dict[str, Any]:
         """Execute web search using Perplexity"""
         try:
-            from .web_search_tool import WebSearchArgs
+            from web_search_tool import WebSearchArgs
             
             args = WebSearchArgs(
                 query=query,

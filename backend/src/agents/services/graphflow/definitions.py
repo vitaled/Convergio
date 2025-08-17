@@ -30,6 +30,7 @@ class StepType(Enum):
     MONITORING = "monitoring"
     APPROVAL = "approval"
     NOTIFICATION = "notification"
+    REPORTING = "reporting"
 
 
 class BusinessDomain(Enum):

@@ -15,9 +15,9 @@ import json
 import random
 import colorsys
 
-from src.agents.tools.web_search_tool import WebSearchTool
-from src.agents.tools.convergio_tools import VectorSearchTool
-from src.agents.utils.config import get_settings
+from agents.tools.web_search_tool import WebSearchTool
+from agents.tools.convergio_tools import VectorSearchTool
+from agents.utils.config import get_settings
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 logger = structlog.get_logger()

@@ -13,7 +13,7 @@ import redis.asyncio as redis
 from openai import OpenAI
 from anthropic import Anthropic
 
-from src.core.config import get_settings
+from core.config import get_settings
 
 logger = structlog.get_logger()
 

@@ -46,6 +46,50 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class SecurityMiddleware:
+    """Main security middleware class for authentication and validation"""
+    
+    def __init__(self):
+        self.bearer = HTTPBearer()
+        self.secret_key = os.getenv("JWT_SECRET_KEY", "convergio-default-secret-key")
+    
+    def validate_request(self, request: Request) -> bool:
+        """Validate incoming request for security compliance"""
+        try:
+            # Basic validation checks
+            if not request.method in ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]:
+                return False
+            
+            # Check for suspicious headers
+            suspicious_headers = ["x-forwarded-for", "x-real-ip"]
+            for header in suspicious_headers:
+                if header in request.headers:
+                    # Additional validation could be done here
+                    pass
+            
+            return True
+        except Exception:
+            return False
+    
+    async def validate_token(self, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> dict:
+        """Validate JWT token"""
+        try:
+            payload = jwt.decode(credentials.credentials, self.secret_key, algorithms=["HS256"])
+            return payload
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except jwt.JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Custom rate limiting middleware"""
     
@@ -110,10 +154,10 @@ async def get_current_user(
     """
     Get the current authenticated user.
     For now, returns a mock user for development.
-    In production, this should validate JWT tokens and fetch user from database.
+    In production, this should validate JWT tokens and fetch user from core.database.
     """
     # Import here to avoid circular dependency
-    from src.models.user import User
+    from models.user import User
     
     # For development, return a mock admin user
     # In production, validate the JWT token and fetch user from database
@@ -133,7 +177,7 @@ async def get_current_user(
         #     algorithms=["HS256"]
         # )
         # user_id = payload.get("sub")
-        # Fetch user from database...
+        # Fetch user from core.database...
         
         # For now, return mock admin user
         return User(

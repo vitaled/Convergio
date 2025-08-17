@@ -16,12 +16,12 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage, HandoffMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from src.core.config import settings, get_settings
-from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
-from src.core.redis import get_redis_client
-from src.agents.services.streaming.response_types import StreamingResponse
-from src.agents.services.streaming.session import StreamingSession
-from src.agents.services.streaming.runner import stream_agent_response
+from core.config import settings, get_settings
+from agents.memory.autogen_memory_system import AutoGenMemorySystem
+from core.redis import get_redis_client
+from agents.services.streaming.response_types import StreamingResponse
+from agents.services.streaming.session import StreamingSession
+from agents.services.streaming.runner import stream_agent_response
 
 logger = structlog.get_logger()
 
@@ -129,7 +129,7 @@ class StreamingOrchestrator:
             )
             
             # Get agent metadata using the correct API
-            from src.agents.services.agent_loader import DynamicAgentLoader
+            from agents.services.agent_loader import DynamicAgentLoader
             loader = DynamicAgentLoader("src/agents/definitions")
             agent_metadata = loader.scan_and_load_agents()
             

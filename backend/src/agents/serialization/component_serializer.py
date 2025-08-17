@@ -14,9 +14,9 @@ import structlog
 from uuid import uuid4
 import asyncio
 
-from src.core.config import settings
-from src.core.redis import get_redis_client
-from src.agents.services.agent_loader import agent_loader
+from core.config import settings
+from core.redis import get_redis_client
+from agents.services.agent_loader import agent_loader
 
 logger = structlog.get_logger()
 
@@ -131,7 +131,7 @@ class ComponentSerializer:
             # Add state data if requested
             if include_state:
                 # Get conversation history from memory system
-                from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
+                from agents.memory.autogen_memory_system import AutoGenMemorySystem
                 memory_system = AutoGenMemorySystem()
                 
                 try:
@@ -500,7 +500,7 @@ class ComponentSerializer:
         elif component.component_type == "conversation":
             # For conversations, restore to memory system
             try:
-                from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
+                from agents.memory.autogen_memory_system import AutoGenMemorySystem
                 memory_system = AutoGenMemorySystem()
                 
                 agent_name = restored_data.get("agent_name")

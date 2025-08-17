@@ -14,10 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 import numpy as np
 
-from src.core.database import get_db_session
-from src.core.config import get_settings
-from src.models.document import Document, DocumentEmbedding
-from src.api.user_keys import get_user_api_key
+from core.database import get_db_session
+from core.config import get_settings
+from models.document import Document, DocumentEmbedding
+from api.user_keys import get_user_api_key
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Vector Search"])

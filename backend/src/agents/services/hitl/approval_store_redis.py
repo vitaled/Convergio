@@ -13,7 +13,6 @@ from enum import Enum
 import structlog
 
 import redis.asyncio as redis
-from redis.asyncio import ConnectionPool
 
 logger = structlog.get_logger()
 

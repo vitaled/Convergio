@@ -53,7 +53,8 @@ def get_selection_history(conversation_id: str = None, limit: int = 100) -> list
     # In production, this would query from a proper storage system
     with _lock:
         history = []
-        for reason, count in _reason_counter.most_common(limit):
+        # Counter.most_common exists; type: ignore for mypy if needed
+        for reason, count in _reason_counter.most_common(limit):  # type: ignore[attr-defined]
             history.append({
                 "reason": reason,
                 "count": count,

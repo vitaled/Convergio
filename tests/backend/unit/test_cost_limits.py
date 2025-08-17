@@ -16,7 +16,7 @@ class _SM:
 
 
 async def _run_checks():
-    from src.agents.services.cost_tracker import CostTracker
+    from agents.services.cost_tracker import CostTracker
     ct = CostTracker(state_manager=_SM(total_cost=120.0))
     ct.set_cost_limit(100.0)
     check = await ct.check_budget_limits("c1")

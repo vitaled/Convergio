@@ -11,13 +11,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
+from core.database import Base
 
 
 class Talent(Base):
     """Talent model matching the existing Convergio database schema"""
     
     __tablename__ = "talents"
+    __table_args__ = {'extend_existing': True}
     
     # Primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

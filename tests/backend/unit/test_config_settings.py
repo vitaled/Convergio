@@ -7,9 +7,9 @@ if _BACKEND_PATH not in sys.path:
 
 
 def test_get_settings_basic_fields_present(monkeypatch):
-    from src.agents.utils.config import get_settings
+    from agents.utils.config import get_settings
     # Avoid reading root .env for test
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
 

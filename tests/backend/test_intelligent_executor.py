@@ -8,7 +8,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.agents.tools.intelligent_tool_executor import (
+from agents.tools.intelligent_tool_executor import (
     get_intelligent_executor,
     execute_intelligent_query
 )

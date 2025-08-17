@@ -204,7 +204,7 @@ class Settings(BaseSettings):
         # Environment variables loaded manually from root .env
         env_file_encoding = "utf-8"
         case_sensitive = False
-        extra = "ignore"  # Ignore extra fields from .env
+        extra = "ignore"  # Ignore extra fields from env
 
 
 def load_env_from_root():
@@ -239,7 +239,7 @@ def load_env_from_root():
                     value = value[1:-1]
                 elif value.startswith("'") and value.endswith("'"):
                     value = value[1:-1]
-                # Force overwrite environment variables from .env file
+                # Force overwrite environment variables from env file
                 os.environ[key] = value
 
 @lru_cache()

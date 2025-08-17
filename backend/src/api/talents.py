@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_db_session
-from src.models.talent import Talent
+from core.database import get_db_session
+from models.talent import Talent
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Talent Management"])

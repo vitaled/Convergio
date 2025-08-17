@@ -7,11 +7,11 @@ import json
 import structlog
 from typing import Any, Dict, List, Optional
 from autogen_agentchat.messages import TextMessage
-from ...tools.smart_tool_selector import SmartToolSelector
-from ...tools.web_search_tool import WebSearchTool, WebSearchArgs
+from agents.tools.smart_tool_selector import SmartToolSelector
+from agents.tools.web_search_tool import WebSearchTool, WebSearchArgs
 from ..observability.telemetry import get_telemetry, TelemetryContext
 try:
-    from ..decision_engine import DecisionPlan
+    from agents.decision_engine import DecisionPlan
 except Exception:
     DecisionPlan = None  # type: ignore
 
@@ -20,26 +20,32 @@ logger = structlog.get_logger()
 
 class GroupChatToolExecutor:
     """Executes tool calls emitted by agents in GroupChat"""
-    
-    def __init__(self, execution_plan: Optional["DecisionPlan"] = None, conversation_id: Optional[str] = None, user_id: Optional[str] = None):
+
+    def __init__(
+        self,
+        execution_plan: Optional["DecisionPlan"] = None,
+        conversation_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> None:
         self.selector = SmartToolSelector()
         self.web_search = WebSearchTool()
         self.tool_call_count = 0
-        self.tool_results = []
+        self.tool_results: List[Dict[str, Any]] = []
         self.execution_plan = execution_plan
         self.conversation_id = conversation_id or ""
         self.user_id = user_id or ""
-    
+        self._plan: Dict[str, Any] = {}
+
     async def should_use_web_search(self, message: str) -> bool:
         """Determine if this message needs web search"""
         if self.execution_plan and (
             (hasattr(self.execution_plan, "web_first") and self.execution_plan.web_first)
-            or ("web_search" in getattr(self.execution_plan, "tools", []) )
+            or ("web_search" in getattr(self.execution_plan, "tools", []))
         ):
             return True
         return self.selector.should_use_web_search(message, threshold=0.6)
-    
-    def set_decision_plan(self, plan: Optional[Dict[str, Any]] = None):
+
+    def set_decision_plan(self, plan: Optional[Dict[str, Any]] = None) -> None:
         """Optionally provide a DecisionPlan dict to guide execution order"""
         self._plan = plan or {}
 
@@ -49,12 +55,13 @@ class GroupChatToolExecutor:
         This is called BEFORE the agent processes the message.
         """
         # If DecisionPlan explicitly requests web first, honor it
-        plan_tools = (self._plan or {}).get("tools", [])
-        force_web = "web_search" in plan_tools and (self._plan or {}).get("sources", [""])[:1] == ["web"]
+        plan = getattr(self, "_plan", {}) or {}
+        plan_tools = plan.get("tools", [])
+        force_web = "web_search" in plan_tools and plan.get("sources", [""])[:1] == ["web"]
 
         if not force_web and not await self.should_use_web_search(message):
             return None
-            
+
         try:
             logger.info("🌐 Injecting web search for query", query=message[:100])
             telemetry = get_telemetry()
@@ -62,7 +69,7 @@ class GroupChatToolExecutor:
                 telemetry_context = TelemetryContext(conversation_id=self.conversation_id, user_id=self.user_id)
                 with telemetry.trace_tool_call("web_search", telemetry_context):
                     pass
-            
+
             # Execute web search
             args = WebSearchArgs(
                 query=message,
@@ -70,10 +77,10 @@ class GroupChatToolExecutor:
                 search_type="general"
             )
             result = await self.web_search.run(args)
-            
+
             # Parse result
             search_data = json.loads(result) if isinstance(result, str) else result
-            
+
             # Format as context for the agent
             if "results" in search_data and search_data["results"]:
                 context = f"\n\n📊 Real-time Web Search Results:\n{search_data['results']}\n\n"
@@ -82,7 +89,7 @@ class GroupChatToolExecutor:
             else:
                 logger.warning("Web search returned no results")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Failed to inject web search: {e}")
             return None
@@ -173,7 +180,7 @@ class GroupChatToolExecutor:
     async def _execute_talents_query(self, args: Dict[str, Any]) -> str:
         """Execute talents query tool"""
         try:
-            from ...tools.convergio_tools import TalentsQueryTool, TalentsQueryArgs
+            from agents.tools.convergio_tools import TalentsQueryTool, TalentsQueryArgs
             tool = TalentsQueryTool()
             query_args = TalentsQueryArgs(
                 query_type=args.get("query_type", "count")
@@ -186,7 +193,7 @@ class GroupChatToolExecutor:
     async def _execute_vector_search(self, args: Dict[str, Any]) -> str:
         """Execute vector search tool"""
         try:
-            from ...tools.convergio_tools import VectorSearchTool, VectorSearchArgs
+            from agents.tools.convergio_tools import VectorSearchTool, VectorSearchArgs
             tool = VectorSearchTool()
             search_args = VectorSearchArgs(
                 query=args.get("query", ""),
@@ -200,7 +207,7 @@ class GroupChatToolExecutor:
     async def _execute_business_intelligence(self, args: Dict[str, Any]) -> str:
         """Execute business intelligence tool"""
         try:
-            from ...tools.convergio_tools import BusinessIntelligenceTool, BusinessIntelligenceArgs
+            from agents.tools.convergio_tools import BusinessIntelligenceTool, BusinessIntelligenceArgs
             tool = BusinessIntelligenceTool()
             bi_args = BusinessIntelligenceArgs(
                 focus_area=args.get("focus_area", "overview")

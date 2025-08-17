@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 # Ensure backend on path via tests/conftest.py
-from src.agents.services.agent_loader import DynamicAgentLoader
+from agents.services.agent_loader import DynamicAgentLoader
 
 NEW_AGENTS = ['angela-da', 'ethan-da', 'ethan-ic6da', 'marcus-pm', 'michael-vc', 'oliver-pm', 'sophia-govaffairs']
 
@@ -27,6 +27,7 @@ def test_agent_definitions_present():
 def test_agents_in_ali_knowledge_base():
     base = Path(__file__).resolve().parents[2] / "backend" / "src" / "agents" / "definitions"
     loader = DynamicAgentLoader(str(base))
+    loader.scan_and_load_agents()
     kb = loader.generate_ali_knowledge_base()
 
     missing = [a for a in NEW_AGENTS if a not in kb]

@@ -10,9 +10,9 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
 import structlog
 
-from src.agents.security.digital_signatures import signature_manager
-from src.agents.services.agent_loader import agent_loader
-from src.core.logging import get_logger
+from agents.security.digital_signatures import signature_manager
+from agents.services.agent_loader import agent_loader
+from core.logging import get_logger
 
 logger = get_logger()
 router = APIRouter()

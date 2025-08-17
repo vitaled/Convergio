@@ -7,14 +7,13 @@ import json
 from typing import Any, Optional, Union
 import structlog
 import redis.asyncio as redis
-from redis.asyncio import Redis
 
-from src.core.config import get_settings
+from core.config import get_settings
 
 logger = structlog.get_logger()
 
 # Global Redis client
-redis_client: Optional[Redis] = None
+redis_client: Optional[redis.Redis] = None
 
 
 async def init_redis() -> None:
@@ -61,7 +60,7 @@ async def close_redis() -> None:
             redis_client = None
 
 
-def get_redis_client() -> Redis:
+def get_redis_client() -> redis.Redis:
     """Get Redis client"""
     
     if redis_client is None:

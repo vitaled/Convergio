@@ -8,6 +8,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+from autogen_core.tools import FunctionTool
 
 # Add parent directories to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -17,9 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func
 from sqlalchemy.future import select
 
-from src.core.database import get_db_session
-from src.models.talent import Talent
-from src.models.document import Document, DocumentEmbedding
+from core.database import get_db_session
+from models.talent import Talent
+from models.document import Document, DocumentEmbedding
 
 logger = structlog.get_logger()
 
@@ -30,7 +31,7 @@ class DatabaseTools:
     @staticmethod
     async def get_database_session() -> AsyncSession:
         """Get async database session"""
-        from src.core.database import init_db
+        from core.database import init_db
         await init_db()  # Ensure database is initialized
         async for session in get_db_session():
             return session
@@ -227,7 +228,7 @@ class DatabaseTools:
             db = await cls.get_database_session()
             
             # Import Project model
-            from src.models.project import Project
+            from models.project import Project
             from sqlalchemy import select, func, and_
             
             # Count total projects
@@ -261,7 +262,7 @@ class DatabaseTools:
             completed = completed_result.scalar() or 0
             
             # Count unique clients
-            from src.models.client import Client
+            from models.client import Client
             clients_result = await db.execute(
                 select(func.count(Client.id))
             )
@@ -520,18 +521,39 @@ Found {result['results_count']} relevant documents:
         return f"❌ Search failed: {str(e)}"
 
 
-def get_database_tools() -> List[Any]:
-    """Get all database tools for AutoGen agents"""
+def get_database_tools() -> List[FunctionTool]:
+    """Get all database tools for AutoGen 0.7.2 agents with proper type annotations"""
     from autogen_core.tools import FunctionTool
     
     return [
-        FunctionTool(query_talents_count, description="Get total talent count and statistics"),
-        FunctionTool(query_talent_details, description="Get detailed info about a specific talent by username"),
-        FunctionTool(query_department_structure, description="Get department overview and team structure"),
-        FunctionTool(query_knowledge_base, description="Get knowledge base and documents overview"),
-        FunctionTool(query_projects, description="Get overview of projects from database"),
-        FunctionTool(search_knowledge, description="Search for information in the knowledge base"),
-        FunctionTool(query_system_status, description="Get comprehensive system health status")
+        FunctionTool(
+            func=query_talents_count,
+            description="Get total talent count and statistics from Convergio database"
+        ),
+        FunctionTool(
+            func=query_talent_details,
+            description="Get detailed information about a specific talent by username"
+        ),
+        FunctionTool(
+            func=query_department_structure,
+            description="Get department overview and organizational team structure"
+        ),
+        FunctionTool(
+            func=query_knowledge_base,
+            description="Get knowledge base and documents overview from vector store"
+        ),
+        FunctionTool(
+            func=query_projects,
+            description="Get comprehensive overview of projects from database"
+        ),
+        FunctionTool(
+            func=search_knowledge,
+            description="Search for specific information in the knowledge base"
+        ),
+        FunctionTool(
+            func=query_system_status,
+            description="Get comprehensive system health and operational status"
+        )
     ]
 
 

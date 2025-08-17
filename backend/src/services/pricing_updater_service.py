@@ -14,8 +14,8 @@ import structlog
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.database import get_async_session
-from src.models.cost_tracking import ProviderPricing
+from core.database import get_async_session
+from models.cost_tracking import ProviderPricing
 
 logger = structlog.get_logger()
 

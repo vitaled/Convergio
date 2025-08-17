@@ -8,13 +8,13 @@ from datetime import datetime, timedelta
 import json
 import asyncio
 
-from src.agents.services.insight_engine import (
+from agents.services.insight_engine import (
     insight_engine, Insight, InsightType, InsightSeverity
 )
-from src.agents.services.proactive_actions import (
+from agents.services.proactive_actions import (
     proactive_manager, ProactiveAction, ActionType, ActionStatus
 )
-from src.agents.services.event_bus import event_bus
+from agents.services.event_bus import event_bus
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1", tags=["Insights & Actions"])

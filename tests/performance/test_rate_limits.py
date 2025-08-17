@@ -10,7 +10,7 @@ from typing import List
 from unittest.mock import Mock, patch
 import redis
 
-from src.core.rate_limiting import RateLimiter, TokenBucket
+from core.rate_limiting import RateLimiter, TokenBucket
 
 
 class TestRateLimiting:

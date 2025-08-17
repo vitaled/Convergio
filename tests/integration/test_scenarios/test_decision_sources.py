@@ -8,8 +8,8 @@ project_root = Path(__file__).parent.parent.parent
 backend_path = project_root / "backend"
 sys.path.insert(0, str(backend_path))
 
-from src.agents.services.decision_engine import DecisionEngine
-from src.agents.utils.config import os as _os
+from agents.services.decision_engine import DecisionEngine
+from agents.utils.config import os as _os
 
 
 @pytest.mark.integration

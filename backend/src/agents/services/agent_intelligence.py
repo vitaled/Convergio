@@ -11,8 +11,8 @@ import json
 import os
 
 import structlog
-from src.agents.utils.config import get_settings
-from src.api.user_keys import get_user_api_key, get_user_default_model
+from agents.utils.config import get_settings
+from api.user_keys import get_user_api_key, get_user_default_model
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -85,12 +85,12 @@ class AgentIntelligence:
             
             # 1. REAL DATABASE QUERIES
             if any(keyword in ml for keyword in ['talent', 'team', 'staff', 'employee', 'people']):
-                from ..tools.database_tools import query_talents_count
+                from agents.tools.database_tools import query_talents_count
                 talent_data = query_talents_count()
                 data_sources.append(f"📊 Database: {talent_data}")
             
             if any(keyword in ml for keyword in ['document', 'knowledge', 'file', 'content']):
-                from ..tools.database_tools import query_knowledge_base
+                from agents.tools.database_tools import query_knowledge_base
                 kb_data = query_knowledge_base()
                 data_sources.append(f"📚 Knowledge Base: {kb_data}")
             
@@ -115,8 +115,8 @@ class AgentIntelligence:
             perplexity_key = os.getenv("PERPLEXITY_API_KEY")
             if perplexity_key and any(keyword in ml for keyword in ['market', 'competitor', 'trend', 'news', 'current']):
                 try:
-                    from ..tools.web_search_tool import WebSearchTool
-                    from ..tools.web_search_tool import WebSearchArgs
+                    from agents.tools.web_search_tool import WebSearchTool
+                    from agents.tools.web_search_tool import WebSearchArgs
                     
                     web_tool = WebSearchTool(perplexity_key)
                     search_args = WebSearchArgs(query=message, max_results=3)

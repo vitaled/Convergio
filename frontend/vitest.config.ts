@@ -7,6 +7,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     globals: true,
-    css: true
+    css: true,
+    environmentOptions: {
+      jsdom: {
+        resources: 'usable',
+        runScripts: 'dangerously'
+      }
+    },
+    include: ['tests/**/*.{test,spec}.{js,ts}'],
+    exclude: ['tests/e2e/**/*', 'node_modules/**/*']
   }
 });

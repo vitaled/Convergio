@@ -6,9 +6,9 @@ import asyncio
 import sys
 sys.path.append('.')
 
-from src.core.redis import init_redis, close_redis
-from src.core.database import init_db, close_db
-from src.agents.memory.autogen_memory_system import AutoGenMemorySystem
+from core.redis import init_redis, close_redis
+from core.database import init_db, close_db
+from agents.memory.autogen_memory_system import AutoGenMemorySystem
 
 async def test_memory_system():
     """Test AutoGen Memory System comprehensively"""

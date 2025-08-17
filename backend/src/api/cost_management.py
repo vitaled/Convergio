@@ -12,13 +12,13 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Authentication removed - no auth required for some endpoints
-from src.core.database import get_db_session
-from src.core.redis import cache_get, cache_set
-from src.services.cost_tracking_service import EnhancedCostTracker
-from src.services.budget_monitor_service import budget_monitor
-from src.services.pricing_updater_service import pricing_updater
-from src.services.circuit_breaker_service import circuit_breaker
-from src.services.cost_background_tasks import cost_task_manager
+from core.database import get_db_session
+from core.redis import cache_get, cache_set
+from services.cost_tracking_service import EnhancedCostTracker
+from services.budget_monitor_service import budget_monitor
+from services.pricing_updater_service import pricing_updater
+from services.circuit_breaker_service import circuit_breaker
+from services.cost_background_tasks import cost_task_manager
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Cost Management"])
@@ -328,7 +328,7 @@ async def get_realtime_cost():
     
     try:
         # Use enhanced cost tracker
-        from src.services.cost_tracking_service import EnhancedCostTracker
+        from services.cost_tracking_service import EnhancedCostTracker
         tracker = EnhancedCostTracker()
         cost_data = await tracker.get_realtime_overview()
         
@@ -361,8 +361,8 @@ async def record_interaction_cost(
     
     try:
         # Use enhanced cost tracker
-        from src.services.cost_tracking_service import EnhancedCostTracker
-        from src.agents.services.redis_state_manager import RedisStateManager
+        from services.cost_tracking_service import EnhancedCostTracker
+        from agents.services.redis_state_manager import RedisStateManager
         
         state_manager = RedisStateManager()
         tracker = EnhancedCostTracker(state_manager)
@@ -479,9 +479,9 @@ async def get_current_pricing():
     """
     
     try:
-        from src.core.database import get_async_read_session
+        from core.database import get_async_read_session
         from sqlalchemy import select, and_, func
-        from src.models.cost_tracking import ProviderPricing
+        from models.cost_tracking import ProviderPricing
         
         async with get_async_read_session() as db:
             result = await db.execute(
@@ -532,7 +532,7 @@ async def _get_cost_data_from_agents(start_date: datetime, end_date: datetime) -
     """Get cost data from the real agents system."""
     
     try:
-        from src.agents.orchestrator import get_agent_orchestrator
+        from agents.orchestrator import get_agent_orchestrator
         
         orchestrator = await get_agent_orchestrator()
         if orchestrator.cost_tracker:
@@ -593,7 +593,7 @@ async def _get_available_agent_ids() -> List[str]:
     """Get list of available agent IDs."""
     
     try:
-        from src.agents.orchestrator import get_agent_orchestrator
+        from agents.orchestrator import get_agent_orchestrator
         
         orchestrator = await get_agent_orchestrator()
         agents_info = await orchestrator.get_available_agents()
@@ -622,7 +622,7 @@ async def _get_realtime_cost_data() -> Dict[str, Any]:
     """Get real-time cost data from agents system."""
     
     try:
-        from src.agents.orchestrator import get_agent_orchestrator
+        from agents.orchestrator import get_agent_orchestrator
         
         orchestrator = await get_agent_orchestrator()
         if orchestrator and orchestrator.cost_tracker:
@@ -1029,4 +1029,258 @@ async def resume_suspended_agent(agent_id: str):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to resume agent {agent_id}"
+        )
+
+
+# Enhanced Security and Analytics Endpoints
+
+@router.post("/security/analyze")
+async def analyze_request_security(
+    session_id: str,
+    agent_id: Optional[str] = None,
+    provider: str = "openai",
+    model: str = "gpt-4o",
+    estimated_tokens: int = 1000,
+    estimated_cost: float = 0.50
+):
+    """
+    🔒 Analyze request security and detect anomalies
+    
+    Comprehensive security analysis before processing API requests
+    """
+    
+    try:
+        from services.cost_security_service import cost_security_service
+        
+        result = await cost_security_service.analyze_request_security(
+            session_id=session_id,
+            agent_id=agent_id,
+            provider=provider,
+            model=model,
+            estimated_tokens=estimated_tokens,
+            estimated_cost=estimated_cost,
+            user_context={}
+        )
+        
+        logger.info("🔍 Security analysis completed",
+                   session_id=session_id,
+                   allowed=result["allowed"],
+                   risk_score=result["risk_score"])
+        
+        return result
+        
+    except Exception as e:
+        logger.error("❌ Security analysis failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Security analysis failed: {str(e)}"
+        )
+
+
+@router.get("/analytics/comprehensive-report")
+async def generate_comprehensive_analytics_report(
+    days: int = Query(30, description="Number of days to analyze", ge=1, le=90),
+    include_predictions: bool = Query(True, description="Include cost predictions"),
+    include_optimizations: bool = Query(True, description="Include optimization recommendations")
+):
+    """
+    📊 Generate comprehensive cost analytics report
+    
+    Returns detailed analytics with predictions and optimization recommendations
+    """
+    
+    try:
+        from services.cost_analytics_service import cost_analytics_service
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        report = await cost_analytics_service.generate_comprehensive_analytics_report(
+            start_date=start_date,
+            end_date=end_date,
+            include_predictions=include_predictions,
+            include_optimizations=include_optimizations
+        )
+        
+        logger.info("📊 Analytics report generated",
+                   days=days,
+                   predictions=include_predictions,
+                   optimizations=include_optimizations)
+        
+        return report
+        
+    except Exception as e:
+        logger.error("❌ Analytics report generation failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Analytics report generation failed: {str(e)}"
+        )
+
+
+@router.get("/security/audit-report")
+async def generate_security_audit_report(
+    days: int = Query(7, description="Number of days to analyze", ge=1, le=30)
+):
+    """
+    🔒 Generate security audit report
+    
+    Returns comprehensive security analysis and threat detection report
+    """
+    
+    try:
+        from services.cost_security_service import cost_security_service
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        audit_report = await cost_security_service.generate_security_audit_report(
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        logger.info("🔒 Security audit report generated",
+                   days=days,
+                   alerts=audit_report["security_summary"]["total_alerts"])
+        
+        return audit_report
+        
+    except Exception as e:
+        logger.error("❌ Security audit report generation failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Security audit report generation failed: {str(e)}"
+        )
+
+
+@router.get("/optimization/recommendations")
+async def get_optimization_recommendations(
+    days: int = Query(30, description="Number of days to analyze", ge=7, le=90)
+):
+    """
+    💡 Get cost optimization recommendations
+    
+    Returns AI-powered recommendations for cost reduction and efficiency improvements
+    """
+    
+    try:
+        from services.cost_analytics_service import cost_analytics_service
+        
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        # Generate basic report for optimization analysis
+        report = await cost_analytics_service.generate_comprehensive_analytics_report(
+            start_date=start_date,
+            end_date=end_date,
+            include_predictions=False,
+            include_optimizations=True
+        )
+        
+        recommendations = report.get("optimization_recommendations", [])
+        
+        logger.info("💡 Optimization recommendations generated",
+                   count=len(recommendations))
+        
+        return {
+            "analysis_period": {
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "days": days
+            },
+            "recommendations": recommendations,
+            "summary": {
+                "total_recommendations": len(recommendations),
+                "high_priority": len([r for r in recommendations if r.get("priority") == "high"]),
+                "potential_savings": sum(r.get("potential_savings", 0) for r in recommendations)
+            },
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error("❌ Optimization recommendations generation failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Optimization recommendations generation failed: {str(e)}"
+        )
+
+
+@router.get("/health/comprehensive")
+async def get_comprehensive_health_status():
+    """
+    🏥 Get comprehensive system health status
+    
+    Returns detailed health information for all cost system components
+    """
+    
+    try:
+        from services.cost_background_tasks import cost_task_manager
+        from services.budget_monitor_service import budget_monitor
+        from services.circuit_breaker_service import circuit_breaker
+        
+        # Get status from all components
+        system_status = await cost_task_manager.get_status()
+        budget_summary = await budget_monitor.get_budget_status_summary()
+        circuit_status = await circuit_breaker.get_circuit_status()
+        
+        # Calculate overall health score
+        health_score = 100
+        critical_issues = []
+        
+        if budget_summary["overall_status"] == "critical":
+            health_score -= 30
+            critical_issues.append("Budget limits critically exceeded")
+        elif budget_summary["overall_status"] == "warning":
+            health_score -= 15
+        
+        if circuit_status["circuit_state"] == "OPEN":
+            health_score -= 40
+            critical_issues.append("Circuit breaker is open")
+        elif circuit_status["circuit_state"] == "HALF_OPEN":
+            health_score -= 20
+        
+        if len(circuit_status["suspended_providers"]) > 0:
+            health_score -= 10 * len(circuit_status["suspended_providers"])
+            critical_issues.append(f"{len(circuit_status['suspended_providers'])} providers suspended")
+        
+        if budget_summary["total_alerts"] > 10:
+            health_score -= 15
+            critical_issues.append("High alert volume")
+        
+        health_score = max(0, health_score)
+        
+        # Determine overall status
+        if health_score >= 90:
+            overall_status = "excellent"
+        elif health_score >= 75:
+            overall_status = "good"
+        elif health_score >= 50:
+            overall_status = "fair"
+        elif health_score >= 25:
+            overall_status = "poor"
+        else:
+            overall_status = "critical"
+        
+        return {
+            "overall_status": overall_status,
+            "health_score": health_score,
+            "critical_issues": critical_issues,
+            "components": {
+                "background_services": system_status,
+                "budget_monitoring": budget_summary,
+                "circuit_breaker": circuit_status
+            },
+            "recommendations": [
+                "Monitor budget utilization closely" if budget_summary["daily_utilization"] > 75 else None,
+                "Review suspended providers" if len(circuit_status["suspended_providers"]) > 0 else None,
+                "Check alert patterns" if budget_summary["total_alerts"] > 5 else None,
+                "System operating normally" if health_score >= 90 else None
+            ],
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error("❌ Comprehensive health check failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Comprehensive health check failed: {str(e)}"
         )

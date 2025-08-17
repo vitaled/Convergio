@@ -9,7 +9,7 @@ if _BACKEND_PATH not in sys.path:
 
 @pytest.mark.asyncio
 async def test_hitl_gates_conversation_when_required(monkeypatch):
-    import src.agents.utils.config as cfg
+    import agents.utils.config as cfg
     cfg.get_settings.cache_clear()
     cfg.load_env_from_root = lambda: None  # type: ignore
     base_envs = {
@@ -32,10 +32,10 @@ async def test_hitl_gates_conversation_when_required(monkeypatch):
     for k, v in base_envs.items():
         monkeypatch.setenv(k, v)
 
-    import src.agents.services.autogen_groupchat_orchestrator as orch_mod
-    from src.agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-    from src.agents.services.redis_state_manager import RedisStateManager
-    from src.agents.services.cost_tracker import CostTracker
+    import agents.services.autogen_groupchat_orchestrator as orch_mod
+    from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+    from agents.services.redis_state_manager import RedisStateManager
+    from agents.services.cost_tracker import CostTracker
 
     # Stub groupchat creation to avoid real AutoGen team
     orch_mod.create_groupchat = lambda participants, model_client, max_turns: SimpleNamespace(agents=participants)  # type: ignore
@@ -54,7 +54,7 @@ async def test_hitl_gates_conversation_when_required(monkeypatch):
     await orch._setup_group_chat()
     # Force HITL enabled and approval store present for deterministic behavior
     orch.settings.hitl_enabled = True
-    from src.agents.services.hitl.approval_store import ApprovalStore
+    from agents.services.hitl.approval_store import ApprovalStore
     orch.approval_store = ApprovalStore()
 
     with pytest.raises(RuntimeError) as exc:

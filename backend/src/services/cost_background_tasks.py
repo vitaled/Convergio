@@ -9,9 +9,9 @@ from typing import Dict, Any
 
 import structlog
 
-from src.services.budget_monitor_service import budget_monitor
-from src.services.circuit_breaker_service import circuit_breaker
-from src.services.pricing_updater_service import pricing_updater
+from services.budget_monitor_service import budget_monitor
+from services.circuit_breaker_service import circuit_breaker
+from services.pricing_updater_service import pricing_updater
 
 logger = structlog.get_logger()
 
