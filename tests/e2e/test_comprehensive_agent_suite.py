@@ -95,7 +95,7 @@ class ComprehensiveAgentTestSuite:
         
         agents = {}
         for agent_file in agent_files:
-            if agent_file.name in ["CommonValuesAndPrinciples.md", "MICROSOFT_VALUES.md", "agent.schema.json"]:
+            if agent_file.name in ["CommonValuesAndPrinciples.md", "agent.schema.json"]:
                 continue
                 
             try:

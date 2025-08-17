@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, Request, statu
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db_session
-from core.redis import cache_get
+from core.redis import cache_get, cache_set
 from agents.orchestrator import get_agent_orchestrator
 from agents.services.streaming_orchestrator import get_streaming_orchestrator
 from agents.services.groupchat.selection_metrics import get_selection_metrics
@@ -32,18 +32,18 @@ from .models import (
     ApprovalRequest,
     FeatureFlag
 )
-# from websocket_manager import connection_manager, streaming_manager
-# from conversation_handler import (
-#     handle_conversation,
-#     handle_streaming_conversation,
-#     handle_websocket_conversation,
-#     handle_streaming_websocket
-# )
-# from project_manager import (
-#     handle_project_request,
-#     get_project_status,
-#     list_projects
-# )
+from .websocket_manager import connection_manager, streaming_manager
+from .conversation_handler import (
+    handle_conversation,
+    handle_streaming_conversation,
+    handle_websocket_conversation,
+    handle_streaming_websocket,
+)
+from .project_manager import (
+    handle_project_request,
+    get_project_status,
+    list_projects,
+)
 # from orchestrator_management import router as orchestrator_router
 
 logger = structlog.get_logger()
@@ -170,6 +170,78 @@ async def create_conversation(
 ) -> Dict[str, Any]:
     """Create a new conversation with AI agents"""
     return await handle_conversation(request, req, db)
+
+
+# --- Conversation persistence (used by frontend AutoSave) ---
+from pydantic import BaseModel
+
+
+class ConversationSaveRequest(BaseModel):
+    conversation_id: str
+    agent_id: str
+    agent_name: Optional[str] = None
+    messages: List[Dict[str, Any]]
+    user_id: Optional[str] = None
+    summary: Optional[str] = None
+
+
+@router.post("/conversation/save")
+async def save_conversation(
+    payload: ConversationSaveRequest,
+) -> Dict[str, Any]:
+    """Persist a conversation snapshot in cache for later retrieval."""
+    # Compute last activity
+    last_activity = None
+    try:
+        if payload.messages:
+            # timestamps may already be ISO strings
+            last_activity = payload.messages[-1].get("timestamp")
+    except Exception:
+        pass
+
+    record = {
+        "conversation_id": payload.conversation_id,
+        "agent_id": payload.agent_id,
+        "agent_name": payload.agent_name or payload.agent_id,
+        "messages": payload.messages,
+        "user_id": payload.user_id or "anonymous",
+        "summary": payload.summary,
+        "last_activity": last_activity or datetime.now().isoformat(),
+        "saved_at": datetime.now().isoformat(),
+    }
+
+    # Store main record and pointer to latest by agent
+    await cache_set(f"conversation:{payload.conversation_id}", record, ttl=86400)
+    await cache_set(f"latest_conversation:{payload.agent_id}", payload.conversation_id, ttl=86400)
+
+    return {"status": "ok", "conversation_id": payload.conversation_id}
+
+
+@router.get("/conversation/load/{conversation_id}")
+async def load_conversation(conversation_id: str) -> Dict[str, Any]:
+    """Load a conversation snapshot by ID from cache."""
+    data = await cache_get(f"conversation:{conversation_id}")
+    if not data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    # cache_get may return already-parsed dict
+    return data if isinstance(data, dict) else json.loads(data)
+
+
+@router.get("/conversation/load/latest/{agent_id}")
+async def load_latest_conversation(agent_id: str) -> Dict[str, Any]:
+    """Load the latest conversation snapshot for a given agent from cache."""
+    latest_id = await cache_get(f"latest_conversation:{agent_id}")
+    if not latest_id:
+        raise HTTPException(status_code=404, detail="No recent conversation for agent")
+    if isinstance(latest_id, dict):
+        # Unexpected format; fall back
+        conv_id = latest_id.get("conversation_id")
+    else:
+        conv_id = latest_id
+    data = await cache_get(f"conversation:{conv_id}")
+    if not data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return data if isinstance(data, dict) else json.loads(data)
 
 
 @router.post("/conversation/stream")

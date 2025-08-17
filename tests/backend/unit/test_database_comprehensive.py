@@ -92,7 +92,8 @@ class TestSessionManagement:
     async def test_get_session_creation(self, mock_get_async_session_factory):
         """Test database session creation"""
         mock_session = AsyncMock()
-        mock_async_session.return_value = mock_session
+        # get_async_session_factory() should return a factory whose call returns a session
+        mock_get_async_session_factory.return_value.return_value = mock_session
         
         from core.database import get_async_session
         
@@ -104,7 +105,7 @@ class TestSessionManagement:
     async def test_get_session_cleanup(self, mock_get_async_session_factory):
         """Test session cleanup on exit"""
         mock_session = AsyncMock()
-        mock_async_session.return_value = mock_session
+        mock_get_async_session_factory.return_value.return_value = mock_session
         
         from core.database import get_async_session
         
@@ -227,17 +228,20 @@ class TestDatabaseTransactions:
         # Should commit transaction
         mock_session.commit.assert_called_once()
     
-    @patch('core.database.get_async_session')
-    async def test_transaction_rollback(self, mock_get_session):
+    @patch('core.database.get_async_session_factory')
+    async def test_transaction_rollback(self, mock_factory):
         """Test transaction rollback on error"""
+        from core.database import get_async_session
+        
         mock_session = AsyncMock()
         mock_session.commit.side_effect = SQLAlchemyError("Commit failed")
-        mock_get_session.return_value.__aenter__.return_value = mock_session
+        mock_factory.return_value.return_value = mock_session
         
         # Test transaction with error
         try:
-            async with mock_get_session() as session:
-                await session.commit()
+            async with get_async_session() as session:
+                # This will trigger the commit in the context manager
+                pass  # The commit happens in __aexit__
         except SQLAlchemyError:
             pass
         
@@ -266,21 +270,27 @@ class TestDatabaseConnectionPool:
         mock_session1 = AsyncMock()
         mock_session2 = AsyncMock()
         
+        # Create proper async context managers for each call
+        mock_context1 = AsyncMock()
+        mock_context1.__aenter__.return_value = mock_session1
+        mock_context2 = AsyncMock()
+        mock_context2.__aenter__.return_value = mock_session2
+        
         # Mock different sessions for concurrent access
         mock_get_session.side_effect = [
-            mock_session1.__aenter__(),
-            mock_session2.__aenter__()
+            mock_context1,
+            mock_context2
         ]
         
         # Test concurrent sessions
-        async def use_session(session_mock):
+        async def use_session():
             async with mock_get_session() as session:
                 await session.execute("SELECT 1")
         
         # Should handle concurrent sessions
         await asyncio.gather(
-            use_session(mock_session1),
-            use_session(mock_session2)
+            use_session(),
+            use_session()
         )
 
 

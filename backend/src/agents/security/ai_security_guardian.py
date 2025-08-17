@@ -539,7 +539,7 @@ class AISecurityGuardian:
 
 
     # Test compatibility methods with flexible signatures
-    def validate_prompt(self, prompt: str, context: Optional[Dict] = None) -> SecurityValidationResult:
+    def validate_prompt_sync(self, prompt: str, context: Optional[Dict] = None) -> SecurityValidationResult:
         """Flexible signature for test compatibility - synchronous wrapper"""
         import asyncio
         try:
@@ -609,7 +609,7 @@ class AISecurityGuardian:
             for message in messages:
                 content = message.get("content", "")
                 if content:
-                    result = self.validate_prompt(content)
+                    result = self.validate_prompt_sync(content)
                     if not result.execution_authorized:
                         return False
             return True

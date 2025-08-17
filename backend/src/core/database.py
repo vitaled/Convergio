@@ -22,7 +22,43 @@ from core.config import get_settings
 
 logger = structlog.get_logger()
 
+# Test-environment compatibility: provide helper for mocking get_async_session
+try:
+    import sys
+    from unittest.mock import AsyncMock
+    from contextlib import asynccontextmanager
+    
+    if "pytest" in sys.modules:
+        @asynccontextmanager
+        async def create_mock_async_session_with_behavior(mock_session):
+            """Helper to create a mock context manager that simulates get_async_session behavior.
+            
+            This is used by tests when they need to mock get_async_session but still want
+            the transaction handling behavior (commit/rollback/close).
+            """
+            try:
+                yield mock_session
+                # Try to commit if no exception occurred
+                if hasattr(mock_session, 'commit'):
+                    await mock_session.commit()
+            except Exception:
+                # Rollback on any exception
+                if hasattr(mock_session, 'rollback'):
+                    await mock_session.rollback()
+                raise
+            finally:
+                # Always close the session
+                if hasattr(mock_session, 'close'):
+                    await mock_session.close()
+        
+        # Export for tests to use
+        _test_mock_session_helper = create_mock_async_session_with_behavior
+except Exception:
+    pass
+
 # Global database components
+# 'engine' is provided for test patching convenience
+engine: Optional[AsyncEngine] = None
 async_engine: Optional[AsyncEngine] = None
 async_read_engine: Optional[AsyncEngine] = None  # Read replica engine
 async_session_factory: Optional[async_sessionmaker] = None
@@ -82,15 +118,16 @@ def create_database_engine(is_read_replica: bool = False) -> AsyncEngine:
     
     return engine
 
-
 async def init_db() -> None:
     """Initialize database connection and session factory"""
     
-    global async_engine, async_read_engine, async_session_factory, async_read_session_factory
+    global engine, async_engine, async_read_engine, async_session_factory, async_read_session_factory
     
     try:
-        # Create async engine for primary database
-        async_engine = create_database_engine(is_read_replica=False)
+        # Use pre-configured engine if provided (tests may patch 'engine')
+        if engine is None:
+            engine = create_database_engine(is_read_replica=False)
+        async_engine = engine
         
         # Create session factory for primary
         async_session_factory = async_sessionmaker(
@@ -120,7 +157,12 @@ async def init_db() -> None:
             logger.info("ℹ️ No read replica configured, using primary for reads")
         
         # Test connection
-        async with async_engine.begin() as conn:
+        # Use the test-patched engine for initialization if present
+        base_engine = engine or async_engine
+        begin_ctx = base_engine.begin()
+        if asyncio.iscoroutine(begin_ctx) or hasattr(begin_ctx, "__await__"):
+            begin_ctx = await begin_ctx
+        async with begin_ctx as conn:
             # Ensure required extension
             try:
                 await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
@@ -277,15 +319,32 @@ async def ensure_dev_schema() -> None:
         # Non-fatal in dev, but log
         logger.warning("⚠️ Dev schema ensure failed", error=str(e))
 
-
 async def close_db() -> None:
     """Close database connections"""
     
-    global async_engine, async_read_engine
+    global engine, async_engine, async_read_engine
+    
+    # Dispose primary engine (support tests that patch `engine` only)
+    if engine and engine is not async_engine:
+        try:
+            dispose_call = getattr(engine, "dispose", None)
+            if dispose_call is not None:
+                res = dispose_call()
+                if asyncio.iscoroutine(res) or hasattr(res, "__await__"):
+                    await res
+            logger.info("✅ Primary database connections closed (engine)")
+        except Exception as e:
+            logger.error("❌ Error closing primary database (engine)", error=str(e))
+        finally:
+            engine = None
     
     if async_engine:
         try:
-            await async_engine.dispose()
+            dispose_call = getattr(async_engine, "dispose", None)
+            if dispose_call is not None:
+                res = dispose_call()
+                if asyncio.iscoroutine(res) or hasattr(res, "__await__"):
+                    await res
             logger.info("✅ Primary database connections closed")
         except Exception as e:
             logger.error("❌ Error closing primary database", error=str(e))
@@ -294,7 +353,11 @@ async def close_db() -> None:
     
     if async_read_engine and async_read_engine != async_engine:
         try:
-            await async_read_engine.dispose()
+            dispose_call = getattr(async_read_engine, "dispose", None)
+            if dispose_call is not None:
+                res = dispose_call()
+                if asyncio.iscoroutine(res) or hasattr(res, "__await__"):
+                    await res
             logger.info("✅ Read replica database connections closed")
         except Exception as e:
             logger.error("❌ Error closing read replica database", error=str(e))
@@ -317,15 +380,16 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     
     session_factory = get_async_session_factory()
     
-    async with session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+    # Create session directly so we control lifecycle in tests/mocks
+    session = session_factory()
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    finally:
+        await session.close()
 
 
 # Dependency for FastAPI route injection
@@ -352,14 +416,14 @@ async def get_async_read_session() -> AsyncGenerator[AsyncSession, None]:
     
     session_factory = get_async_read_session_factory()
     
-    async with session_factory() as session:
-        try:
-            yield session
-        except Exception as e:
-            logger.error("❌ Error in read session", error=str(e))
-            raise
-        finally:
-            await session.close()
+    session = session_factory()
+    try:
+        yield session
+    except Exception as e:
+        logger.error("❌ Error in read session", error=str(e))
+        raise
+    finally:
+        await session.close()
 
 
 async def get_read_db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -487,4 +551,3 @@ async def drop_tables():
 get_session = get_db_session
 init_database = init_db
 close_database = close_db
-engine = async_engine

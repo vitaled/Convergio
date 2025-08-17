@@ -27,17 +27,17 @@ class AgentIntelligence:
         self.decision_framework = self._load_decision_framework()
         
     def _load_decision_framework(self) -> str:
-        """Load the decision framework from MICROSOFT_VALUES.md"""
+        """Load the decision framework from CommonValuesAndPrinciples.md"""
         try:
             import os
             values_path = os.path.join(
                 os.path.dirname(__file__), 
-                '../../definitions/MICROSOFT_VALUES.md'
+                '../../definitions/CommonValuesAndPrinciples.md'
             )
             with open(values_path, 'r') as f:
                 return f.read()
         except Exception as e:
-            logger.warning(f"Could not load MICROSOFT_VALUES.md: {e}")
+            logger.warning(f"Could not load CommonValuesAndPrinciples.md: {e}")
             return ""
     
     async def _analyze_intent_and_data_needs(

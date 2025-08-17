@@ -145,8 +145,10 @@ echo "🚀 Starting backend on port $BACKEND_PORT..."
 cd backend
 # Export PYTHONPATH to ensure proper module resolution (src first)
 export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH:-}"
+# Set log level to WARNING to show warnings and errors only
+export LOG_LEVEL="WARNING"
 "$(python -c 'import sys,shutil; print(shutil.which("uvicorn") or "uvicorn")')" src.main:app \
-  --host 0.0.0.0 --port $BACKEND_PORT --reload &
+  --host 0.0.0.0 --port $BACKEND_PORT --reload --log-level warning &
 BACKEND_PID=$!
 cd ..
 
@@ -180,7 +182,7 @@ if [[ -d "frontend" ]]; then
     npm install
   fi
   
-  # Start frontend
+  # Start frontend with reduced logging  
   npm run dev -- --port $FRONTEND_PORT --host 0.0.0.0 &
   FRONTEND_PID=$!
   cd ..

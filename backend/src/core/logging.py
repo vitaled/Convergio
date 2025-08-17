@@ -44,14 +44,15 @@ def setup_logging() -> None:
         level=getattr(logging, settings.LOG_LEVEL),
     )
     
-    # 🤖 ENABLE DETAILED AI CONVERSATION LOGGING
-    # Force DEBUG level for OpenAI and AutoGen conversation logging
-    openai_logger = logging.getLogger("openai")
-    openai_logger.setLevel(logging.DEBUG)
-    autogen_logger = logging.getLogger("autogen")  
-    autogen_logger.setLevel(logging.DEBUG)
-    httpx_logger = logging.getLogger("httpx")
-    httpx_logger.setLevel(logging.DEBUG)
+    # 🔇 REDUCE VERBOSE LOGGING FOR PRODUCTION
+    # Set higher log levels for noisy libraries
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.dialects").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("autogen").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     
     # Create detailed conversation handler
     conversation_handler = logging.StreamHandler(sys.stdout)

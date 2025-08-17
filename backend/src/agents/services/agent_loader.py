@@ -115,36 +115,42 @@ class DynamicAgentLoader:
     def scan_and_load_agents(self) -> Dict[str, AgentMetadata]:
         """Scan directory and load all agent definitions."""
         logger.info("Scanning for agent definitions", directory=str(self.agents_directory))
-        
+
         agent_files = list(self.agents_directory.glob("*.md"))
         excluded_files = {"CommonValuesAndPrinciples.md", "MICROSOFT_VALUES.md"}
-        
+
         valid_agent_files = [f for f in agent_files if f.name not in excluded_files]
-        
-        logger.info("Found agent files", 
-                   total_files=len(agent_files),
-                   valid_agents=len(valid_agent_files),
-                   excluded=list(excluded_files))
-        
-        agents = {}
+
+        logger.info(
+            "Found agent files",
+            total_files=len(agent_files),
+            valid_agents=len(valid_agent_files),
+            excluded=list(excluded_files),
+        )
+
+        agents: Dict[str, AgentMetadata] = {}
         for md_file in valid_agent_files:
             try:
                 agent_metadata = self._parse_agent_file(md_file)
                 if agent_metadata:
                     agents[agent_metadata.key] = agent_metadata
-                    logger.debug("Loaded agent", name=agent_metadata.name, tier=agent_metadata.tier)
+                    logger.debug(
+                        "Loaded agent", name=agent_metadata.name, tier=agent_metadata.tier
+                    )
             except Exception as e:
                 logger.error("Failed to parse agent file", file=md_file.name, error=str(e))
                 continue
-        
+
         self.agent_metadata = agents
         self._build_agent_registry()
-        
-        logger.info("Agent loading complete", 
-                   total_agents=len(agents),
-                   strategic_tier=len([a for a in agents.values() if a.tier == "Strategic"]),
-                   tech_tier=len([a for a in agents.values() if a.tier == "Technology"]))
-        
+
+        logger.info(
+            "Agent loading complete",
+            total_agents=len(agents),
+            strategic_tier=len([a for a in agents.values() if a.tier == "Strategic"]),
+            tech_tier=len([a for a in agents.values() if a.tier == "Technology"]),
+        )
+
         return agents
     
     def _parse_agent_file(self, md_file: Path) -> Optional[AgentMetadata]:
@@ -324,7 +330,7 @@ EXPERTISE AREAS: {', '.join(metadata.expertise_keywords)}
 TIER: {metadata.tier}
 AVAILABLE TOOLS: {', '.join(metadata.tools) if metadata.tools else 'Standard communication tools'}
 
-🚨 MANDATORY: Follow the Intelligent Decision Framework from MICROSOFT_VALUES.md:
+🚨 MANDATORY: Follow the Intelligent Decision Framework from CommonValuesAndPrinciples.md:
 1. ANALYZE user intent to understand their true goal
 2. DECIDE data sources: Convergio DB/Vector for internal data, AI for analysis, or both
 3. RESPOND autonomously or escalate to Ali if cross-functional

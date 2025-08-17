@@ -10,7 +10,7 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 import statistics
 
-from backend.src.services.cost_analytics_service import (
+from services.cost_analytics_service import (
     CostAnalyticsService, CostTrend, OptimizationRecommendation
 )
 
@@ -50,7 +50,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=30)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             # Mock database responses for all components
             mock_db = mock_session.return_value.__aenter__.return_value
             
@@ -194,7 +194,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             mock_db = mock_session.return_value.__aenter__.return_value
             
             # Mock total costs query
@@ -232,7 +232,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             mock_db = mock_session.return_value.__aenter__.return_value
             
             mock_db.execute.return_value.all.return_value = [
@@ -277,7 +277,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             mock_db = mock_session.return_value.__aenter__.return_value
             
             mock_db.execute.return_value.all.return_value = [
@@ -372,7 +372,7 @@ class TestCostAnalyticsService:
             for i, cost in enumerate(all_costs)
         ]
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             mock_db = mock_session.return_value.__aenter__.return_value
             mock_db.execute.return_value.all.return_value = cost_data
             
@@ -427,7 +427,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             mock_db = mock_session.return_value.__aenter__.return_value
             
             # Mock hourly, weekly, and session data
@@ -475,7 +475,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             # Mock database error
             mock_session.return_value.__aenter__.side_effect = Exception("Database connection failed")
             
@@ -494,7 +494,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=2)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             mock_db = mock_session.return_value.__aenter__.return_value
             
             # Mock insufficient data for predictions (less than 7 days)
@@ -517,7 +517,7 @@ class TestCostAnalyticsService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+        with patch('services.cost_analytics_service.get_async_read_session') as mock_session:
             # Mock successful database responses
             mock_db = mock_session.return_value.__aenter__.return_value
             mock_db.execute.return_value.first.return_value = MagicMock(

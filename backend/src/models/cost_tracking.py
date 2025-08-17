@@ -88,6 +88,7 @@ class CostTracking(Base):
         Index('idx_cost_tracking_session_conversation', 'session_id', 'conversation_id'),
         Index('idx_cost_tracking_provider_model', 'provider', 'model'),
         Index('idx_cost_tracking_agent', 'agent_id'),
+        {"extend_existing": True},
     )
 
 
@@ -133,6 +134,8 @@ class CostSession(Base):
                                    foreign_keys="[CostTracking.session_id]",
                                    primaryjoin="CostSession.session_id == CostTracking.session_id",
                                    viewonly=True)
+
+    __table_args__ = ({"extend_existing": True},)
 
 
 class DailyCostSummary(Base):
@@ -183,6 +186,8 @@ class DailyCostSummary(Base):
         server_default=func.now(),
         onupdate=func.now()
     )
+
+    __table_args__ = ({"extend_existing": True},)
 
 
 class ProviderPricing(Base):
@@ -236,6 +241,7 @@ class ProviderPricing(Base):
     __table_args__ = (
         UniqueConstraint('provider', 'model', 'effective_from', name='uq_provider_model_date'),
         Index('idx_provider_pricing_active', 'provider', 'model', 'is_active'),
+        {"extend_existing": True},
     )
 
 
@@ -278,4 +284,5 @@ class CostAlert(Base):
     __table_args__ = (
         Index('idx_cost_alerts_unresolved', 'is_resolved', 'severity'),
         Index('idx_cost_alerts_date', 'created_at'),
+        {"extend_existing": True},
     )

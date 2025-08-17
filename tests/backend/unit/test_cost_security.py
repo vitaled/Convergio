@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from backend.src.services.cost_security_service import (
+from services.cost_security_service import (
     CostSecurityService, SecurityLevel, AnomalyType
 )
 
@@ -38,7 +38,7 @@ class TestCostSecurityService:
     async def test_analyze_request_security_normal_request(self, security_service):
         """Test security analysis for normal request"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             # Mock normal usage patterns
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=5,
@@ -65,7 +65,7 @@ class TestCostSecurityService:
     async def test_analyze_request_security_high_cost_spike(self, security_service):
         """Test security analysis for high cost spike"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=2,
                 total_cost=Decimal("0.50")
@@ -92,7 +92,7 @@ class TestCostSecurityService:
     async def test_rate_limiting_exceeded(self, security_service):
         """Test rate limiting when limits are exceeded"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             # Mock rate limit exceeded
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=70,  # Exceeds default 60 calls/minute
@@ -121,7 +121,7 @@ class TestCostSecurityService:
     async def test_token_efficiency_analysis(self, security_service):
         """Test token efficiency anomaly detection"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=5,
                 total_cost=Decimal("1.00")
@@ -146,7 +146,7 @@ class TestCostSecurityService:
     async def test_provider_abuse_detection(self, security_service):
         """Test provider abuse pattern detection"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             # Mock multiple providers used recently
             mock_session.return_value.__aenter__.return_value.execute.return_value.scalar.return_value = 4
             
@@ -169,7 +169,7 @@ class TestCostSecurityService:
     async def test_security_analysis_error_handling(self, security_service):
         """Test security analysis error handling"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             # Mock database error
             mock_session.return_value.__aenter__.side_effect = Exception("Database connection failed")
             
@@ -196,7 +196,7 @@ class TestCostSecurityService:
         start_date = datetime.utcnow() - timedelta(days=7)
         end_date = datetime.utcnow()
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             # Mock audit data
             mock_db = mock_session.return_value.__aenter__.return_value
             
@@ -310,7 +310,7 @@ class TestCostSecurityService:
     async def test_concurrent_security_analysis(self, security_service):
         """Test concurrent security analysis requests"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=5,
                 total_cost=Decimal("1.50")
@@ -342,7 +342,7 @@ class TestCostSecurityService:
     async def test_edge_case_zero_cost_request(self, security_service):
         """Test security analysis for zero-cost request"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=1,
                 total_cost=Decimal("0.00")
@@ -366,7 +366,7 @@ class TestCostSecurityService:
     async def test_large_session_analysis(self, security_service):
         """Test security analysis for large session with many interactions"""
         
-        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+        with patch('services.cost_security_service.get_async_read_session') as mock_session:
             mock_session.return_value.__aenter__.return_value.execute.return_value.first.return_value = MagicMock(
                 call_count=500,  # Very high call count
                 total_cost=Decimal("200.00")  # High total cost

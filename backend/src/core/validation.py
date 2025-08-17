@@ -349,7 +349,7 @@ class ConfigurationValidator:
             return
         
         agent_files = list(agents_dir.glob("*.md"))
-        excluded_files = {"CommonValuesAndPrinciples.md", "MICROSOFT_VALUES.md"}
+        excluded_files = {"CommonValuesAndPrinciples.md"}
         valid_agents = [f for f in agent_files if f.name not in excluded_files]
         
         if len(valid_agents) < 40:

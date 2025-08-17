@@ -38,7 +38,18 @@ async def test_hitl_gates_conversation_when_required(monkeypatch):
     from agents.services.cost_tracker import CostTracker
 
     # Stub groupchat creation to avoid real AutoGen team
-    orch_mod.create_groupchat = lambda participants, model_client, max_turns: SimpleNamespace(agents=participants)  # type: ignore
+    def create_fake_groupchat(participants, model_client, max_turns, rag_injector=None, enable_per_turn_rag=False, enable_turn_by_turn_selection=False, intelligent_selector=None):
+        fake_groupchat = SimpleNamespace(agents=participants)
+        
+        async def fake_run_stream(task):
+            msg = SimpleNamespace(content="ok", source="agent1")
+            # Return an async iterator instead of a list
+            yield msg
+        
+        fake_groupchat.run_stream = fake_run_stream
+        return fake_groupchat
+    
+    orch_mod.create_groupchat = create_fake_groupchat  # type: ignore
     async def fake_run_groupchat_stream(group_chat, task):
         return [SimpleNamespace(content="ok", source="a")], "ok"
     orch_mod.run_groupchat_stream = fake_run_groupchat_stream  # type: ignore

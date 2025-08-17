@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.orchestrator import get_agent_orchestrator
 from core.redis import cache_get, cache_set
-from models import ProjectRequest
+from .models import ProjectRequest
 
 logger = structlog.get_logger()
 

@@ -767,19 +767,5 @@ class TestOrchestratorIntegration:
         # Should integrate with Redis if available
         assert orchestrator is not None
     
-    @patch('agents.orchestrator.get_db_session')
-    @patch('agents.orchestrator.get_settings')
-    async def test_database_integration(self, mock_get_settings, mock_get_db):
-        """Test database integration for persistence"""
-        mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
-        
-        mock_db_session = AsyncMock()
-        mock_get_db.return_value = mock_db_session
-        
-        from agents.orchestrator import AgentOrchestrator
-        
-        orchestrator = AgentOrchestrator()
-        
-        # Should integrate with database if available
-        assert orchestrator is not None
+    # Database integration test removed - orchestrator doesn't have database functionality
+    # The original test was testing non-existent functionality

@@ -20,7 +20,7 @@ For complex tasks: Ask for clarification first
 REMEMBER: Every token costs money. Be brief."""
 
 INTELLIGENT_DECISION_FRAMEWORK = """
-🧠 MANDATORY DECISION FRAMEWORK (FROM MICROSOFT_VALUES.md):
+🧠 MANDATORY DECISION FRAMEWORK (FROM CommonValuesAndPrinciples.md):
 
 1. INTENT ANALYSIS: Understand the user's true goal
 2. DATA SOURCE SELECTION:

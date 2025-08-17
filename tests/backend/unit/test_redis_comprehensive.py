@@ -5,6 +5,7 @@ Target: 23% → 80%+ coverage
 """
 
 import pytest
+import os
 from unittest.mock import patch, AsyncMock, MagicMock, call
 import json
 import redis.asyncio as redis
