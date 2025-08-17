@@ -8,14 +8,14 @@ import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 from datetime import datetime
 
-from backend.src.agents.services.graphflow.runner import (
+from agents.services.graphflow.runner import (
     GraphFlowRunner, WorkflowExecution, StepExecutionResult, StepStatus
 )
-from backend.src.agents.services.graphflow.definitions import (
+from agents.services.graphflow.definitions import (
     BusinessWorkflow, WorkflowStep, StepType, WorkflowPriority,
     BusinessDomain, WorkflowStatus
 )
-from backend.src.agents.services.graphflow.registry import (
+from agents.services.graphflow.registry import (
     ComprehensiveWorkflowRegistry, load_predefined_workflows
 )
 

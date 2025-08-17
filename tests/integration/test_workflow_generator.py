@@ -9,12 +9,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
 import json
 
-from backend.src.agents.services.graphflow.generator import (
+from agents.services.graphflow.generator import (
     GraphFlowGenerator,
     WorkflowGenerationRequest,
     generate_workflow_from_prompt
 )
-from backend.src.agents.services.graphflow.definitions import (
+from agents.services.graphflow.definitions import (
     BusinessWorkflow,
     WorkflowStep,
     BusinessDomain,
