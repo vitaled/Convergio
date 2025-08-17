@@ -1,0 +1,632 @@
+"""
+🔐 End-to-End Tests for Secure Cost Tracking System
+Comprehensive integration tests for the complete cost management ecosystem
+"""
+
+import pytest
+import asyncio
+import json
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Dict, Any, List
+from unittest.mock import AsyncMock, MagicMock, patch
+
+# Import all cost-related services
+from services.cost_tracking_service import EnhancedCostTracker
+from services.budget_monitor_service import budget_monitor
+from services.circuit_breaker_service import circuit_breaker, CircuitState
+from services.cost_security_service import cost_security_service, SecurityLevel
+from services.cost_analytics_service import cost_analytics_service
+from services.cost_background_tasks import cost_task_manager
+
+
+class TestSecureCostSystemE2E:
+    """End-to-end test suite for the complete secure cost tracking system"""
+    
+    @pytest.fixture
+    async def cost_tracker(self):
+        """Initialize cost tracker"""
+        return EnhancedCostTracker()
+    
+    @pytest.fixture
+    def sample_session_data(self):
+        """Sample session data for testing"""
+        return {
+            "session_id": "test_session_e2e",
+            "conversation_id": "test_conversation",
+            "agent_id": "test_agent",
+            "agent_name": "Test Agent",
+            "user_id": "test_user"
+        }
+    
+    @pytest.fixture
+    def sample_api_calls(self):
+        """Sample API call data for testing"""
+        return [
+            {
+                "provider": "openai",
+                "model": "gpt-4o",
+                "input_tokens": 1000,
+                "output_tokens": 500,
+                "estimated_cost": 0.025
+            },
+            {
+                "provider": "anthropic",
+                "model": "claude-3-5-sonnet",
+                "input_tokens": 1200,
+                "output_tokens": 600,
+                "estimated_cost": 0.030
+            },
+            {
+                "provider": "perplexity",
+                "model": "sonar-pro",
+                "input_tokens": 800,
+                "output_tokens": 400,
+                "estimated_cost": 0.020
+            }
+        ]
+    
+    @pytest.mark.asyncio
+    async def test_complete_cost_tracking_workflow(self, cost_tracker, sample_session_data, sample_api_calls):
+        """Test complete cost tracking workflow from API call to analytics"""
+        
+        with patch('backend.src.services.cost_tracking_service.get_async_session') as mock_session:
+            # Mock database operations
+            mock_db = AsyncMock()
+            mock_session.return_value.__aenter__.return_value = mock_db
+            
+            session_id = sample_session_data["session_id"]
+            total_session_cost = 0
+            
+            # Step 1: Track multiple API calls
+            tracked_calls = []
+            for i, call_data in enumerate(sample_api_calls):
+                with patch.object(cost_tracker, '_get_model_pricing') as mock_pricing:
+                    # Mock pricing data
+                    mock_pricing.return_value = {
+                        "input_price": Decimal("0.003"),
+                        "output_price": Decimal("0.015"),
+                        "price_per_request": None
+                    }
+                    
+                    result = await cost_tracker.track_api_call(
+                        session_id=session_id,
+                        conversation_id=sample_session_data["conversation_id"],
+                        provider=call_data["provider"],
+                        model=call_data["model"],
+                        input_tokens=call_data["input_tokens"],
+                        output_tokens=call_data["output_tokens"],
+                        agent_id=sample_session_data["agent_id"],
+                        agent_name=sample_session_data["agent_name"],
+                        turn_id=f"turn_{i}",
+                        request_type="chat",
+                        response_time_ms=800 + i * 100
+                    )
+                    
+                    assert result["success"] is True
+                    assert "cost_breakdown" in result
+                    tracked_calls.append(result)
+                    total_session_cost += result["cost_breakdown"]["total_cost_usd"]
+            
+            # Verify all calls were tracked
+            assert len(tracked_calls) == len(sample_api_calls)
+            assert total_session_cost > 0
+            
+            # Verify database operations were called
+            assert mock_db.add.call_count == len(sample_api_calls)
+            assert mock_db.commit.call_count >= len(sample_api_calls)
+    
+    @pytest.mark.asyncio
+    async def test_security_analysis_integration(self, sample_session_data):
+        """Test security analysis integration with cost tracking"""
+        
+        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+            # Mock normal usage patterns for security analysis
+            mock_db = mock_session.return_value.__aenter__.return_value
+            mock_db.execute.return_value.first.return_value = MagicMock(
+                call_count=3,
+                total_cost=Decimal("0.50")
+            )
+            mock_db.execute.return_value.scalar.return_value = 1  # Single provider
+            
+            # Test normal request
+            result = await cost_security_service.analyze_request_security(
+                session_id=sample_session_data["session_id"],
+                agent_id=sample_session_data["agent_id"],
+                provider="openai",
+                model="gpt-4o",
+                estimated_tokens=1000,
+                estimated_cost=0.025,
+                user_context={"user_tier": "standard"}
+            )
+            
+            assert result["allowed"] is True
+            assert result["security_level"] in [SecurityLevel.LOW, SecurityLevel.MEDIUM]
+            assert result["risk_score"] < 50
+            assert isinstance(result["anomalies"], list)
+            assert isinstance(result["recommendations"], list)
+    
+    @pytest.mark.asyncio
+    async def test_budget_monitoring_with_circuit_breaker(self, sample_session_data):
+        """Test budget monitoring integration with circuit breaker"""
+        
+        with patch('backend.src.services.budget_monitor_service.get_async_read_session') as mock_session:
+            # Mock budget data that exceeds limits
+            mock_db = mock_session.return_value.__aenter__.return_value
+            
+            # Mock daily summary that exceeds budget
+            mock_db.execute.side_effect = [
+                # Daily limits check
+                AsyncMock(scalar_one_or_none=lambda: MagicMock(
+                    total_cost_usd=Decimal("48.00"),  # Near limit
+                    daily_budget_usd=Decimal("50.00"),
+                    budget_utilization_percent=96.0,
+                    provider_breakdown={"openai": 30.0, "anthropic": 18.0},
+                    hourly_breakdown={"10": 5.0, "11": 8.0}
+                )),
+                # Monthly limits check
+                AsyncMock(scalar=lambda: Decimal("1400.00")),  # Monthly spend
+                AsyncMock(first=lambda: MagicMock(
+                    openai=Decimal("800.00"),
+                    anthropic=Decimal("400.00"),
+                    perplexity=Decimal("100.00"),
+                    other=Decimal("100.00")
+                )),
+                # Provider limits checks (multiple queries)
+                AsyncMock(scalar=lambda: Decimal("95.00")),  # OpenAI near limit
+                AsyncMock(scalar=lambda: Decimal("45.00")),  # Anthropic OK
+                AsyncMock(scalar=lambda: Decimal("18.00")),  # Perplexity OK
+                # Session anomalies
+                AsyncMock(scalars=lambda: MagicMock(all=lambda: [])),
+                # Predictions data
+                AsyncMock(all=lambda: [
+                    MagicMock(total_cost_usd=Decimal(str(5 + i)), date=datetime.utcnow().date() - timedelta(days=7-i))
+                    for i in range(7)
+                ])
+            ]
+            
+            # Run budget monitoring
+            budget_status = await budget_monitor.check_all_limits()
+            
+            assert "daily_status" in budget_status
+            assert "monthly_status" in budget_status
+            assert "provider_status" in budget_status
+            assert "circuit_breaker" in budget_status
+            
+            # Check that high utilization is detected
+            assert budget_status["daily_status"]["utilization_percent"] >= 90
+            assert budget_status["daily_status"]["status"] in ["warning", "critical"]
+            
+            # Check circuit breaker recommendation
+            circuit_status = budget_status["circuit_breaker"]
+            assert circuit_status["should_trigger"] is True
+            assert len(circuit_status["reasons"]) > 0
+    
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_request_blocking(self):
+        """Test circuit breaker request blocking functionality"""
+        
+        # Test normal state - requests allowed
+        circuit_breaker.circuit_state = CircuitState.CLOSED
+        
+        with patch('backend.src.services.budget_monitor_service.budget_monitor.get_budget_status_summary') as mock_budget:
+            mock_budget.return_value = {
+                "overall_status": "healthy",
+                "daily_utilization": 45.0,
+                "monthly_utilization": 60.0,
+                "critical_providers": [],
+                "circuit_breaker_active": False,
+                "total_alerts": 0
+            }
+            
+            should_block, reason = await circuit_breaker.check_should_block_request(
+                provider="openai",
+                agent_id="test_agent",
+                estimated_cost=0.50
+            )
+            
+            assert should_block is False
+            assert reason is None
+        
+        # Test circuit open state - requests blocked
+        circuit_breaker.circuit_state = CircuitState.OPEN
+        
+        should_block, reason = await circuit_breaker.check_should_block_request(
+            provider="openai",
+            agent_id="test_agent",
+            estimated_cost=0.50
+        )
+        
+        assert should_block is True
+        assert reason is not None
+        assert reason["reason"] == "circuit_open"
+        assert "Circuit breaker is open" in reason["message"]
+        
+        # Reset circuit state
+        circuit_breaker.circuit_state = CircuitState.CLOSED
+    
+    @pytest.mark.asyncio
+    async def test_provider_suspension_and_recovery(self):
+        """Test provider suspension and automatic recovery"""
+        
+        provider = "test_provider"
+        
+        # Test provider suspension
+        from backend.src.services.circuit_breaker_service import SuspensionReason
+        
+        await circuit_breaker.suspend_provider(
+            provider=provider,
+            reason=SuspensionReason.PROVIDER_CREDITS_EXHAUSTED,
+            duration_minutes=1  # Short duration for testing
+        )
+        
+        assert provider in circuit_breaker.suspended_providers
+        assert provider in circuit_breaker.suspension_reasons
+        
+        # Test request blocking for suspended provider
+        should_block, reason = await circuit_breaker.check_should_block_request(
+            provider=provider,
+            agent_id="test_agent"
+        )
+        
+        assert should_block is True
+        assert reason["reason"] == "provider_suspended"
+        assert provider in reason["message"]
+        
+        # Test manual resume
+        await circuit_breaker.resume_provider(provider)
+        
+        assert provider not in circuit_breaker.suspended_providers
+        assert provider not in circuit_breaker.suspension_reasons
+        
+        # Verify requests are now allowed
+        with patch('backend.src.services.budget_monitor_service.budget_monitor.get_budget_status_summary') as mock_budget:
+            mock_budget.return_value = {
+                "overall_status": "healthy",
+                "circuit_breaker_active": False
+            }
+            
+            should_block, reason = await circuit_breaker.check_should_block_request(
+                provider=provider,
+                agent_id="test_agent"
+            )
+            
+            assert should_block is False
+    
+    @pytest.mark.asyncio
+    async def test_emergency_override_functionality(self):
+        """Test emergency override functionality"""
+        
+        # Set circuit to open state
+        circuit_breaker.circuit_state = CircuitState.OPEN
+        
+        # Test invalid override code
+        result = await circuit_breaker.emergency_override(
+            override_code="INVALID_CODE",
+            duration_minutes=5
+        )
+        
+        assert result is False
+        assert circuit_breaker.circuit_state == CircuitState.OPEN
+        
+        # Test valid override code
+        result = await circuit_breaker.emergency_override(
+            override_code="EMERGENCY_OVERRIDE",
+            duration_minutes=1  # Short duration for testing
+        )
+        
+        assert result is True
+        assert circuit_breaker.circuit_state == CircuitState.CLOSED
+        assert len(circuit_breaker.override_codes) == 1
+        
+        # Verify requests are allowed during override
+        with patch('backend.src.services.budget_monitor_service.budget_monitor.get_budget_status_summary') as mock_budget:
+            mock_budget.return_value = {
+                "overall_status": "healthy",
+                "circuit_breaker_active": False
+            }
+            
+            should_block, reason = await circuit_breaker.check_should_block_request(
+                provider="openai",
+                agent_id="test_agent"
+            )
+            
+            assert should_block is False
+    
+    @pytest.mark.asyncio
+    async def test_cost_analytics_end_to_end(self):
+        """Test cost analytics generation end-to-end"""
+        
+        start_date = datetime.utcnow() - timedelta(days=30)
+        end_date = datetime.utcnow()
+        
+        with patch('backend.src.services.cost_analytics_service.get_async_read_session') as mock_session:
+            # Mock comprehensive analytics data
+            mock_db = mock_session.return_value.__aenter__.return_value
+            
+            # Mock all required database queries for analytics
+            mock_responses = [
+                # Cost overview - totals
+                AsyncMock(first=lambda: MagicMock(
+                    total_cost=Decimal("500.00"),
+                    total_interactions=1000,
+                    total_tokens=250000,
+                    avg_cost=Decimal("0.50"),
+                    max_cost=Decimal("5.00"),
+                    min_cost=Decimal("0.01")
+                )),
+                # Cost overview - daily breakdown
+                AsyncMock(all=lambda: [
+                    MagicMock(
+                        date=(start_date + timedelta(days=i)).date(),
+                        daily_cost=Decimal(str(15 + i * 0.5)),
+                        daily_interactions=30 + i
+                    )
+                    for i in range(30)
+                ]),
+                # Provider performance
+                AsyncMock(all=lambda: [
+                    MagicMock(
+                        provider="openai",
+                        total_cost=Decimal("300.00"),
+                        interaction_count=600,
+                        avg_cost=Decimal("0.50"),
+                        avg_response_time=1200.0,
+                        total_tokens=150000,
+                        avg_tokens=250.0
+                    )
+                ]),
+                # Agent efficiency
+                AsyncMock(all=lambda: [
+                    MagicMock(
+                        agent_id="test_agent",
+                        agent_name="Test Agent",
+                        total_cost=Decimal("150.00"),
+                        interaction_count=300,
+                        avg_cost=Decimal("0.50"),
+                        total_tokens=75000,
+                        provider_count=2,
+                        session_count=25
+                    )
+                ]),
+                # Model costs
+                AsyncMock(all=lambda: [
+                    MagicMock(
+                        provider="openai",
+                        model="gpt-4o",
+                        total_cost=Decimal("200.00"),
+                        usage_count=400,
+                        avg_cost=Decimal("0.50"),
+                        input_tokens=80000,
+                        output_tokens=40000,
+                        avg_response_time=1000.0
+                    )
+                ]),
+                # Usage patterns - hourly
+                AsyncMock(all=lambda: [
+                    MagicMock(hour=i, total_cost=Decimal(str(5 + i)), interaction_count=10 + i)
+                    for i in range(24)
+                ]),
+                # Usage patterns - weekly
+                AsyncMock(all=lambda: [
+                    MagicMock(day_of_week=i, total_cost=Decimal(str(50 + i * 10)), interaction_count=100 + i * 20)
+                    for i in range(7)
+                ]),
+                # Session durations
+                AsyncMock(all=lambda: []),
+                # Anomaly detection data
+                AsyncMock(all=lambda: []),
+                # Prediction data
+                AsyncMock(all=lambda: [
+                    MagicMock(date=(start_date + timedelta(days=i)).date(), daily_cost=Decimal(str(10 + i * 0.2)))
+                    for i in range(30)
+                ])
+            ]
+            
+            # Mock pricing data for model analysis
+            mock_pricing_result = AsyncMock()
+            mock_pricing_result.scalars.return_value.all.return_value = []
+            mock_responses.append(mock_pricing_result)
+            
+            mock_db.execute.side_effect = mock_responses
+            
+            # Generate comprehensive analytics report
+            report = await cost_analytics_service.generate_comprehensive_analytics_report(
+                start_date=start_date,
+                end_date=end_date,
+                include_predictions=True,
+                include_optimizations=True
+            )
+            
+            # Verify report structure
+            assert "report_metadata" in report
+            assert "executive_summary" in report
+            assert "cost_overview" in report
+            assert "provider_performance" in report
+            assert "agent_efficiency" in report
+            assert "model_analysis" in report
+            assert "usage_patterns" in report
+            assert "anomalies" in report
+            assert "predictions" in report
+            assert "optimization_recommendations" in report
+            
+            # Verify metadata
+            metadata = report["report_metadata"]
+            assert metadata["duration_days"] == 30
+            assert metadata["includes_predictions"] is True
+            assert metadata["includes_optimizations"] is True
+            assert "generated_at" in metadata
+            
+            # Verify cost overview
+            cost_overview = report["cost_overview"]
+            assert cost_overview["total_cost"] == 500.00
+            assert cost_overview["total_interactions"] == 1000
+            assert len(cost_overview["daily_breakdown"]) == 30
+    
+    @pytest.mark.asyncio
+    async def test_security_audit_report_generation(self):
+        """Test security audit report generation"""
+        
+        start_date = datetime.utcnow() - timedelta(days=7)
+        end_date = datetime.utcnow()
+        
+        with patch('backend.src.services.cost_security_service.get_async_read_session') as mock_session:
+            mock_db = mock_session.return_value.__aenter__.return_value
+            
+            # Mock security alerts
+            mock_alerts = [
+                MagicMock(
+                    id=1,
+                    alert_type="security_violation",
+                    severity="critical",
+                    message="Suspicious activity detected",
+                    created_at=datetime.utcnow(),
+                    is_resolved=False
+                ),
+                MagicMock(
+                    id=2,
+                    alert_type="rate_limit_exceeded",
+                    severity="warning",
+                    message="Rate limit exceeded",
+                    created_at=datetime.utcnow() - timedelta(hours=2),
+                    is_resolved=True
+                )
+            ]
+            
+            # Mock expensive sessions
+            mock_sessions = [
+                MagicMock(
+                    session_id="expensive_session_1",
+                    total_cost_usd=Decimal("75.50"),
+                    total_interactions=15,
+                    started_at=datetime.utcnow() - timedelta(hours=4),
+                    status="completed"
+                )
+            ]
+            
+            # Mock provider statistics
+            mock_provider_stats = [
+                MagicMock(
+                    provider="openai",
+                    total_cost=Decimal("200.00"),
+                    call_count=100,
+                    avg_cost=Decimal("2.00"),
+                    max_cost=Decimal("10.00")
+                )
+            ]
+            
+            # Setup mock responses
+            mock_db.execute.side_effect = [
+                AsyncMock(scalars=lambda: AsyncMock(all=lambda: mock_alerts)),
+                AsyncMock(scalars=lambda: AsyncMock(all=lambda: mock_sessions)),
+                AsyncMock(all=lambda: mock_provider_stats)
+            ]
+            
+            # Generate security audit report
+            audit_report = await cost_security_service.generate_security_audit_report(start_date, end_date)
+            
+            # Verify audit report structure
+            assert "audit_period" in audit_report
+            assert "security_summary" in audit_report
+            assert "alerts" in audit_report
+            assert "expensive_sessions" in audit_report
+            assert "provider_analysis" in audit_report
+            assert "security_recommendations" in audit_report
+            
+            # Verify audit data
+            security_summary = audit_report["security_summary"]
+            assert security_summary["total_alerts"] == 2
+            assert security_summary["critical_alerts"] == 1
+            assert security_summary["expensive_sessions"] == 1
+            
+            # Verify alerts data
+            alerts = audit_report["alerts"]
+            assert len(alerts) == 2
+            assert alerts[0]["severity"] == "critical"
+            assert not alerts[0]["is_resolved"]
+    
+    @pytest.mark.asyncio
+    async def test_background_services_integration(self):
+        """Test background services orchestration"""
+        
+        # Test background task manager status
+        with patch('backend.src.services.cost_background_tasks.budget_monitor') as mock_budget, \
+             patch('backend.src.services.cost_background_tasks.circuit_breaker') as mock_circuit, \
+             patch('backend.src.services.cost_background_tasks.pricing_updater') as mock_pricing:
+            
+            # Mock service responses
+            mock_budget.get_budget_status_summary.return_value = {
+                "overall_status": "healthy",
+                "daily_utilization": 45.0,
+                "monthly_utilization": 60.0,
+                "critical_providers": [],
+                "circuit_breaker_active": False,
+                "total_alerts": 0
+            }
+            
+            mock_circuit.get_circuit_status.return_value = {
+                "circuit_state": "CLOSED",
+                "suspended_providers": [],
+                "suspended_agents": [],
+                "health_status": "healthy"
+            }
+            
+            # Get system status
+            status = await cost_task_manager.get_status()
+            
+            assert "services_running" in status
+            assert "system_health" in status
+            assert "budget_summary" in status
+            assert "circuit_breaker" in status
+            assert "last_updated" in status
+    
+    @pytest.mark.asyncio
+    async def test_high_volume_cost_tracking_performance(self, cost_tracker, sample_session_data):
+        """Test system performance under high volume load"""
+        
+        with patch('backend.src.services.cost_tracking_service.get_async_session') as mock_session:
+            mock_db = AsyncMock()
+            mock_session.return_value.__aenter__.return_value = mock_db
+            
+            with patch.object(cost_tracker, '_get_model_pricing') as mock_pricing:
+                mock_pricing.return_value = {
+                    "input_price": Decimal("0.003"),
+                    "output_price": Decimal("0.015"),
+                    "price_per_request": None
+                }
+                
+                # Simulate high volume of concurrent API calls
+                tasks = []
+                for i in range(50):  # 50 concurrent calls
+                    task = cost_tracker.track_api_call(
+                        session_id=f"{sample_session_data['session_id']}_{i}",
+                        conversation_id=f"{sample_session_data['conversation_id']}_{i}",
+                        provider="openai",
+                        model="gpt-4o",
+                        input_tokens=1000,
+                        output_tokens=500,
+                        agent_id=sample_session_data["agent_id"],
+                        turn_id=f"turn_{i}"
+                    )
+                    tasks.append(task)
+                
+                # Execute all tasks concurrently
+                start_time = datetime.utcnow()
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                end_time = datetime.utcnow()
+                
+                # Verify all calls completed successfully
+                successful_calls = [r for r in results if isinstance(r, dict) and r.get("success")]
+                assert len(successful_calls) == 50
+                
+                # Verify reasonable performance (should complete within 10 seconds)
+                execution_time = (end_time - start_time).total_seconds()
+                assert execution_time < 10, f"High volume test took {execution_time} seconds"
+                
+                # Verify database operations were called
+                assert mock_db.add.call_count == 50
+                assert mock_db.commit.call_count >= 50
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-s"])
