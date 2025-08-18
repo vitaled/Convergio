@@ -1,0 +1,197 @@
+{
+  "agents": {
+    "ali_chief_of_staff": {
+      "name": "Ali",
+      "role": "Chief of Staff", 
+      "specialties": ["strategic analysis", "coordination", "leadership"],
+      "test_queries": [
+        "Ali, analizza la strategia di crescita per Q4 2024 e fornisci raccomandazioni specifiche",
+        "Ali, coordina una strategia multi-funzionale per il lancio del nuovo prodotto",
+        "Ali, valuta le opportunità di espansione nel mercato europeo"
+      ]
+    },
+    "amy_cfo": {
+      "name": "Amy",
+      "role": "CFO",
+      "specialties": ["financial analysis", "budgeting", "ROI assessment"],
+      "test_queries": [
+        "Amy, analizza il budget per il progetto Q4 e calcola il ROI previsto",
+        "Amy, valuta la sostenibilità finanziaria dell'espansione europea", 
+        "Amy, crea un'analisi di costo-beneficio per l'investimento in AI"
+      ]
+    },
+    "marcus_pm": {
+      "name": "Marcus",
+      "role": "Project Manager",
+      "specialties": ["project planning", "timeline management", "resource allocation"],
+      "test_queries": [
+        "Marcus, crea una roadmap dettagliata per il lancio prodotto in 6 mesi",
+        "Marcus, pianifica le risorse necessarie per il team di sviluppo",
+        "Marcus, definisci i milestone critici per il progetto AI"
+      ]
+    },
+    "baccio_tech_architect": {
+      "name": "Baccio", 
+      "role": "Tech Architect",
+      "specialties": ["system architecture", "scalability", "technology stack"],
+      "test_queries": [
+        "Baccio, progetta l'architettura per una piattaforma SaaS scalabile",
+        "Baccio, valuta le opzioni tecnologiche per il microservices deployment",
+        "Baccio, definisci l'infrastruttura cloud per gestire 1M+ utenti"
+      ]
+    },
+    "sara_ux_ui_designer": {
+      "name": "Sara",
+      "role": "UX/UI Designer", 
+      "specialties": ["user experience", "interface design", "usability"],
+      "test_queries": [
+        "Sara, progetta l'interfaccia per una dashboard executive intuitiva",
+        "Sara, crea il user journey per l'onboarding dei nuovi clienti",
+        "Sara, ottimizza l'usabilità dell'app mobile per utenti business"
+      ]
+    },
+    "giulia_hr_talent_acquisition": {
+      "name": "Giulia",
+      "role": "HR Talent Acquisition",
+      "specialties": ["talent sourcing", "team building", "skills assessment"],
+      "test_queries": [
+        "Giulia, identifica i profili ideali per il team di AI engineering",
+        "Giulia, crea un piano di recruiting per il Q1 2025",
+        "Giulia, valuta le competenze necessarie per la trasformazione digitale"
+      ]
+    }
+  },
+  "business_scenarios": {
+    "strategic_expansion": {
+      "title": "European Market Expansion",
+      "description": "Expansion into European markets with regulatory compliance",
+      "context": {
+        "current_markets": ["North America", "Asia-Pacific"],
+        "target_markets": ["Germany", "France", "UK"],
+        "budget_range": "$2M-$5M",
+        "timeline": "Q1-Q3 2025",
+        "constraints": ["GDPR compliance", "local partnerships", "currency fluctuation"]
+      },
+      "expected_agents": ["ali_chief_of_staff", "amy_cfo", "marcus_pm"],
+      "success_criteria": {
+        "strategic_analysis": true,
+        "financial_projections": true,
+        "implementation_plan": true,
+        "risk_assessment": true
+      }
+    },
+    "product_launch": {
+      "title": "AI-Powered Analytics Platform Launch", 
+      "description": "Launch of new SaaS analytics platform with AI capabilities",
+      "context": {
+        "product_type": "B2B SaaS Analytics",
+        "target_audience": "Enterprise customers",
+        "key_features": ["Real-time analytics", "AI insights", "Custom dashboards"],
+        "timeline": "6 months",
+        "budget": "$3M",
+        "competition": ["Tableau", "PowerBI", "Looker"]
+      },
+      "expected_agents": ["ali_chief_of_staff", "marcus_pm", "baccio_tech_architect", "sara_ux_ui_designer"],
+      "success_criteria": {
+        "go_to_market_strategy": true,
+        "technical_architecture": true,
+        "user_experience_design": true,
+        "project_timeline": true
+      }
+    },
+    "digital_transformation": {
+      "title": "Enterprise Digital Transformation",
+      "description": "Complete digital transformation for large enterprise client",
+      "context": {
+        "client_size": "5000+ employees",
+        "industry": "Manufacturing",
+        "current_state": "Legacy systems, manual processes",
+        "target_state": "Cloud-native, AI-driven, automated",
+        "timeline": "18 months",
+        "budget": "$10M+"
+      },
+      "expected_agents": ["ali_chief_of_staff", "baccio_tech_architect", "giulia_hr_talent_acquisition", "marcus_pm"],
+      "success_criteria": {
+        "transformation_roadmap": true,
+        "technology_migration": true,
+        "change_management": true,
+        "talent_development": true
+      }
+    }
+  },
+  "test_configurations": {
+    "timeouts": {
+      "simple_query": 30000,
+      "complex_analysis": 60000,
+      "multi_agent_orchestration": 90000,
+      "research_with_web": 45000
+    },
+    "validation_criteria": {
+      "min_response_length": 100,
+      "max_response_time": 30000,
+      "required_structure_elements": ["analysis", "recommendations", "next steps"],
+      "forbidden_patterns": ["error", "cannot", "unable", "fallback", "try again"]
+    },
+    "retry_settings": {
+      "max_retries": 2,
+      "retry_delay": 5000,
+      "timeout_multiplier": 1.5
+    }
+  },
+  "research_queries": {
+    "market_intelligence": [
+      "Ali, cerca le ultime tendenze nel settore AI consulting per il 2024-2025",
+      "Ali, analizza i competitor principali nel mercato delle piattaforme analytics",
+      "Ali, trova le best practices per l'implementazione di soluzioni AI enterprise"
+    ],
+    "technology_trends": [
+      "Baccio, ricerca le novità in cloud architecture per sistemi scalabili",
+      "Baccio, trova le soluzioni emerging per microservices orchestration",
+      "Baccio, analizza le tecnologie AI/ML più promettenti per il 2025"
+    ],
+    "financial_benchmarks": [
+      "Amy, cerca i benchmark di pricing per servizi di consulenza AI",
+      "Amy, trova i dati di mercato su ROI tipici per investimenti in digital transformation",
+      "Amy, analizza i modelli di pricing SaaS più efficaci nel settore enterprise"
+    ]
+  },
+  "validation_scenarios": {
+    "ali_strategic_thinking": {
+      "must_contain": ["strategic", "analysis", "recommendation", "opportunity"],
+      "must_have_structure": true,
+      "min_length": 200,
+      "business_criteria": {
+        "hasStrategicThinking": true,
+        "hasActionableInsights": true,
+        "hasRisksConsideration": true
+      }
+    },
+    "amy_financial_analysis": {
+      "must_contain": ["budget", "cost", "revenue", "ROI"],
+      "must_have_numbers": true,
+      "must_have_structure": true,
+      "min_length": 150,
+      "business_criteria": {
+        "hasDataDriven": true,
+        "hasMetrics": true,
+        "hasTimeframes": true
+      }
+    },
+    "marcus_project_planning": {
+      "must_contain": ["timeline", "milestone", "deliverable", "resource"],
+      "must_have_dates": true,
+      "must_have_structure": true,
+      "min_length": 150,
+      "business_criteria": {
+        "hasActionableInsights": true,
+        "hasTimeframes": true
+      }
+    },
+    "research_validation": {
+      "must_have_urls": true,
+      "must_have_structure": true,
+      "min_length": 200,
+      "must_not_contain": ["unable to search", "no internet access", "cannot access"]
+    }
+  }
+}
