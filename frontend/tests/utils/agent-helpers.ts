@@ -26,7 +26,7 @@ export async function waitForAIResponse(
   
   // Wait for content to be substantial (AI responses take time)
   await page.waitForFunction(
-    (sel, len) => {
+    ([sel, len]) => {
       const element = document.querySelector(sel);
       const content = element?.textContent || '';
       return content.length > len && !content.includes('Loading...');

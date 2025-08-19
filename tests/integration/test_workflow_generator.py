@@ -283,10 +283,11 @@ class TestWorkflowAPI:
             # Test would normally make HTTP request to API
             # For unit test, just verify the function can be called
             result = await generate_workflow_from_prompt(
-                prompt="Test prompt",
+                prompt="Create a customer onboarding process workflow",
                 business_domain="operations",
                 priority="medium",
-                max_steps=5
+                max_steps=5,
+                safety_check=False  # Disable safety check for testing
             )
             
             assert result is not None

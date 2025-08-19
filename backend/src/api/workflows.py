@@ -524,7 +524,13 @@ async def test_workflow_execution():
 async def workflows_health():
     """Health check for workflows system"""
     try:
-        # Feature flag gate
+        # Feature flag gate - check if GraphFlow is disabled
+        if not settings.graphflow_enabled:
+            return {
+                "status": "disabled",
+                "message": "GraphFlow workflows feature is disabled"
+            }
+        
         orchestrator = get_graphflow_orchestrator()
         workflows = await orchestrator.list_available_workflows()
         return {

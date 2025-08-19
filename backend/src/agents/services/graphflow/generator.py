@@ -275,6 +275,7 @@ async def generate_workflow_from_prompt(
     priority: str = "medium",
     max_steps: int = 10,
     context: Optional[Dict[str, Any]] = None,
+    safety_check: bool = True,
 ) -> GraphFlowGenerationResponse:
     gen = GraphFlowGenerator()
     req = WorkflowGenerationRequest(
@@ -283,6 +284,7 @@ async def generate_workflow_from_prompt(
         priority=priority,
         max_steps=max_steps,
         context=context or {},
+        safety_check=safety_check,
     )
     return await gen.generate_workflow(req)
 

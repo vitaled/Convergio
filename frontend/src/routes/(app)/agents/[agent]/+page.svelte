@@ -164,7 +164,8 @@
         
         <div class="flex items-center space-x-4">
           <button
-            on:click={clearConversation}\n            data-testid=\"clear-conversation\"
+            on:click={clearConversation}
+            data-testid="clear-conversation"
             class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

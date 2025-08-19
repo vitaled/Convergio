@@ -199,11 +199,11 @@ async def test_graphflow_complete_integration():
     """Test complete GraphFlow integration"""
     
     # Import all components
-    from backend.src.agents.services.graphflow.runner import GraphFlowRunner
-    from backend.src.agents.services.graphflow.definitions import (
+    from agents.services.graphflow.runner import GraphFlowRunner
+    from agents.services.graphflow.definitions import (
         BusinessWorkflow, WorkflowStep, StepType
     )
-    from backend.src.agents.services.graphflow.registry import (
+    from agents.services.graphflow.registry import (
         load_predefined_workflows, search_workflows, get_workflow_catalog
     )
     
