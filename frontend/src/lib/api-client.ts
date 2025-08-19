@@ -8,7 +8,7 @@ import { authStore } from '$lib/auth/auth.store';
 import type { User, AuthResponse } from '$lib/auth/auth.types';
 
 // API Configuration
-const API_BASE_URL = 'http://localhost:9000';
+const API_BASE_URL = 'http://localhost:4000';
 const API_VERSION = 'v1';
 
 export class ApiError extends Error {
@@ -193,19 +193,19 @@ export class ApiClient {
 	// ============================================
 
 	async getCostOverview(timeRange: string = '30d'): Promise<any> {
-		return this.request<any>(`/api/v1/cost/overview?time_range=${timeRange}`);
+		return this.request<any>(`/api/v1/cost-management/overview?time_range=${timeRange}`);
 	}
 
 	async getAgentCostSummary(agentId: string, timeRange: string = '30d'): Promise<any> {
-		return this.request<any>(`/api/v1/cost/agents/${agentId}/summary?time_range=${timeRange}`);
+		return this.request<any>(`/api/v1/cost-management/agents/${agentId}/summary?time_range=${timeRange}`);
 	}
 
 	async getLLMProviders(): Promise<any[]> {
-		return this.request<any[]>('/api/v1/cost/providers');
+		return this.request<any[]>('/api/v1/cost-management/providers');
 	}
 
 	async createAgentBudget(agentId: string, monthlyBudget: number, alertThreshold: number = 80): Promise<any> {
-		return this.request<any>('/api/v1/cost/budgets', {
+		return this.request<any>('/api/v1/cost-management/budgets', {
 			method: 'POST',
 			body: JSON.stringify({
 				agent_id: agentId,
@@ -216,7 +216,7 @@ export class ApiClient {
 	}
 
 	async getBudgetAlerts(agentId: string): Promise<any[]> {
-		return this.request<any[]>(`/api/v1/cost/agents/${agentId}/alerts`);
+		return this.request<any[]>(`/api/v1/cost-management/agents/${agentId}/alerts`);
 	}
 
 	// ============================================

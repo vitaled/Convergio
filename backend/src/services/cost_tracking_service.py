@@ -519,23 +519,47 @@ class EnhancedCostTracker:
             return CostStatus.HEALTHY.value
     
     async def get_realtime_overview(self) -> Dict[str, Any]:
-        """Get real-time cost overview for display"""
+        """Get real-time cost overview for display using REAL CostTracking data - NO MOCK DATA"""
         
         try:
             async with get_async_read_session() as db:
-                # Get today's summary
-                today = datetime.utcnow().date()
-                result = await db.execute(
-                    select(DailyCostSummary)
-                    .where(func.date(DailyCostSummary.date) == today)
-                )
-                today_summary = result.scalar_one_or_none()
-                
-                # Get total across all days
+                # Get total cost from CostTracking (REAL DATA)
                 total_result = await db.execute(
-                    select(func.sum(DailyCostSummary.total_cost_usd))
+                    select(func.sum(CostTracking.total_cost_usd))
                 )
                 total_all_time = total_result.scalar() or Decimal("0")
+                
+                # Get total interactions from CostTracking
+                interactions_result = await db.execute(
+                    select(func.count(CostTracking.id))
+                )
+                total_interactions = interactions_result.scalar() or 0
+                
+                # Get today's cost from CostTracking
+                today = datetime.utcnow().date()
+                today_result = await db.execute(
+                    select(func.sum(CostTracking.total_cost_usd))
+                    .where(func.date(CostTracking.created_at) == today)
+                )
+                today_cost = today_result.scalar() or Decimal("0")
+                
+                # Get provider breakdown from CostTracking
+                provider_result = await db.execute(
+                    select(
+                        CostTracking.provider,
+                        func.sum(CostTracking.total_cost_usd).label('cost')
+                    ).group_by(CostTracking.provider)
+                )
+                provider_breakdown = {row.provider: float(row.cost) for row in provider_result}
+                
+                # Get model breakdown from CostTracking  
+                model_result = await db.execute(
+                    select(
+                        CostTracking.model,
+                        func.sum(CostTracking.total_cost_usd).label('cost')
+                    ).group_by(CostTracking.model)
+                )
+                model_breakdown = {row.model: float(row.cost) for row in model_result}
                 
                 # Get active sessions count
                 sessions_result = await db.execute(
@@ -544,46 +568,37 @@ class EnhancedCostTracker:
                 )
                 active_sessions = sessions_result.scalar() or 0
                 
-                if today_summary:
-                    return {
-                        "total_cost_usd": float(total_all_time),
-                        "today_cost_usd": float(today_summary.total_cost_usd),
-                        "total_interactions": today_summary.total_interactions,
-                        "total_tokens": today_summary.total_tokens,
-                        "active_sessions": active_sessions,
-                        "status": today_summary.status,
-                        "budget_utilization": today_summary.budget_utilization_percent,
-                        "provider_breakdown": today_summary.provider_breakdown,
-                        "model_breakdown": today_summary.model_breakdown,
-                        "hourly_breakdown": today_summary.hourly_breakdown,
-                        "last_updated": datetime.utcnow().isoformat()
-                    }
-                else:
-                    return {
-                        "total_cost_usd": float(total_all_time),
-                        "today_cost_usd": 0.0,
-                        "total_interactions": 0,
-                        "total_tokens": 0,
-                        "active_sessions": active_sessions,
-                        "status": "healthy",
-                        "budget_utilization": 0.0,
-                        "provider_breakdown": {},
-                        "model_breakdown": {},
-                        "hourly_breakdown": {},
-                        "last_updated": datetime.utcnow().isoformat()
-                    }
-                    
+                # Calculate status based on total cost
+                total_cost_float = float(total_all_time)
+                status = self._calculate_status(total_cost_float)
+                
+                return {
+                    "total_cost_usd": total_cost_float,
+                    "today_cost_usd": float(today_cost),
+                    "total_interactions": total_interactions,
+                    "total_tokens": 0,  # Not tracked in CostTracking yet
+                    "active_sessions": active_sessions,
+                    "status": status,
+                    "budget_utilization": 0.0,  # Calculate if needed
+                    "provider_breakdown": provider_breakdown,
+                    "model_breakdown": model_breakdown,
+                    "last_updated": datetime.utcnow().isoformat()
+                }
+                
         except Exception as e:
-            logger.error("Failed to get realtime overview", error=str(e))
+            logger.error(f"❌ Failed to get realtime overview: {e}")
             return {
                 "total_cost_usd": 0.0,
                 "today_cost_usd": 0.0,
                 "total_interactions": 0,
                 "total_tokens": 0,
                 "active_sessions": 0,
-                "status": "error",
-                "error": str(e),
-                "last_updated": datetime.utcnow().isoformat()
+                "status": "error", 
+                "budget_utilization": 0.0,
+                "provider_breakdown": {},
+                "model_breakdown": {},
+                "last_updated": datetime.utcnow().isoformat(),
+                "error": str(e)
             }
     
     async def get_session_details(self, session_id: str) -> Dict[str, Any]:

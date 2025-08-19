@@ -50,36 +50,25 @@ export interface LLMProvider {
 }
 
 class CostService {
-  private baseUrl = 'http://localhost:9000/api/v1';
+  private baseUrl = 'http://localhost:4000/api/v1';
 
   async getCostOverview(): Promise<CostOverview> {
     try {
       const response = await fetch(`${this.baseUrl}/cost-management/overview`);
       
       if (!response.ok) {
-        if (response.status === 404) {
-          // Return mock data for 404
-          return {
-            total_cost_usd: 157.83,
-            period_cost_usd: 42.15,
-            cost_breakdown: {
-              input_tokens: 125000,
-              output_tokens: 87500,
-              total_requests: 342
-            },
-            top_agents: [
-              { agent_id: "market_analyst", cost_usd: 67.23, percentage: 42.6 },
-              { agent_id: "content_writer", cost_usd: 34.50, percentage: 21.9 },
-              { agent_id: "code_reviewer", cost_usd: 28.10, percentage: 17.8 }
-            ],
-            top_models: [
-              { model: "gpt-4", cost_usd: 89.45, usage_count: 156 },
-              { model: "gpt-3.5-turbo", cost_usd: 42.15, usage_count: 186 },
-              { model: "claude-3", cost_usd: 26.23, usage_count: 78 }
-            ]
-          };
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // NO MOCK DATA - Always show real data or zero
+        return {
+          total_cost_usd: 0,
+          period_cost_usd: 0,
+          cost_breakdown: {
+            input_tokens: 0,
+            output_tokens: 0,
+            total_requests: 0
+          },
+          top_agents: [],
+          top_models: []
+        };
       }
       
       return await response.json();
@@ -109,19 +98,16 @@ class CostService {
       const response = await fetch(`${this.baseUrl}/cost-management/budget/status`);
       
       if (!response.ok) {
-        if (response.status === 404) {
-          // Return mock data for 404
-          return {
-            total_budget_usd: 1000.0,
-            used_budget_usd: 157.83,
-            remaining_budget_usd: 842.17,
-            utilization_percentage: 15.78,
-            projected_monthly_cost: 473.49,
-            budget_health: 'healthy',
-            days_remaining: 23
-          };
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // NO MOCK DATA - Always show real budget data or zero
+        return {
+          total_budget_usd: 0,
+          used_budget_usd: 0,
+          remaining_budget_usd: 0,
+          utilization_percentage: 0,
+          projected_monthly_cost: 0,
+          budget_health: 'healthy',
+          days_remaining: 0
+        };
       }
       
       return await response.json();
