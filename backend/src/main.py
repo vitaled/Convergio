@@ -21,16 +21,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
-# Rate limiting temporarily disabled - slowapi not installed
-# from slowapi import Limiter, _rate_limit_exceeded_handler
-# from slowapi.errors import RateLimitExceeded
-# from slowapi.util import get_remote_address
+# Enhanced rate limiting system
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from core.rate_limiting_enhanced import create_enhanced_rate_limiter, get_slowapi_limiter, ProductionRateLimitMiddleware
 
-from core.config import get_settings
+from core.config_enhanced import initialize_configuration
 from core.database import init_db, close_db
 from core.redis import init_redis, close_redis
 from core.logging_utils import setup_async_logging
 from core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
+from core.error_handling_enhanced import error_handler, handle_startup_validation, validate_service_connectivity, ErrorContext
+from core.security_config import initialize_secure_defaults, validate_security_config
+from core.config_validator import ConfigValidator
 
 # Import routers
 from api.talents import router as talents_router
@@ -66,22 +70,50 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Application lifespan management - startup and shutdown events"""
     
     # 🚀 STARTUP
-    logger.info("🚀 Starting Convergio Unified Backend", version=get_settings().app_version)
+    # Initialize secure defaults before configuration
+    try:
+        logger.info("🔐 Initializing secure defaults...")
+        initialize_secure_defaults()
+        logger.info("✅ Secure defaults initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ Secure defaults initialization skipped: {e}")
+    
+    # Initialize configuration with fail-fast behavior
+    settings = initialize_configuration()
+    logger.info("🚀 Starting Convergio Unified Backend", version=settings.PROJECT_VERSION)
+    
+    # Comprehensive configuration validation
+    config_validator = ConfigValidator()
+    if not config_validator.validate_startup():
+        logger.error("❌ Configuration validation failed - terminating startup")
+        raise RuntimeError("Configuration validation failed")
+    
+    # Validate security configuration
+    try:
+        config_dict = {
+            "JWT_SECRET": settings.JWT_SECRET,
+            "CORS_ALLOWED_ORIGINS": ",".join(settings.cors_origins_list),
+            "BASE_URL": settings.BASE_URL if hasattr(settings, 'BASE_URL') else "",
+            "POSTGRES_HOST": settings.POSTGRES_HOST,
+            "REDIS_HOST": settings.REDIS_HOST,
+        }
+        validate_security_config(config_dict, settings.ENVIRONMENT)
+        logger.info("✅ Security configuration validated")
+    except Exception as e:
+        logger.warning(f"⚠️ Security configuration validation: {e}")
+    
+    # Validate required services configuration
+    handle_startup_validation(["database", "redis", "ai_apis"])
     
     try:
         # Initialize database
         logger.info("📊 Initializing database connection pool...")
-        try:
+        async with error_handler.error_context("database", "initialization") as ctx:
             await init_db()
-        except Exception as e:
-            # In test environment, allow backend to run without DB
-            if get_settings().ENVIRONMENT in ("test", "development"):
-                logger.warning(f"⚠️ DB init failed, continuing in {get_settings().ENVIRONMENT}: {e}")
-            else:
-                raise
+            logger.info("✅ Database connection pool initialized")
         # Auto-create tables in development for smoother E2E/dev experience
         try:
-            if get_settings().ENVIRONMENT == "development":
+            if settings.ENVIRONMENT == "development" and not os.getenv("SKIP_AUTO_MIGRATIONS", "false").lower() in ("true", "1", "yes"):
                 from sqlalchemy import text as _sql_text
                 from core.database import async_engine
                 async with async_engine.begin() as conn:
@@ -92,17 +124,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
                 # Ensure specific dev schema consistency (lightweight auto-migrations)
                 from core.database import ensure_dev_schema
                 await ensure_dev_schema()
+            else:
+                logger.info("⏭️ Auto-migrations skipped (SKIP_AUTO_MIGRATIONS=true)")
         except Exception as _e:
             logger.warning(f"⚠️ Table auto-create skipped/failed: {_e}")
         
-        # Initialize Redis
+        # Initialize Redis with enhanced error handling
         logger.info("🚀 Initializing Redis connection pool...")  
-        try:
+        async with error_handler.error_context("redis", "initialization") as ctx:
             await init_redis()
+            logger.info("✅ Redis connection pool initialized")
+        
+        # Initialize enhanced rate limiting system
+        logger.info("🚦 Initializing enhanced rate limiting...")
+        try:
+            from core.redis import get_redis_client
+            redis_client = await get_redis_client()
+            
+            rate_engine, rate_middleware = create_enhanced_rate_limiter(
+                redis_client, 
+                enabled=settings.RATE_LIMITING_ENABLED
+            )
+            
+            # Configure endpoint-specific limits  
+            await rate_engine.configure_endpoint_limits(settings.RATE_LIMITS)
+            logger.info("✅ Enhanced rate limiting initialized")
         except Exception as e:
-            if get_settings().ENVIRONMENT in ("test", "development"):
-                logger.warning(f"⚠️ Redis init failed, continuing in {get_settings().ENVIRONMENT}: {e}")
-            else:
+            logger.error("❌ Rate limiting initialization failed", error=str(e))
+            if settings.ENVIRONMENT == "production":
                 raise
         
         # Initialize AI agent system
@@ -171,7 +220,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 def create_app() -> FastAPI:
     """Create and configure FastAPI application"""
     
-    settings = get_settings()
+    settings = initialize_configuration()
     
     # Create FastAPI app with lifespan management
     app = FastAPI(
@@ -189,7 +238,7 @@ def create_app() -> FastAPI:
         **Security**: Rate limiting + CORS
         **Scalability**: Horizontal scaling + Background tasks + WebSockets
         """,
-    version=settings.app_version,
+        version=settings.PROJECT_VERSION,
         docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
         redoc_url="/redoc" if settings.ENVIRONMENT != "production" else None,
         openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else None,
@@ -199,6 +248,22 @@ def create_app() -> FastAPI:
     # ================================
     # 🛡️ SECURITY MIDDLEWARE STACK
     # ================================
+    
+    # Enhanced Rate Limiting Middleware (first for security)
+    if settings.RATE_LIMITING_ENABLED:
+        try:
+            from core.redis import get_redis_client
+            import asyncio
+            redis_client = asyncio.run(get_redis_client())
+            rate_engine, rate_middleware = create_enhanced_rate_limiter(redis_client, enabled=True)
+            app.add_middleware(ProductionRateLimitMiddleware, rate_engine=rate_engine, enabled=True)
+            
+            # Add slowapi limiter for backwards compatibility
+            limiter = get_slowapi_limiter()
+            app.state.limiter = limiter
+            app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+        except Exception as e:
+            logger.warning(f"⚠️ Rate limiting middleware initialization failed: {e}")
     
     # Security Headers Middleware
     app.add_middleware(SecurityHeadersMiddleware)
@@ -365,8 +430,8 @@ def create_app() -> FastAPI:
         """Root endpoint with service information"""
         return {
             "service": "Convergio Unified Backend",
-            "version": settings.app_version,
-            "build": settings.build_number,
+            "version": settings.PROJECT_VERSION,
+            "build": os.getenv("BUILD_NUMBER", "dev"),
             "environment": settings.ENVIRONMENT,
             "status": "🚀 Running",
             "architecture": "FastAPI + SQLAlchemy 2.0 + Redis + AI",
@@ -388,7 +453,7 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
     
-    settings = get_settings()
+    settings = initialize_configuration()
     
     uvicorn.run(
         "src.main:app",

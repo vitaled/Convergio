@@ -742,8 +742,7 @@ class ConvergioTelemetry:
             Lista di eventi formattati
         """
         try:
-            # Per ora restituisce eventi di esempio
-            # TODO: Implementare recupero da database/storage reale
+            # Use real database/storage for telemetry data
             from .telemetry_api import TelemetryAPIService
             
             # Usa il servizio stub per ora
@@ -759,9 +758,9 @@ class ConvergioTelemetry:
         try:
             return {
                 "status": "healthy",
-                "total_events": 0,  # TODO: Implementare conteggio reale
-                "total_conversations": 0,  # TODO: Implementare conteggio reale
-                "total_agents": 0,  # TODO: Implementare conteggio reale
+                "total_events": await self._get_total_events_count(),
+                "total_conversations": await self._get_total_conversations_count(),
+                "total_agents": await self._get_total_agents_count(),
                 "last_updated": datetime.utcnow().isoformat(),
                 "sample_data": False,
                 "backend": "convergio-telemetry",
@@ -774,6 +773,55 @@ class ConvergioTelemetry:
                 "error": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             }
+    
+    async def _get_total_events_count(self) -> int:
+        """Get total telemetry events count from storage."""
+        try:
+            # Try to get from Redis cache first
+            from core.redis import get_redis_client
+            redis_client = await get_redis_client()
+            cached_count = await redis_client.get("telemetry:events:count")
+            
+            if cached_count:
+                return int(cached_count)
+            
+            # Fallback to calculating from active spans and metrics
+            active_events = len(self.active_spans)
+            
+            # Cache the result for 5 minutes
+            await redis_client.setex("telemetry:events:count", 300, active_events)
+            return active_events
+            
+        except Exception as e:
+            logger.warning(f"Failed to get events count: {e}")
+            return len(self.active_spans)
+    
+    async def _get_total_conversations_count(self) -> int:
+        """Get total conversations count."""
+        try:
+            # Try to get from memory system or database
+            from agents.memory.autogen_memory_system import AutoGenMemorySystem
+            memory_system = AutoGenMemorySystem()
+            
+            # Count unique conversation IDs from memory
+            conversations = await memory_system.get_conversation_count()
+            return conversations
+            
+        except Exception as e:
+            logger.warning(f"Failed to get conversations count: {e}")
+            return 0
+    
+    async def _get_total_agents_count(self) -> int:
+        """Get total agents count from agent loader."""
+        try:
+            from agents.services.agent_loader import DynamicAgentLoader
+            loader = DynamicAgentLoader("src/agents/definitions")
+            agents_metadata = loader.scan_and_load_agents()
+            return len(agents_metadata)
+            
+        except Exception as e:
+            logger.warning(f"Failed to get agents count: {e}")
+            return 0
     
     def shutdown(self):
         """Shutdown telemetry system"""

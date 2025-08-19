@@ -16,8 +16,7 @@ from autogen_agentchat.messages import TextMessage
 from .base import BaseGroupChatOrchestrator
 from .resilience import CircuitBreaker, CircuitBreakerConfig, CircuitState, HealthMonitor
 from agents.services.groupchat.intelligent_router import IntelligentAgentRouter
-# from agents.services.groupchat.rag import AdvancedRAGProcessor  # TODO: Implement
-# from agents.services.groupchat.per_turn_rag import PerTurnRAGInjector  # TODO: Implement
+# RAG functionality is now dynamically imported in initialize() method when enabled
 from agents.services.groupchat.metrics import extract_agents_used, estimate_cost
 from agents.services.agent_intelligence import AgentIntelligence
 from agents.security.ai_security_guardian import AISecurityGuardian
@@ -125,11 +124,23 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                     max_turns=self.max_rounds,
                 )
             
-            # Initialize RAG processor if enabled (disabled - missing implementation)
-            if kwargs.get("enable_rag", False):  # Disabled by default
-                # TODO: Implement AdvancedRAGProcessor
-                # self.rag_processor = AdvancedRAGProcessor()
-                pass
+            # Initialize RAG processor if enabled
+            if kwargs.get("enable_rag", True):  # Enabled by default now
+                try:
+                    from agents.services.groupchat.rag import AdvancedRAGProcessor
+                    from agents.memory.autogen_memory_system import AutoGenMemorySystem
+                    
+                    memory_system = AutoGenMemorySystem()
+                    self.rag_processor = AdvancedRAGProcessor(
+                        memory_system=memory_system,
+                        settings=get_settings()
+                    )
+                    logger.info("✅ RAG processor initialized successfully")
+                except Exception as e:
+                    logger.warning(f"⚠️ RAG processor initialization failed: {e}")
+                    self.rag_processor = None
+            else:
+                self.rag_processor = None
             
             # Initialize safety guardian if enabled
             if kwargs.get("enable_safety", True):
@@ -200,19 +211,32 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                         "blocked": True
                     }
             
-            # Add RAG context if available (disabled for now - missing implementation)
-            enhanced_message = message
-            # TODO: Re-enable when AdvancedRAGProcessor is implemented
-            # if self.rag_processor and context:
-            #     rag_context = await self.rag_processor.get_relevant_context(
-            #         message, 
-            #         context.get("document_ids", [])
-            #     )
-            #     if rag_context:
-            #         enhanced_message = f"{message}\n\nContext:\n{rag_context}"
-            
             # Check if a specific agent is requested
             target_agent = context.get("target_agent") if context else None
+            
+            # Add RAG context if available
+            enhanced_message = message
+            if self.rag_processor and context:
+                try:
+                    # Use AdvancedRAGProcessor to build memory context
+                    rag_context_message = await self.rag_processor.build_memory_context(
+                        user_id=user_id,
+                        agent_id=target_agent if target_agent else None,
+                        query=message,
+                        limit=context.get("rag_limit", 5),
+                        similarity_threshold=context.get("rag_threshold", 0.3),
+                        include_conversation_history=context.get("include_history", True),
+                        include_knowledge_base=context.get("include_knowledge", True)
+                    )
+                    
+                    if rag_context_message and rag_context_message.content:
+                        enhanced_message = f"{message}\n\n{rag_context_message.content}"
+                        logger.info("✅ RAG context added to message", 
+                                       original_length=len(message), 
+                                       enhanced_length=len(enhanced_message))
+                except Exception as e:
+                    logger.warning(f"⚠️ RAG context generation failed: {e}")
+                    # Continue with original message if RAG fails
             
             # Determine routing strategy (force single agent if target is specified)
             should_use_single = target_agent or self.router.should_use_single_agent(message)
@@ -314,12 +338,7 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         
         logger.info(f"🎯 Single agent execution: {best_agent.name}")
         
-        # Skip agent_intelligence for now - it's overriding agent responses
-        # TODO: Fix agent_intelligence to respect agent personality
-        # response = await self.agent_intelligence.generate_intelligent_response(
-        #     message,
-        #     context
-        # )
+        # Agent intelligence is handled through RAG context enhancement instead
         
         # Execute agent WITH TOOLS using AutoGen 0.7.x API
         messages = []

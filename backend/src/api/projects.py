@@ -18,7 +18,7 @@ from core.database import get_db_session
 from models.engagement import Engagement
 from models.activity import Activity
 
-router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
+router = APIRouter(tags=["projects"])
 
 
 # Request/Response Models
@@ -310,6 +310,47 @@ async def delete_engagement(
         )
 
 
+@router.get("/overview")
+async def get_projects_overview(
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    📊 Get projects overview
+    
+    Returns a comprehensive overview of projects/engagements for dashboard display.
+    """
+    try:
+        # Get total count
+        total_result = await db.execute(select(func.count(Engagement.id)))
+        total_count = total_result.scalar() or 0
+        
+        # Get counts by status
+        status_counts = {}
+        for status in ["planning", "in_progress", "completed", "on_hold"]:
+            result = await db.execute(
+                select(func.count(Engagement.id)).where(Engagement.status == status)
+            )
+            status_counts[status] = result.scalar() or 0
+        
+        # Get recent engagements (last 5)
+        recent_query = select(Engagement).order_by(Engagement.created_at.desc()).limit(5)
+        recent_result = await db.execute(recent_query)
+        recent_engagements = recent_result.scalars().all()
+        
+        return {
+            "total_engagements": total_count,
+            "status_breakdown": status_counts,
+            "active_engagements": status_counts.get("planning", 0) + status_counts.get("in_progress", 0),
+            "recent_engagements": [engagement.to_dict() for engagement in recent_engagements]
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve projects overview: {str(e)}"
+        )
+
+
 @router.get("/engagements/status/summary")
 async def get_engagement_status_summary(
     db: AsyncSession = Depends(get_db_session)
@@ -342,4 +383,86 @@ async def get_engagement_status_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve status summary: {str(e)}"
+        )
+
+
+@router.get("/clients")
+async def get_clients(
+    skip: int = 0,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    👥 Get all clients
+    
+    Returns a list of clients for the projects overview.
+    For now, returns mock data until client model is implemented.
+    """
+    try:
+        # TODO: Replace with actual client model when available
+        mock_clients = [
+            {"id": 1, "name": "Acme Corporation", "email": "contact@acme.com"},
+            {"id": 2, "name": "TechStart Inc", "email": "hello@techstart.com"},
+            {"id": 3, "name": "Global Industries", "email": "info@global.com"}
+        ]
+        
+        return {
+            "clients": mock_clients[skip:skip+limit],
+            "total": len(mock_clients),
+            "skip": skip,
+            "limit": limit
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve clients: {str(e)}"
+        )
+
+
+@router.get("/activities")
+async def get_activities(
+    skip: int = 0,
+    limit: int = 100,
+    engagement_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    📋 Get all activities
+    
+    Returns activities, optionally filtered by engagement.
+    """
+    try:
+        # Build query
+        query = select(Activity)
+        
+        if engagement_id:
+            query = query.where(Activity.engagement_id == engagement_id)
+        
+        # Add pagination and ordering
+        query = query.offset(skip).limit(limit).order_by(Activity.created_at.desc())
+        
+        result = await db.execute(query)
+        activities = result.scalars().all()
+        
+        # Get total count
+        count_query = select(func.count(Activity.id))
+        if engagement_id:
+            count_query = count_query.where(Activity.engagement_id == engagement_id)
+        
+        total_result = await db.execute(count_query)
+        total_count = total_result.scalar() or 0
+        
+        return {
+            "activities": [activity.to_dict() for activity in activities],
+            "total": total_count,
+            "skip": skip,
+            "limit": limit,
+            "has_more": skip + limit < total_count
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve activities: {str(e)}"
         )
