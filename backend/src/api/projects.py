@@ -615,6 +615,9 @@ async def seed_activities(
         result = await db.execute(sa_select(Activity).where(Activity.engagement_id == engagement_id).order_by(Activity.created_at))
         acts = result.scalars().all()
         return {"created": len(values), "activities": [a.to_dict() for a in acts]}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to seed activities: {str(e)}")
 
 
 @router.put(

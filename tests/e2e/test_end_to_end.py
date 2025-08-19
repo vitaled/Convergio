@@ -39,6 +39,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 from src.core.config import get_settings
+import os
 
 # Configure logging
 LOG_DIR = Path(__file__).resolve().parents[1] / "logs"
@@ -73,7 +74,8 @@ class TestEndToEnd:
         logger.info("="*70)
         
         cls.settings = get_settings()
-        cls.backend_url = "http://localhost:9000"
+        import os
+        cls.backend_url = f"http://localhost:{os.getenv('BACKEND_PORT', '9000')}"
         cls.frontend_url = "http://localhost:5173"
         cls.ws_url = "ws://localhost:9000/ws"
     

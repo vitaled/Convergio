@@ -75,7 +75,9 @@ class SecurityValidationTester:
     
     def __init__(self):
         self.settings = get_settings()
-        self.base_url = "http://localhost:9000"
+        import os
+        backend_port = os.getenv("BACKEND_PORT", "9000")
+        self.base_url = f"http://localhost:{backend_port}"
         self.test_session_id = f"security_test_{TIMESTAMP}"
     
     async def test_input_validation(self) -> SecurityTestResult:

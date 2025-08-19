@@ -90,7 +90,9 @@ class DatabaseCostTrackingTester:
     
     def __init__(self):
         self.settings = get_settings()
-        self.base_url = "http://localhost:9000"
+        import os
+        backend_port = os.getenv("BACKEND_PORT", "9000")
+        self.base_url = f"http://localhost:{backend_port}"
         self.test_session_id = f"db_cost_test_{TIMESTAMP}"
         self.test_user_id = None
         self.test_project_id = None

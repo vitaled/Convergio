@@ -105,9 +105,9 @@ def ensure_backend_server():
     - Otherwise, start uvicorn in a subprocess and wait until /health responds.
     - Clean up the subprocess at session end.
     """
-    base_url = os.environ.get("API_BASE_URL", "http://localhost:9000")
     host = "localhost"
-    port = 9000
+    port = int(os.environ.get("BACKEND_PORT", "9000"))
+    base_url = os.environ.get("API_BASE_URL", f"http://localhost:{port}")
 
     # Allow opt-out to avoid starting a server for pure unit runs
     auto_start = os.environ.get("AUTO_START_TEST_SERVER", "true").lower() in ("1", "true", "yes")
@@ -156,7 +156,7 @@ def ensure_backend_server():
                 pass
             if proc:
                 proc.terminate()
-            raise RuntimeError("Failed to start backend test server on port 9000")
+            raise RuntimeError(f"Failed to start backend test server on port {port}")
 
     # Yield control to tests
     try:

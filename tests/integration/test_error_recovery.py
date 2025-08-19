@@ -19,7 +19,10 @@ async def test_database_reconnection_recovery(test_client):
     """Test database reconnection after connection loss with REAL database interactions."""
     
     # Test that database health endpoint works with real database
-    response1 = await test_client.get("/health/db")
+    import httpx
+    timeout = httpx.Timeout(30.0)  # 30 second timeout
+    
+    response1 = await test_client.get("/health/db", timeout=timeout)
     assert response1.status_code == 200, "Database health endpoint should be accessible"
     
     data1 = response1.json()

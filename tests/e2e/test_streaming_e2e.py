@@ -19,6 +19,7 @@ from agents.services.streaming.protocol import (
     StreamingProtocol,
     StreamingEventType
 )
+import os
 
 logger = structlog.get_logger()
 
@@ -88,7 +89,9 @@ class StreamingE2ETest:
         first_chunk_received = False
         
         # Build correct WS URL if not provided
-        ws_url = self.ws_url or f"ws://localhost:9000/api/v1/agents/ws/streaming/{user_id}/{agent_name}"
+        import os
+        backend_port = os.getenv("BACKEND_PORT", "9000")
+        ws_url = self.ws_url or f"ws://localhost:{backend_port}/api/v1/agents/ws/streaming/{user_id}/{agent_name}"
         try:
             async with websockets.connect(ws_url) as websocket:
                 # Send initial message
