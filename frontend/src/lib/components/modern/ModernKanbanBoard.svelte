@@ -1,1222 +1,461 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { flip } from 'svelte/animate';
   import { dndzone } from 'svelte-dnd-action';
   
   export let projectId: string;
-  export let columns: any[] = [];
-  export let tasks: any[] = [];
   
   const dispatch = createEventDispatcher();
   
   let loading = true;
-  let dragDisabled = false;
-  let selectedTask: any = null;
-  let showTaskModal = false;
-  let aiAssistantOpen = false;
-  let realTimeUpdates = true;
-  
-  // Modern glassmorphism colors
-  const colors = {
-    background: 'rgba(15, 23, 42, 1)',
-    glass: 'rgba(255, 255, 255, 0.1)',
-    glassBorder: 'rgba(255, 255, 255, 0.2)',
-    primary: '#6366f1',
-    secondary: '#8b5cf6',
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444',
-    text: '#f8fafc',
-    textSecondary: '#cbd5e1'
+  let error = '';
+  let columns: any[] = [];
+  let tasks: any[] = [];
+  let availableAgents: any[] = [];
+  let showNewTaskForm = false;
+  let newTaskData = {
+    title: '',
+    description: '',
+    priority: 'medium',
+    assignedAgent: '',
+    dueDate: '',
+    tags: []
   };
   
-  // Default columns with modern styling
-  const defaultColumns = [
-    {
-      id: 'backlog',
-      title: 'Backlog',
-      color: '#64748b',
-      icon: '📋',
-      tasks: [],
-      limit: null,
-      description: 'Ideas and future tasks'
-    },
-    {
-      id: 'planning',
-      title: 'Planning',
-      color: '#8b5cf6',
-      icon: '🎯',
-      tasks: [],
-      limit: 5,
-      description: 'Tasks being planned by AI agents'
-    },
-    {
-      id: 'in_progress',
-      title: 'In Progress',
-      color: '#3b82f6',
-      icon: '🚀',
-      tasks: [],
-      limit: 3,
-      description: 'Active development'
-    },
-    {
-      id: 'review',
-      title: 'Review',
-      color: '#f59e0b',
-      icon: '👁️',
-      tasks: [],
-      limit: 4,
-      description: 'Quality assurance'
-    },
-    {
-      id: 'done',
-      title: 'Done',
-      color: '#10b981',
-      icon: '✅',
-      tasks: [],
-      limit: null,
-      description: 'Completed tasks'
-    }
+  // Available tags for task creation
+  const availableTags = [
+    'research', 'strategy', 'design', 'frontend', 'backend', 'architecture',
+    'security', 'performance', 'optimization', 'testing', 'documentation',
+    'planning', 'development', 'review', 'deployment', 'maintenance'
   ];
-  
-  // Mock tasks with AI integration
-  const mockTasks = [
-    {
-      id: 'task1',
-      title: 'Market Research Analysis',
-      description: 'Comprehensive market analysis with competitive intelligence',
-      priority: 'high',
-      assignedAgent: 'Marcus PM',
-      aiInsights: 'Market trends analysis completed, ready for strategic planning',
-      tags: ['research', 'strategy'],
-      estimatedHours: 24,
-      actualHours: 18,
-      dueDate: '2025-02-15',
-      attachments: 3,
-      comments: 7,
-      status: 'planning',
-      progress: 0.75
-    },
-    {
-      id: 'task2',
-      title: 'UX Design System',
-      description: 'Create comprehensive design system and component library',
-      priority: 'critical',
-      assignedAgent: 'Sara UX Designer',
-      aiInsights: 'Design patterns optimized for accessibility and modern UI trends',
-      tags: ['design', 'frontend'],
-      estimatedHours: 40,
-      actualHours: 12,
-      dueDate: '2025-03-01',
-      attachments: 8,
-      comments: 12,
-      status: 'in_progress',
-      progress: 0.30
-    },
-    {
-      id: 'task3',
-      title: 'API Architecture Design',
-      description: 'Design scalable microservices architecture',
-      priority: 'high',
-      assignedAgent: 'Baccio Tech Architect',
-      aiInsights: 'Microservices pattern recommended for optimal scalability',
-      tags: ['backend', 'architecture'],
-      estimatedHours: 32,
-      actualHours: 8,
-      dueDate: '2025-02-28',
-      attachments: 5,
-      comments: 3,
-      status: 'in_progress',
-      progress: 0.25
-    },
-    {
-      id: 'task4',
-      title: 'Performance Optimization',
-      description: 'Optimize application performance and loading times',
-      priority: 'medium',
-      assignedAgent: 'Thor QA Guardian',
-      aiInsights: 'Performance bottlenecks identified in data layer',
-      tags: ['performance', 'optimization'],
-      estimatedHours: 16,
-      actualHours: 14,
-      dueDate: '2025-02-20',
-      attachments: 2,
-      comments: 5,
-      status: 'review',
-      progress: 0.90
-    },
-    {
-      id: 'task5',
-      title: 'Security Audit',
-      description: 'Complete security assessment and vulnerability testing',
-      priority: 'critical',
-      assignedAgent: 'Luca Security Expert',
-      aiInsights: 'Zero critical vulnerabilities found, minor issues documented',
-      tags: ['security', 'audit'],
-      estimatedHours: 20,
-      actualHours: 20,
-      dueDate: '2025-01-30',
-      attachments: 6,
-      comments: 2,
-      status: 'done',
-      progress: 1.0
-    }
-  ];
-  
-  $: displayColumns = columns.length > 0 ? columns : defaultColumns;
-  $: displayTasks = tasks.length > 0 ? tasks : mockTasks;
-  
-  // Distribute tasks to columns
-  $: {
-    displayColumns.forEach(column => {
-      column.tasks = displayTasks.filter(task => task.status === column.id);
-    });
-  }
   
   onMount(async () => {
-    await loadKanbanData();
-    setupRealTimeUpdates();
-    loading = false;
+    await Promise.all([
+      loadProjectData(),
+      loadAvailableAgents()
+    ]);
   });
   
-  async function loadKanbanData() {
+  async function loadProjectData() {
     try {
-      // Load project details including activities
-      const response = await fetch(`/api/v1/projects/engagements/${projectId}/details`);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      // Prefer focused endpoint to ensure activities even when details is sparse
+      const response = await fetch(`${apiUrl}/api/v1/projects/activities?engagement_id=${projectId}`);
       
       if (response.ok) {
-        const projectData = await response.json();
+        const data = await response.json();
+        tasks = Array.isArray(data.activities) ? data.activities : [];
         
-        // Create standard Kanban columns
-        columns = [
-          { id: 'planning', name: 'Planning', color: '#6366f1' },
-          { id: 'in-progress', name: 'In Progress', color: '#f59e0b' },
-          { id: 'review', name: 'Review', color: '#8b5cf6' },
-          { id: 'completed', name: 'Completed', color: '#10b981' }
-        ];
-        
-        // Convert activities to tasks and organize by status
-        tasks = projectData.activities.map(activity => ({
-          id: activity.id,
-          title: activity.title,
-          description: activity.description || '',
-          status: activity.status || 'planning',
-          priority: activity.status === 'completed' ? 'low' : activity.status === 'in-progress' ? 'high' : 'medium',
-          assignedAgent: 'AI Agent',
-          progress: activity.progress,
-          dueDate: activity.updated_at,
-          tags: ['backend', 'task']
+        // Create columns based on available task statuses
+        const statuses = [...new Set(tasks.map(task => task.status))];
+        columns = statuses.map(status => ({
+          id: status,
+          title: status.replace('_', ' ').toUpperCase(),
+          tasks: tasks.filter(task => task.status === status)
         }));
+        
+        // Add empty columns for missing statuses
+        const defaultStatuses = ['backlog', 'planning', 'in_progress', 'review', 'done'];
+        defaultStatuses.forEach(status => {
+          if (!columns.find(col => col.id === status)) {
+            columns.push({
+              id: status,
+              title: status.replace('_', ' ').toUpperCase(),
+              tasks: []
+            });
+          }
+        });
+        
+        // Sort columns by default order
+        const statusOrder: Record<string, number> = { 
+          backlog: 0, 
+          planning: 1, 
+          in_progress: 2, 
+          review: 3, 
+          done: 4 
+        };
+        columns.sort((a, b) => (statusOrder[a.id] || 999) - (statusOrder[b.id] || 999));
+        
+      } else {
+        error = 'Failed to load project data';
+        columns = [];
+        tasks = [];
       }
-    } catch (error) {
-      console.error('Failed to load kanban data:', error);
+    } catch (err) {
+      console.error('Error loading project data:', err);
+      error = 'Failed to load project data';
+      columns = [];
+      tasks = [];
+    } finally {
+      loading = false;
     }
   }
   
-  function setupRealTimeUpdates() {
-    if (!realTimeUpdates) return;
-    
-    // Simulate real-time updates from AI agents
-    setInterval(async () => {
-      // Simulate AI agent updating task progress
-      const randomTask = displayTasks[Math.floor(Math.random() * displayTasks.length)];
-      if (randomTask && randomTask.status === 'in_progress' && Math.random() > 0.8) {
-        randomTask.progress = Math.min(randomTask.progress + 0.05, 1.0);
-        randomTask.aiInsights = `Progress updated by ${randomTask.assignedAgent} - ${Math.round(randomTask.progress * 100)}% complete`;
-        displayTasks = [...displayTasks]; // Trigger reactivity
+  async function loadAvailableAgents() {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      const response = await fetch(`${apiUrl}/api/v1/agents`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        availableAgents = data.agents || data || [];
+      } else {
+        console.error('Failed to load agents');
+        availableAgents = [];
       }
-    }, 10000);
-  }
-  
-  function handleDndConsider(columnId: string, e: CustomEvent) {
-    const { items } = e.detail;
-    const column = displayColumns.find(col => col.id === columnId);
-    if (column) {
-      column.tasks = items;
-      displayColumns = [...displayColumns];
+    } catch (err) {
+      console.error('Error loading agents:', err);
+      availableAgents = [];
     }
   }
   
-  function handleDndFinalize(columnId: string, e: CustomEvent) {
-    const { items } = e.detail;
-    const column = displayColumns.find(col => col.id === columnId);
-    if (column) {
-      column.tasks = items;
-      
-      // Update task status
-      items.forEach((task: any) => {
-        if (task.status !== columnId) {
-          task.status = columnId;
-          updateTaskStatus(task.id, columnId);
-        }
-      });
-      
-      displayColumns = [...displayColumns];
-    }
-  }
-  
-  async function updateTaskStatus(taskId: string, newStatus: string) {
+  async function getAIRecommendedAgent(taskTitle: string, taskDescription: string, taskTags: string[]) {
     try {
-      // TODO: Implement activity status update endpoint
-      console.log(`Would update task ${taskId} to status: ${newStatus}`);
-      // await fetch(`/api/v1/projects/activities/${taskId}/status`, {
-      //   method: 'PATCH', 
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status: newStatus })
-      // });
-    } catch (error) {
-      console.error('Failed to update task status:', error);
-    }
-  }
-  
-  function getPriorityColor(priority: string): string {
-    switch (priority) {
-      case 'critical': return colors.danger;
-      case 'high': return colors.warning;
-      case 'medium': return colors.primary;
-      case 'low': return colors.success;
-      default: return colors.secondary;
-    }
-  }
-  
-  function openTaskModal(task: any) {
-    selectedTask = task;
-    showTaskModal = true;
-  }
-  
-  function formatDueDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffTime = date.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return 'Overdue';
-    if (diffDays === 0) return 'Due today';
-    if (diffDays === 1) return 'Due tomorrow';
-    return `${diffDays} days left`;
-  }
-  
-  async function askAliAssistance(task: any) {
-    try {
-      const response = await fetch('/api/v1/agents/ali/task-assistance', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      const response = await fetch(`${apiUrl}/api/v1/agents/recommend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          task_id: task.id,
-          project_id: projectId,
-          assistance_type: 'optimization'
+          task_title: taskTitle,
+          task_description: taskDescription,
+          task_tags: taskTags,
+          project_id: projectId
         })
       });
       
       if (response.ok) {
-        const assistance = await response.json();
-        task.aiInsights = assistance.recommendation;
-        displayTasks = [...displayTasks];
+        const data = await response.json();
+        return data.recommended_agent || data.agent_id;
       }
-    } catch (error) {
-      console.error('Failed to get Ali assistance:', error);
-      task.aiInsights = `Ali is analyzing this task for optimization opportunities...`;
-      displayTasks = [...displayTasks];
+    } catch (err) {
+      console.error('Error getting AI recommendation:', err);
+    }
+    return null;
+  }
+  
+  async function createNewTask() {
+    if (!newTaskData.title.trim()) return;
+    
+    try {
+      // Get AI recommendation for agent assignment
+      const recommendedAgentId = await getAIRecommendedAgent(
+        newTaskData.title, 
+        newTaskData.description, 
+        newTaskData.tags
+      );
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      const response = await fetch(`${apiUrl}/api/v1/projects/engagements/${projectId}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTaskData.title,
+          description: newTaskData.description,
+          priority: newTaskData.priority,
+          assigned_agent: recommendedAgentId || newTaskData.assignedAgent,
+          due_date: newTaskData.dueDate,
+          tags: newTaskData.tags,
+          status: 'backlog',
+          progress: 0
+        })
+      });
+      
+      if (response.ok) {
+        // Reload project data to show new task
+        await loadProjectData();
+        
+        // Reset form
+        newTaskData = {
+          title: '',
+          description: '',
+          priority: 'medium',
+          assignedAgent: '',
+          dueDate: '',
+          tags: []
+        };
+        
+        showNewTaskForm = false;
+        
+        // Trigger change event
+        dispatch('tasksUpdated', { columns, tasks });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to create task');
+      }
+    } catch (err) {
+      console.error('Error creating task:', err);
+      alert(`Failed to create task: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   }
   
-  function createNewTask() {
-    const newTask = {
-      id: `task_${Date.now()}`,
-      title: 'New Task',
-      description: 'Click to edit description',
-      priority: 'medium',
-      assignedAgent: 'Unassigned',
-      aiInsights: 'Ready for AI agent assignment',
-      tags: [],
-      estimatedHours: 0,
-      actualHours: 0,
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      attachments: 0,
-      comments: 0,
-      status: 'backlog',
-      progress: 0
-    };
+  function toggleTag(tag: string) {
+    if (newTaskData.tags.includes(tag)) {
+      newTaskData.tags = newTaskData.tags.filter(t => t !== tag);
+    } else {
+      newTaskData.tags = [...newTaskData.tags, tag];
+    }
+  }
+  
+  function handleDndConsider(e: CustomEvent) {
+    columns = e.detail.columns;
+  }
+  
+  async function handleDndFinalize(e: CustomEvent) {
+    columns = e.detail.columns;
     
-    displayTasks = [...displayTasks, newTask];
-    openTaskModal(newTask);
+    // Update task statuses based on new column positions
+    const updatedTasks: any[] = [];
+    columns.forEach(column => {
+      column.tasks.forEach((task: any) => {
+        if (task.status !== column.id) {
+          task.status = column.id;
+        }
+        updatedTasks.push(task);
+      });
+    });
+    
+    tasks = updatedTasks;
+    
+    // Save changes to backend
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      await fetch(`${apiUrl}/api/v1/projects/engagements/${projectId}/activities/batch-update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activities: updatedTasks })
+      });
+    } catch (err) {
+      console.error('Failed to save task updates:', err);
+      // Reload data to revert changes
+      await loadProjectData();
+    }
+    
+    dispatch('tasksUpdated', { columns, tasks });
+  }
+  
+  function selectTask(task: any) {
+    dispatch('taskSelected', { task });
   }
 </script>
 
-<div class="modern-kanban-container">
-  <!-- Header with AI Integration -->
-  <div class="kanban-header">
-    <div class="header-left">
-      <h2 class="kanban-title">
-        <span class="title-icon">🏗️</span>
-        AI-Powered Kanban Board
-      </h2>
-      <p class="kanban-subtitle">Real-time collaboration with intelligent agents</p>
+<!-- Modern Kanban Board -->
+<div class="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+  <!-- Loading State -->
+  {#if loading}
+    <div class="flex items-center justify-center p-8">
+      <div class="text-gray-500">Loading project data...</div>
     </div>
-    
-    <div class="header-actions">
-      <button 
-        class="ai-assistant-btn"
-        class:active={aiAssistantOpen}
-        on:click={() => aiAssistantOpen = !aiAssistantOpen}
-      >
-        <span class="ai-icon">🤖</span>
-        AI Assistant
-      </button>
-      
-      <button class="new-task-btn" on:click={createNewTask}>
-        <span class="plus-icon">+</span>
-        New Task
-      </button>
-      
-      <div class="real-time-indicator" class:active={realTimeUpdates}>
-        <div class="pulse-dot"></div>
-        Real-time
-      </div>
+  {:else if error}
+    <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+      <div class="text-red-800">{error}</div>
     </div>
-  </div>
-  
-  <!-- AI Assistant Panel -->
-  {#if aiAssistantOpen}
-    <div class="ai-assistant-panel">
-      <div class="assistant-header">
-        <h3>
-          <span class="ai-icon">🧠</span>
-          Ali - Chief of Staff
-        </h3>
-        <p>AI project insights and recommendations</p>
-      </div>
-      
-      <div class="assistant-insights">
-        <div class="insight-card">
-          <div class="insight-type">OPTIMIZATION</div>
-          <p>3 tasks can be parallelized to reduce timeline by 12 days</p>
-          <button class="apply-btn">Apply Suggestion</button>
-        </div>
-        
-        <div class="insight-card">
-          <div class="insight-type">RESOURCE</div>
-          <p>Sara UX Designer is overloaded - consider task redistribution</p>
-          <button class="apply-btn">Reassign Tasks</button>
-        </div>
-        
-        <div class="insight-card">
-          <div class="insight-type">QUALITY</div>
-          <p>Code review backlog detected - Thor QA Guardian available</p>
-          <button class="apply-btn">Schedule Review</button>
+  {:else}
+    <!-- Kanban Board -->
+    <div class="space-y-6">
+      <!-- Board Header -->
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-gray-900">Project Tasks</h3>
+        <div class="flex items-center space-x-4">
+          <div class="text-sm text-gray-500">
+            {tasks.length} total tasks
+          </div>
+          <button
+            on:click={() => showNewTaskForm = true}
+            class="inline-flex items-center px-3 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-200 rounded-lg hover:bg-green-200 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            New Task
+          </button>
         </div>
       </div>
-    </div>
-  {/if}
-  
-  <!-- Kanban Columns -->
-  <div class="kanban-board" class:loading>
-    {#each displayColumns as column (column.id)}
-      <div class="kanban-column" style="border-top: 3px solid {column.color}">
-        <!-- Column Header -->
-        <div class="column-header">
-          <div class="column-title">
-            <span class="column-icon">{column.icon}</span>
-            <span class="title-text">{column.title}</span>
-            <span class="task-count">{column.tasks.length}</span>
-            {#if column.limit}
-              <span class="limit-indicator" class:warning={column.tasks.length >= column.limit}>
-                /{column.limit}
+      
+      <!-- Columns Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {#each columns as column}
+          <div class="bg-gray-50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-medium text-gray-900">{column.title}</h4>
+              <span class="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
+                {column.tasks.length}
               </span>
-            {/if}
-          </div>
-          <p class="column-description">{column.description}</p>
-        </div>
-        
-        <!-- Tasks Container -->
-        <div 
-          class="tasks-container"
-          use:dndzone={{
-            items: column.tasks,
-            dragDisabled,
-            dropTargetStyle: { outline: `2px dashed ${column.color}` }
-          }}
-          on:consider={(e) => handleDndConsider(column.id, e)}
-          on:finalize={(e) => handleDndFinalize(column.id, e)}
-        >
-          {#each column.tasks as task (task.id)}
+            </div>
+            
+            <!-- Tasks in Column -->
             <div 
-              class="task-card" 
-              animate:flip={{ duration: 300 }}
-              on:click={() => openTaskModal(task)}
+              use:dndzone={{ items: column.tasks }}
+              on:consider={handleDndConsider}
+              on:finalize={handleDndFinalize}
+              class="space-y-3 min-h-[200px]"
             >
-              <!-- Task Header -->
-              <div class="task-header">
-                <div class="task-priority" style="background: {getPriorityColor(task.priority)}"></div>
-                <div class="task-actions">
-                  <button 
-                    class="ai-action-btn"
-                    on:click|stopPropagation={() => askAliAssistance(task)}
-                    title="Ask Ali for assistance"
-                  >
-                    🤖
-                  </button>
-                </div>
-              </div>
-              
-              <!-- Task Content -->
-              <div class="task-content">
-                <h4 class="task-title">{task.title}</h4>
-                <p class="task-description">{task.description}</p>
-                
-                <!-- Tags -->
-                {#if task.tags && task.tags.length > 0}
-                  <div class="task-tags">
-                    {#each task.tags as tag}
-                      <span class="task-tag">{tag}</span>
-                    {/each}
-                  </div>
-                {/if}
-                
-                <!-- Progress Bar -->
-                {#if task.progress > 0}
-                  <div class="progress-container">
-                    <div class="progress-bar">
-                      <div 
-                        class="progress-fill" 
-                        style="width: {task.progress * 100}%; background: {getPriorityColor(task.priority)}"
-                      ></div>
-                    </div>
-                    <span class="progress-text">{Math.round(task.progress * 100)}%</span>
-                  </div>
-                {/if}
-                
-                <!-- AI Insights -->
-                {#if task.aiInsights}
-                  <div class="ai-insights">
-                    <span class="ai-icon">🧠</span>
-                    <p>{task.aiInsights}</p>
-                  </div>
-                {/if}
-              </div>
-              
-              <!-- Task Footer -->
-              <div class="task-footer">
-                <div class="assigned-agent">
-                  <span class="agent-avatar">👤</span>
-                  <span class="agent-name">{task.assignedAgent}</span>
-                </div>
-                
-                <div class="task-meta">
-                  <div class="due-date" class:overdue={new Date(task.dueDate) < new Date()}>
-                    📅 {formatDueDate(task.dueDate)}
-                  </div>
+              {#each column.tasks as task (task.id)}
+                <div 
+                  class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                  on:click={() => selectTask(task)}
+                >
+                  <div class="font-medium text-gray-900 text-sm mb-1">{task.title || 'Untitled Task'}</div>
+                  {#if task.description}
+                    <div class="text-gray-600 text-xs mb-2 line-clamp-2">{task.description}</div>
+                  {/if}
                   
-                  <div class="task-stats">
-                    {#if task.attachments > 0}
-                      <span class="stat">📎 {task.attachments}</span>
+                  <!-- Task Metadata -->
+                  <div class="flex items-center justify-between text-xs text-gray-500">
+                    {#if task.assigned_agent}
+                      <span>👤 {task.assigned_agent}</span>
                     {/if}
-                    {#if task.comments > 0}
-                      <span class="stat">💬 {task.comments}</span>
+                    {#if task.due_date}
+                      <span>📅 {new Date(task.due_date).toLocaleDateString()}</span>
                     {/if}
                   </div>
                 </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-        
-        <!-- Add Task Button -->
-        <button class="add-task-btn" on:click={createNewTask}>
-          <span class="plus-icon">+</span>
-          Add Task
-        </button>
-      </div>
-    {/each}
-  </div>
-  
-  <!-- Task Detail Modal -->
-  {#if showTaskModal && selectedTask}
-    <div class="modal-overlay" on:click={() => showTaskModal = false}>
-      <div class="task-modal" on:click|stopPropagation>
-        <div class="modal-header">
-          <h3>{selectedTask.title}</h3>
-          <button class="close-btn" on:click={() => showTaskModal = false}>×</button>
-        </div>
-        
-        <div class="modal-content">
-          <div class="task-details-grid">
-            <div class="detail-section">
-              <label>Description</label>
-              <textarea bind:value={selectedTask.description} rows="3"></textarea>
-            </div>
-            
-            <div class="detail-section">
-              <label>Assigned Agent</label>
-              <select bind:value={selectedTask.assignedAgent}>
-                <option>Marcus PM</option>
-                <option>Sara UX Designer</option>
-                <option>Baccio Tech Architect</option>
-                <option>Dan Engineering GM</option>
-                <option>Thor QA Guardian</option>
-                <option>Luca Security Expert</option>
-              </select>
-            </div>
-            
-            <div class="detail-section">
-              <label>Priority</label>
-              <select bind:value={selectedTask.priority}>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
-              </select>
-            </div>
-            
-            <div class="detail-section">
-              <label>Due Date</label>
-              <input type="date" bind:value={selectedTask.dueDate} />
-            </div>
-            
-            <div class="detail-section">
-              <label>Progress</label>
-              <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.1" 
-                bind:value={selectedTask.progress} 
-              />
-              <span>{Math.round(selectedTask.progress * 100)}%</span>
-            </div>
-            
-            <div class="detail-section full-width">
-              <label>AI Insights</label>
-              <div class="ai-insights-display">
-                <span class="ai-icon">🧠</span>
-                <p>{selectedTask.aiInsights}</p>
-              </div>
+              {/each}
             </div>
           </div>
-          
-          <div class="modal-actions">
-            <button class="action-btn secondary" on:click={() => showTaskModal = false}>
-              Cancel
-            </button>
-            <button class="action-btn primary" on:click={() => showTaskModal = false}>
-              Save Changes
-            </button>
-          </div>
-        </div>
+        {/each}
       </div>
     </div>
   {/if}
 </div>
 
+<!-- New Task Form Modal -->
+{#if showNewTaskForm}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="px-6 py-5 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Create New Task</h3>
+          <button
+            on:click={() => showNewTaskForm = false}
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="px-6 py-4 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Task Title *</label>
+          <input
+            type="text"
+            bind:value={newTaskData.title}
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Enter task title"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            bind:value={newTaskData.description}
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Enter task description"
+          ></textarea>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+            <select
+              bind:value={newTaskData.priority}
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+            <input
+              type="date"
+              bind:value={newTaskData.dueDate}
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+          <div class="flex flex-wrap gap-2">
+            {#each availableTags as tag}
+              <button
+                type="button"
+                on:click={() => toggleTag(tag)}
+                class="px-3 py-1 rounded-full text-sm font-medium border transition-colors {newTaskData.tags.includes(tag) 
+                  ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                  : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}"
+              >
+                {tag}
+              </button>
+            {/each}
+          </div>
+        </div>
+        
+        {#if availableAgents.length > 0}
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Manual Agent Assignment (Optional)</label>
+            <select
+              bind:value={newTaskData.assignedAgent}
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">AI will recommend best agent</option>
+              {#each availableAgents as agent}
+                <option value={agent.id}>{agent.name || agent.title} - {agent.tier || agent.specialty}</option>
+              {/each}
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Leave empty for AI-powered agent recommendation based on task requirements</p>
+          </div>
+        {/if}
+      </div>
+      
+      <div class="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+        <button
+          on:click={() => showNewTaskForm = false}
+          class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          on:click={createNewTask}
+          disabled={!newTaskData.title.trim()}
+          class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Create Task
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
-  .modern-kanban-container {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    min-height: 100vh;
-    padding: 24px;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .modern-kanban-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
-  }
-  
-  .kanban-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .kanban-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .title-icon {
-    font-size: 32px;
-  }
-  
-  .kanban-subtitle {
-    color: #cbd5e1;
-    margin: 4px 0 0 44px;
-    font-size: 14px;
-  }
-  
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  
-  .ai-assistant-btn {
-    background: rgba(99, 102, 241, 0.2);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    color: #6366f1;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .ai-assistant-btn.active {
-    background: rgba(99, 102, 241, 0.3);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
-  }
-  
-  .new-task-btn {
-    background: rgba(16, 185, 129, 0.2);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #10b981;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  
-  .new-task-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
-  }
-  
-  .real-time-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #cbd5e1;
-    font-size: 14px;
-  }
-  
-  .pulse-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ef4444;
-    animation: pulse 2s infinite;
-  }
-  
-  .real-time-indicator.active .pulse-dot {
-    background: #10b981;
-  }
-  
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-  }
-  
-  .ai-assistant-panel {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .assistant-header h3 {
-    color: #f8fafc;
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .assistant-header p {
-    color: #cbd5e1;
-    font-size: 14px;
-    margin-bottom: 16px;
-  }
-  
-  .assistant-insights {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 16px;
-  }
-  
-  .insight-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 16px;
-  }
-  
-  .insight-type {
-    font-size: 10px;
-    font-weight: 700;
-    color: #6366f1;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-  }
-  
-  .insight-card p {
-    color: #f8fafc;
-    font-size: 14px;
-    margin-bottom: 12px;
-    line-height: 1.5;
-  }
-  
-  .apply-btn {
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    color: #6366f1;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-  }
-  
-  .apply-btn:hover {
-    background: rgba(99, 102, 241, 0.3);
-  }
-  
-  .kanban-board {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 24px;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .kanban-column {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 20px;
-    min-height: 600px;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .column-header {
-    margin-bottom: 20px;
-  }
-  
-  .column-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  
-  .column-icon {
-    font-size: 18px;
-  }
-  
-  .title-text {
-    font-size: 16px;
-    font-weight: 600;
-    color: #f8fafc;
-  }
-  
-  .task-count {
-    background: rgba(255, 255, 255, 0.1);
-    color: #cbd5e1;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  
-  .limit-indicator {
-    color: #cbd5e1;
-    font-size: 12px;
-  }
-  
-  .limit-indicator.warning {
-    color: #f59e0b;
-  }
-  
-  .column-description {
-    color: #cbd5e1;
-    font-size: 12px;
-    margin: 0;
-  }
-  
-  .tasks-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 200px;
-  }
-  
-  .task-card {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    padding: 16px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    position: relative;
-  }
-  
-  .task-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 255, 255, 0.25);
-  }
-  
-  .task-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  
-  .task-priority {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-  }
-  
-  .task-actions {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .ai-action-btn {
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 6px;
-    padding: 4px 8px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .ai-action-btn:hover {
-    background: rgba(99, 102, 241, 0.3);
-  }
-  
-  .task-title {
-    color: #f8fafc;
-    font-size: 14px;
-    font-weight: 600;
-    margin: 0 0 8px 0;
-    line-height: 1.3;
-  }
-  
-  .task-description {
-    color: #cbd5e1;
-    font-size: 12px;
-    line-height: 1.4;
-    margin: 0 0 12px 0;
-    overflow: hidden;
+  .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
-  .task-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 12px;
-  }
-  
-  .task-tag {
-    background: rgba(139, 92, 246, 0.2);
-    color: #a78bfa;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 600;
-  }
-  
-  .progress-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  
-  .progress-bar {
-    flex: 1;
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
     height: 6px;
-    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
     border-radius: 3px;
-    overflow: hidden;
   }
   
-  .progress-fill {
-    height: 100%;
-    transition: width 0.3s ease;
-  }
-  
-  .progress-text {
-    color: #cbd5e1;
-    font-size: 10px;
-    font-weight: 600;
-  }
-  
-  .ai-insights {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    border-radius: 8px;
-    padding: 8px;
-    margin-bottom: 12px;
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-  }
-  
-  .ai-insights p {
-    color: #a78bfa;
-    font-size: 11px;
-    line-height: 1.4;
-    margin: 0;
-    font-style: italic;
-  }
-  
-  .task-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-  }
-  
-  .assigned-agent {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  
-  .agent-avatar {
-    font-size: 14px;
-  }
-  
-  .agent-name {
-    color: #cbd5e1;
-    font-size: 11px;
-    font-weight: 500;
-  }
-  
-  .task-meta {
-    text-align: right;
-  }
-  
-  .due-date {
-    color: #cbd5e1;
-    font-size: 10px;
-    margin-bottom: 4px;
-  }
-  
-  .due-date.overdue {
-    color: #fca5a5;
-  }
-  
-  .task-stats {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .stat {
-    color: #94a3b8;
-    font-size: 10px;
-  }
-  
-  .add-task-btn {
-    background: rgba(255, 255, 255, 0.03);
-    border: 2px dashed rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    padding: 16px;
-    color: #cbd5e1;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 16px;
-  }
-  
-  .add-task-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-  
-  .plus-icon {
-    font-size: 18px;
-  }
-  
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-  
-  .task-modal {
-    background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow: hidden;
-  }
-  
-  .modal-header {
-    background: rgba(99, 102, 241, 0.2);
-    padding: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .modal-header h3 {
-    color: #f8fafc;
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-  }
-  
-  .close-btn {
-    background: none;
-    border: none;
-    color: #f8fafc;
-    font-size: 24px;
-    cursor: pointer;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-  }
-  
-  .modal-content {
-    padding: 20px;
-    overflow-y: auto;
-    max-height: calc(90vh - 140px);
-  }
-  
-  .task-details-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  
-  .detail-section {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .detail-section.full-width {
-    grid-column: 1 / -1;
-  }
-  
-  .detail-section label {
-    color: #cbd5e1;
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .detail-section input,
-  .detail-section select,
-  .detail-section textarea {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 8px;
-    padding: 10px 12px;
-    color: #f8fafc;
-    font-size: 14px;
-  }
-  
-  .detail-section input[type="range"] {
-    margin-bottom: 8px;
-  }
-  
-  .ai-insights-display {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    border-radius: 8px;
-    padding: 12px;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  
-  .ai-insights-display p {
-    color: #a78bfa;
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 0;
-    font-style: italic;
-  }
-  
-  .modal-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-  }
-  
-  .action-btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-  }
-  
-  .action-btn.primary {
-    background: #6366f1;
-    color: white;
-  }
-  
-  .action-btn.secondary {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f8fafc;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  
-  .action-btn:hover {
-    transform: translateY(-2px);
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 </style>
