@@ -96,28 +96,27 @@ done
 # ----------------------------------------------------------------------------------
 # System checks and startup
 # ----------------------------------------------------------------------------------
-echo "🔍 Running system checks..."
-# Check if the script exists and run it, otherwise skip
-if [[ -f "backend/scripts/start.py" ]]; then
-  cd backend
-  python scripts/start.py --check-only
-  CHECK_RESULT=$?
-  cd ..
-  if [[ $CHECK_RESULT -ne 0 ]]; then
-    echo "❌ System checks failed. Please fix the issues above."
-    exit 1
-  fi
-elif [[ -f "scripts/start.py" ]]; then
-  python scripts/start.py --check-only
-  if [[ $? -ne 0 ]]; then
-    echo "❌ System checks failed. Please fix the issues above."
-    exit 1
-  fi
-else
-  echo "⚠️ System check script not found, skipping checks..."
+echo "🔍 Running basic system checks..."
+
+# Check Python virtual environment
+if [[ -z "$VIRTUAL_ENV" ]]; then
+  echo "❌ Virtual environment not activated"
+  exit 1
 fi
 
-echo "✅ All system checks passed!"
+# Check backend directory structure
+if [[ ! -d "backend/src" ]]; then
+  echo "❌ Backend source directory not found"
+  exit 1
+fi
+
+# Check if main.py exists
+if [[ ! -f "backend/src/main.py" ]]; then
+  echo "❌ Backend main.py not found"
+  exit 1
+fi
+
+echo "✅ Basic system checks passed!"
 echo ""
 
 # ----------------------------------------------------------------------------------

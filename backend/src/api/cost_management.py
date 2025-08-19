@@ -529,50 +529,92 @@ async def get_current_pricing():
 
 # Helper functions
 async def _get_cost_data_from_agents(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
-    """Get cost data from the real agents system."""
+    """Get REAL cost data directly from database - NO MOCK DATA."""
     
     try:
-        from agents.orchestrator import get_agent_orchestrator
+        from core.database import get_async_session, init_db
+        from models.cost_tracking import CostTracking
+        from sqlalchemy import select, func
         
-        orchestrator = await get_agent_orchestrator()
-        if orchestrator.cost_tracker:
-            summary = await orchestrator.cost_tracker.get_summary()
+        # Initialize DB if needed
+        try:
+            await init_db()
+        except:
+            pass  # Already initialized
+        
+        async with get_async_session() as db:
+            # Get total costs (ALL TIME for total cost)
+            total_cost_query = select(func.sum(CostTracking.total_cost_usd))
+            total_result = await db.execute(total_cost_query)
+            total_cost = float(total_result.scalar() or 0)
             
-            # Convert to expected format
+            # Get total interactions (ALL TIME)
+            interactions_query = select(func.count(CostTracking.id))
+            interactions_result = await db.execute(interactions_query)
+            total_interactions = interactions_result.scalar() or 0
+            
+            # Calculate average cost per interaction
+            cost_per_interaction = total_cost / total_interactions if total_interactions > 0 else 0
+            
+            # Get breakdown by agent (ALL TIME)
+            agent_breakdown_query = select(
+                CostTracking.agent_id,
+                CostTracking.agent_name,
+                func.sum(CostTracking.total_cost_usd).label('cost'),
+                func.count(CostTracking.id).label('count')
+            ).group_by(CostTracking.agent_id, CostTracking.agent_name)
+            
+            agent_results = await db.execute(agent_breakdown_query)
+            agent_breakdown = {}
+            top_consumers = []
+            for row in agent_results:
+                if row.agent_id:
+                    agent_breakdown[row.agent_id] = float(row.cost)
+                    top_consumers.append({
+                        "agent_id": row.agent_id,
+                        "agent_name": row.agent_name,
+                        "cost_usd": float(row.cost),
+                        "interactions": row.count
+                    })
+            
+            # Get breakdown by model (ALL TIME)
+            model_breakdown_query = select(
+                CostTracking.model,
+                func.sum(CostTracking.total_cost_usd).label('cost'),
+                func.count(CostTracking.id).label('count')
+            ).group_by(CostTracking.model)
+            
+            model_results = await db.execute(model_breakdown_query)
+            model_breakdown = {}
+            for row in model_results:
+                model_breakdown[row.model] = float(row.cost)
+            
             return {
-                "total_cost": summary.get("total_cost_usd", 0.0),
-                "total_interactions": summary.get("total_interactions", 0),
-                "cost_per_interaction": summary.get("avg_cost_per_interaction", 0.0),
-                "model_breakdown": summary.get("cost_by_model", {}),
-                "agent_breakdown": summary.get("cost_by_agent", {}),
-                "daily_costs": summary.get("daily_breakdown", []),
-                "growth_rate": 0.15,  # 15% growth
-                "efficiency_trend": "improving",
-                "top_consumers": summary.get("top_agents", [])
+                "total_cost": total_cost,
+                "total_interactions": total_interactions,
+                "cost_per_interaction": cost_per_interaction,
+                "model_breakdown": model_breakdown,
+                "agent_breakdown": agent_breakdown,
+                "daily_costs": [],  # TODO: Implement daily breakdown
+                "growth_rate": 0.0,  # TODO: Calculate real growth
+                "efficiency_trend": "stable",
+                "top_consumers": sorted(top_consumers, key=lambda x: x.get('cost_usd', 0), reverse=True)
             }
-    except:
-        pass
-    
-    # Fallback mock data
-    return {
-        "total_cost": 156.78,
-        "total_interactions": 2834,
-        "cost_per_interaction": 0.055,
-        "model_breakdown": {
-            "gpt-4": 98.45,
-            "gpt-3.5-turbo": 32.12,
-            "text-embedding-ada-002": 26.21
-        },
-        "agent_breakdown": {
-            "ali-chief-of-staff": 45.67,
-            "luca-security-expert": 28.34,
-            "amy-cfo": 23.45
-        },
-        "daily_costs": [2.3, 3.1, 2.8, 4.2, 3.6],
-        "growth_rate": 0.12,
-        "efficiency_trend": "improving",
-        "top_consumers": ["ali-chief-of-staff", "luca-security-expert", "amy-cfo"]
-    }
+            
+    except Exception as e:
+        logger.error("❌ Failed to get real cost data", error=str(e))
+        # Return ZEROS instead of mock data
+        return {
+            "total_cost": 0.0,
+            "total_interactions": 0,
+            "cost_per_interaction": 0.0,
+            "model_breakdown": {},
+            "agent_breakdown": {},
+            "daily_costs": [],
+            "growth_rate": 0.0,
+            "efficiency_trend": "unknown",
+            "top_consumers": []
+        }
 
 
 async def _get_agent_cost_data(agent_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:

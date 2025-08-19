@@ -70,56 +70,41 @@ class VectorSearchTool(BaseTool):
                 if response.status_code == 200:
                     data = response.json()
                     
-                    # Format results for agent consumption
-                    formatted_results = []
-                    for i, result in enumerate(data.get("results", []), 1):
-                        formatted_results.append({
-                            "rank": i,
-                            "title": result.get("title", "Untitled"),
-                            "content": result.get("content", "")[:500] + ("..." if len(result.get("content", "")) > 500 else ""),
-                            "similarity_score": result.get("similarity_score", 0.0),
-                            "document_id": result.get("document_id"),
-                            "metadata": result.get("metadata", {})
-                        })
+                    # Format results for clean markdown display
+                    results = data.get("results", [])
+                    if not results:
+                        return f"🔍 **No results found** for query: '{args.query}'"
                     
-                    return json.dumps({
-                        "query": args.query,
-                        "results_found": len(formatted_results),
-                        "results": formatted_results,
-                        "search_type": args.search_type,
-                        "timestamp": datetime.now().isoformat()
-                    }, indent=2)
+                    markdown_results = [f"## 🔍 Search Results for: '{args.query}'\n"]
+                    markdown_results.append(f"**Found {len(results)} relevant documents** ({args.search_type} search)\n")
+                    
+                    for i, result in enumerate(results[:5], 1):  # Limit to top 5 results
+                        title = result.get("title", "Untitled")
+                        content = result.get("content", "")
+                        score = result.get("similarity_score", 0.0)
+                        
+                        # Truncate content for readability
+                        content_preview = content[:300] + ("..." if len(content) > 300 else "")
+                        
+                        markdown_results.append(f"### {i}. {title}")
+                        markdown_results.append(f"**Relevance Score:** {score:.2f}")
+                        markdown_results.append(f"{content_preview}\n")
+                    
+                    return "\n".join(markdown_results)
                 
                 elif response.status_code == 404:
-                    return json.dumps({
-                        "error": "Vector search service not available",
-                        "message": "The vector database is not running on port 9000",
-                        "results": []
-                    }, indent=2)
+                    return "❌ **Vector search service not available** - the vector database is not running on port 9000."
                 
                 else:
-                    return json.dumps({
-                        "error": f"Vector search failed with status {response.status_code}",
-                        "message": response.text,
-                        "results": []
-                    }, indent=2)
+                    return f"❌ **Vector search failed** with status {response.status_code}: {response.text}"
                     
         except httpx.ConnectError:
             logger.warning("Vector search service not available")
-            return json.dumps({
-                "error": "Vector search service not available",
-                "message": "Unable to connect to vector database on localhost:9000",
-                "results": [],
-                "fallback_suggestion": "Use database_query tool for document search instead"
-            }, indent=2)
+            return "❌ **Vector search service not available** - unable to connect to vector database on localhost:9000. Use database_query tool for document search instead."
             
         except Exception as e:
             logger.error(f"❌ Vector search error: {e}")
-            return json.dumps({
-                "error": str(e),
-                "query": args.query,
-                "results": []
-            }, indent=2)
+            return f"❌ **Vector Search Error**: {str(e)}"
 
 
 class DocumentEmbeddingArgs(BaseModel):
@@ -172,35 +157,39 @@ class DocumentEmbeddingTool(BaseTool):
                 if response.status_code == 200:
                     data = response.json()
                     
-                    return json.dumps({
+                    result = {
                         "status": "success",
                         "embedding_id": data.get("embedding_id"),
                         "document_id": args.document_id,
                         "text_length": len(args.text),
                         "embedding_dimensions": len(data.get("embedding", [])),
-                        "timestamp": datetime.now().isoformat()
-                    }, indent=2)
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    return json.dumps(result, indent=2)
                 
                 else:
-                    return json.dumps({
+                    err = {
                         "status": "error",
                         "error": f"Embedding failed with status {response.status_code}",
-                        "message": response.text
-                    }, indent=2)
+                        "message": response.text,
+                    }
+                    return json.dumps(err, indent=2)
                     
         except httpx.ConnectError:
-            return json.dumps({
+            err = {
                 "status": "error",
                 "error": "Vector service not available",
-                "message": "Unable to connect to vector database on localhost:9000"
-            }, indent=2)
+                "message": "Unable to connect to vector database on localhost:9000",
+            }
+            return json.dumps(err, indent=2)
             
         except Exception as e:
             logger.error(f"❌ Embedding error: {e}")
-            return json.dumps({
+            err = {
                 "status": "error",
-                "error": str(e)
-            }, indent=2)
+                "error": str(e),
+            }
+            return json.dumps(err, indent=2)
 
 
 # Export vector tools

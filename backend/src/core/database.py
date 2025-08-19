@@ -4,6 +4,7 @@ Async SQLAlchemy 2.0 + PostgreSQL with connection pooling
 """
 
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Optional
 
@@ -70,6 +71,19 @@ class Base(DeclarativeBase):
     pass
 
 
+class CustomAsyncSession(AsyncSession):
+    """AsyncSession that accepts plain SQL strings by auto-wrapping with text().
+
+    This maintains backward compatibility with tests or legacy code that call
+    session.execute("SELECT 1") without sqlalchemy.text().
+    """
+
+    async def execute(self, statement, params=None, execution_options=None):
+        if isinstance(statement, str):
+            statement = text(statement)
+        return await super().execute(statement, params=params, execution_options=execution_options)
+
+
 def create_database_engine(is_read_replica: bool = False) -> AsyncEngine:
     """Create async database engine with optimized settings
     
@@ -80,40 +94,58 @@ def create_database_engine(is_read_replica: bool = False) -> AsyncEngine:
     settings = get_settings()
     
     # Use read replica URL if available and requested
+    # Prefer SQLite for tests unless explicitly disabled
     db_url = settings.DATABASE_URL
+    if settings.ENVIRONMENT == "test" and os.getenv("USE_SQLITE_FOR_TESTS", "true").lower() in ("1", "true", "yes"):
+        db_url = os.getenv("TEST_DB_URL", "sqlite+aiosqlite:///./test.db")
     if is_read_replica and hasattr(settings, 'DATABASE_READ_URL'):
         db_url = settings.DATABASE_READ_URL
     
-    engine = create_async_engine(
-        db_url,
-        # Connection pool settings
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_POOL_OVERFLOW,
-        pool_timeout=settings.DB_POOL_TIMEOUT,
-        pool_recycle=settings.DB_POOL_RECYCLE,
-        pool_pre_ping=True,  # Validate connections before use
-        poolclass=AsyncAdaptedQueuePool,
-        
-        # Performance settings
-        echo=settings.ENVIRONMENT == "development",  # SQL logging in dev
-        echo_pool=settings.DEBUG,  # Pool logging for debugging
-        future=True,  # Use SQLAlchemy 2.0 style
-        
-        # Async settings
-        connect_args={
-            "command_timeout": 30,
-            "server_settings": {
-                "jit": "off",  # Disable JIT for better performance
-                "application_name": "convergio_backend",
+    # Special-case SQLite for test environments to avoid requiring Postgres
+    is_sqlite = str(db_url).startswith("sqlite:") or str(db_url).startswith("sqlite+")
+    if is_sqlite:
+        engine = create_async_engine(
+            db_url,
+            echo=settings.ENVIRONMENT in ("development", "test"),
+            future=True,
+        )
+    else:
+        engine = create_async_engine(
+            db_url,
+            # Connection pool settings
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_POOL_OVERFLOW,
+            pool_timeout=settings.DB_POOL_TIMEOUT,
+            pool_recycle=settings.DB_POOL_RECYCLE,
+            pool_pre_ping=True,  # Validate connections before use
+            poolclass=AsyncAdaptedQueuePool,
+            
+            # Performance settings
+            echo=settings.ENVIRONMENT == "development",  # SQL logging in dev
+            echo_pool=settings.DEBUG,  # Pool logging for debugging
+            future=True,  # Use SQLAlchemy 2.0 style
+            
+            # Async settings (Postgres/asyncpg specific)
+            connect_args={
+                "command_timeout": 30,
+                "server_settings": {
+                    "jit": "off",  # Disable JIT for better performance
+                    "application_name": "convergio_backend",
+                },
             },
-        },
-    )
+        )
     
+    try:
+        safe_url = settings.DATABASE_URL
+        if "@" in safe_url:
+            safe_url = safe_url.split("@", 1)[1]
+    except Exception:
+        safe_url = "(hidden)"
     logger.info(
         "📊 Database engine created",
-        url=settings.DATABASE_URL.split("@")[1],  # Hide credentials
-        pool_size=settings.DB_POOL_SIZE,
-        max_overflow=settings.DB_POOL_OVERFLOW,
+        url=safe_url,
+        pool_size=getattr(settings, "DB_POOL_SIZE", None),
+        max_overflow=getattr(settings, "DB_POOL_OVERFLOW", None),
     )
     
     return engine
@@ -132,7 +164,7 @@ async def init_db() -> None:
         # Create session factory for primary
         async_session_factory = async_sessionmaker(
             async_engine,
-            class_=AsyncSession,
+            class_=CustomAsyncSession,
             expire_on_commit=False,  # Keep objects usable after commit
             autoflush=True,  # Auto-flush before queries
             autocommit=False,  # Explicit transaction control
@@ -156,20 +188,30 @@ async def init_db() -> None:
             async_read_session_factory = async_session_factory
             logger.info("ℹ️ No read replica configured, using primary for reads")
         
-        # Test connection
+        # Test connection and (optionally) ensure basic schema in test/dev
         # Use the test-patched engine for initialization if present
         base_engine = engine or async_engine
         begin_ctx = base_engine.begin()
         if asyncio.iscoroutine(begin_ctx) or hasattr(begin_ctx, "__await__"):
             begin_ctx = await begin_ctx
         async with begin_ctx as conn:
-            # Ensure required extension
+            # Ensure required extension (Postgres only)
             try:
                 await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 logger.info("🧩 Ensured pgvector extension present")
             except Exception as ext_e:
                 logger.warning("⚠️ Unable to ensure pgvector extension", error=str(ext_e))
             await conn.run_sync(lambda sync_conn: sync_conn.execute(text("SELECT 1")))
+
+            # Optionally auto-create tables (disabled by default to avoid partial metadata issues)
+            # Enable via AUTO_CREATE_DB_TABLES=true when needed (e.g., local dev with SQLite)
+            if os.getenv("AUTO_CREATE_DB_TABLES", "false").lower() in ("1", "true", "yes"):
+                try:
+                    from core.database import Base as _Base
+                    await conn.run_sync(_Base.metadata.create_all)
+                    logger.info("🧱 Database tables ensured (env-flag enabled)")
+                except Exception as ce:
+                    logger.warning("⚠️ Table auto-create skipped/failed", error=str(ce))
         
         logger.info("✅ Database initialized successfully")
         
@@ -395,7 +437,14 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 # Dependency for FastAPI route injection
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database session injection (write operations)"""
-    
+    global async_session_factory
+    # Lazy-initialize in test/dev to avoid manual init during e2e
+    try:
+        if async_session_factory is None and get_settings().ENVIRONMENT in ("test", "development"):
+            await init_db()
+    except Exception:
+        # If init fails, propagate original error when requesting session
+        pass
     async with get_async_session() as session:
         yield session
 
@@ -481,7 +530,9 @@ async def execute_query(query: str, params: dict = None, read_only: bool = False
     session_context = get_async_read_session() if read_only else get_async_session()
     
     async with session_context as session:
-        result = await session.execute(query, params or {})
+        # SQLAlchemy 2.0 requires textual SQL to be wrapped with text()
+        stmt = text(query) if isinstance(query, str) else query
+        result = await session.execute(stmt, params or {})
         return result.fetchall()
 
 

@@ -309,13 +309,14 @@ Focus on high-level strategy, organizational transformation, and cross-functiona
         file_path = self.output_dir / file_name
         
         # Generate Python code for the agent
-        code = f'''"""
+    code = f'''"""
 {agent_def['name']} - {agent_def['role']}
 Generated from: {agent_def['source_file']}
 Created: {agent_def['created_at']}
 """
 
-from autogen import ConversableAgent
+# NOTE: This template targets legacy AutoGen ConversableAgent; update to 0.7.x wrappers if needed.
+from autogen import ConversableAgent  # TODO: migrate to autogen_agentchat adapters
 from typing import Dict, Any
 
 class {agent_def['name']}:

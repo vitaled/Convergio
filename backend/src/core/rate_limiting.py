@@ -11,7 +11,12 @@ from dataclasses import dataclass
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 import redis.asyncio as redis
-from agents.utils.config import get_settings
+try:
+    # Prefer core config
+    from core.config import get_settings  # type: ignore
+except Exception:
+    # Fallback to legacy location if needed
+    from agents.utils.config import get_settings  # type: ignore
 
 
 # -----------------------

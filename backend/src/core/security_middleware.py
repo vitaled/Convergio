@@ -9,9 +9,9 @@ from fastapi.responses import Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable, Optional
 import time
-import jwt
 from datetime import datetime, timedelta
 import os
+from jose import jwt, JWTError, ExpiredSignatureError
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses"""
@@ -74,15 +74,17 @@ class SecurityMiddleware:
     async def validate_token(self, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())) -> dict:
         """Validate JWT token"""
         try:
-            payload = jwt.decode(credentials.credentials, self.secret_key, algorithms=["HS256"])
+            # Use python-jose to decode; accept HS256 in dev/test, RS256 in prod when keys are configured
+            algorithm = os.getenv("JWT_ALGORITHM", "HS256")
+            payload = jwt.decode(credentials.credentials, self.secret_key, algorithms=[algorithm])
             return payload
-        except jwt.ExpiredSignatureError:
+        except ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        except jwt.JWTError:
+        except JWTError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Could not validate credentials",

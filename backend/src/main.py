@@ -221,10 +221,14 @@ def create_app() -> FastAPI:
             allowed_hosts=settings.trusted_hosts_list,
         )
     
-    # Rate limiting - Temporarily disabled
-    # # Configuration: 100 requests per 60 seconds per IP
-    # app.state.limiter = limiter
-    # app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    # Optional simple in-process rate limiting (feature-flagged)
+    if os.getenv("FEATURE_RATE_LIMIT", "false").lower() in ("1", "true", "yes"):
+        try:
+            # conservative defaults
+            app.add_middleware(RateLimitMiddleware, calls=int(os.getenv("RATE_LIMIT_CALLS", 100)), period=int(os.getenv("RATE_LIMIT_PERIOD", 60)))
+            logger.info("✅ RateLimitMiddleware enabled")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not enable RateLimitMiddleware: {e}")
     
     
     # ================================

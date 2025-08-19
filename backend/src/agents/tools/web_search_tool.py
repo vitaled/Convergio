@@ -78,7 +78,7 @@ class WebSearchTool(BaseTool):
             cancellation_token: Optional cancellation token for AutoGen
         
         Returns:
-            JSON string with search results
+            Clean markdown formatted search results
         """
         try:
             logger.info(f"🔍 Web search: {args.query}", provider=self.search_provider)
@@ -88,11 +88,7 @@ class WebSearchTool(BaseTool):
                 try:
                     api_key = os.getenv("PERPLEXITY_API_KEY")
                     if not api_key:
-                        return json.dumps({
-                            "error": "PERPLEXITY_API_KEY not set in environment.",
-                            "provider": "perplexity",
-                            "results": []
-                        }, indent=2)
+                        return "❌ **Web Search Error**: PERPLEXITY_API_KEY not configured in environment."
                     
                     headers = {
                         "Authorization": f"Bearer {api_key}",
@@ -129,34 +125,21 @@ class WebSearchTool(BaseTool):
                         # Extract the response content
                         content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
                         
-                        # Return structured response
-                        return json.dumps({
-                            "query": args.query,
-                            "results": content,
-                            "source": "perplexity",
-                            "model": "sonar"
-                        }, indent=2)
+                        # Return clean markdown content
+                        if content.strip():
+                            return content.strip()
+                        else:
+                            return "❌ **No search results found** for your query."
                 except Exception as e:
                     logger.error(f"Perplexity search failed: {e}")
-                    return json.dumps({
-                        "error": f"Perplexity search failed: {e}",
-                        "provider": "perplexity",
-                        "results": []
-                    }, indent=2)
+                    return f"❌ **Web Search Error**: {str(e)}"
             else:
                 # Fail loudly when no provider is configured
-                return json.dumps({
-                    "error": "No web search provider configured. Set PERPLEXITY_API_KEY in environment.",
-                    "provider": "none",
-                    "results": []
-                }, indent=2)
+                return "❌ **Web Search Error**: No web search provider configured. Set PERPLEXITY_API_KEY in environment."
                 
         except Exception as e:
             logger.error(f"❌ Web search error: {e}")
-            return json.dumps({
-                "error": str(e),
-                "results": []
-            })
+            return f"❌ **Web Search Failed**: {str(e)}"
 
 
 class WebBrowseArgs(BaseModel):
@@ -200,20 +183,22 @@ class WebBrowseTool(BaseTool):
                 # In production, you'd use BeautifulSoup or similar to parse
                 content = response.text[:1000]  # First 1000 chars
                 
-                return json.dumps({
-                    "url": args.url,
-                    "status": response.status_code,
-                    "content_preview": content,
-                    "action": args.action,
-                    "note": "Full HTML parsing not implemented - use WebSurferAgent for advanced browsing"
-                }, indent=2)
+                return f"""## 🌐 Web Page Content
+
+**URL**: {args.url}
+**Status**: {response.status_code}
+**Action**: {args.action}
+
+### Content Preview:
+```
+{content}
+```
+
+*Note: Full HTML parsing not implemented - use WebSurferAgent for advanced browsing*"""
                 
         except Exception as e:
             logger.error(f"❌ Web browse error: {e}")
-            return json.dumps({
-                "error": str(e),
-                "url": args.url
-            })
+            return f"❌ **Web Browse Error**: {str(e)} (URL: {args.url})"
 
 
 # Export all web tools
