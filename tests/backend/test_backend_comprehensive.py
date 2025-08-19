@@ -91,7 +91,7 @@ async def test_agent_ecosystem():
 async def test_ali_intelligence():
     """Test Ali Intelligence endpoint with simple query"""
     print("\n🧠 Testing: Ali Intelligence (CEO assistant)")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
             f"{BASE_URL}/api/v1/ali/intelligence",
             json={
@@ -176,91 +176,95 @@ async def test_cost_management():
     
     return True
 
-async def test_workflow_catalog(test_client):
+async def test_workflow_catalog():
     """Test workflow catalog"""
     print("\n📋 Testing: Workflow catalog")
-    response = test_client.get("/api/v1/workflows/catalog")
-    
-    if response.status_code == 200:
-        catalog = response.json()
-        workflows = catalog.get('workflows', [])
-        print(f"✅ Found {len(workflows)} workflow templates:")
-        for wf in workflows:
-            print(f"   • {wf['name']}: {wf['description'][:50]}...")
-    else:
-        print(f"⚠️ Workflow catalog not available: {response.text}")
-
-    return True
-
-async def test_agent_signatures(test_client):
-    """Test agent signature generation and verification"""
-    print("\n🔐 Testing: Agent signatures")
-    # Generate signature
-    response = test_client.post(
-        "/api/v1/agent-signatures/generate",
-        json={
-            "agent_id": "amy_cfo",
-            "message": "Test financial analysis"
-        }
-    )
-
-    if response.status_code == 200:
-        sig_data = response.json()
-        print(f"✅ Signature generated for amy_cfo")
-        print(f"   Signature: {sig_data['signature'][:40]}...")
-        
-        # Verify signature
-        response = test_client.post(
-            "/api/v1/agent-signatures/verify",
-            json={
-                "agent_id": "amy_cfo",
-                "message": "Test financial analysis",
-                "signature": sig_data['signature']
-            }
-        )
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(f"{BASE_URL}/api/v1/workflows/catalog")
         
         if response.status_code == 200:
-            verify = response.json()
-            print(f"✅ Signature verification: {verify['valid']}")
-            assert verify['valid'], "Signature should be valid"
-    else:
-        print(f"⚠️ Signature generation failed: {response.text}")
+            catalog = response.json()
+            workflows = catalog.get('catalog', [])
+            print(f"✅ Found {len(workflows)} workflow templates:")
+            for wf in workflows:
+                print(f"   • {wf['name']}: {wf['description'][:50]}...")
+        else:
+            print(f"⚠️ Workflow catalog not available: {response.text}")
 
     return True
 
-async def test_database_maintenance(test_client):
+async def test_agent_signatures():
+    """Test agent signature generation and verification"""
+    print("\n🔐 Testing: Agent signatures")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # Generate signature
+        response = await client.post(
+            f"{BASE_URL}/api/v1/agent-signatures/generate",
+            json={
+                "agent_id": "amy_cfo",
+                "message": "Test financial analysis"
+            }
+        )
+
+        if response.status_code == 200:
+            sig_data = response.json()
+            print(f"✅ Signature generated for amy_cfo")
+            print(f"   Signature: {sig_data['signature'][:40]}...")
+            
+            # Verify signature
+            response = await client.post(
+                f"{BASE_URL}/api/v1/agent-signatures/verify",
+                json={
+                    "agent_id": "amy_cfo",
+                    "message": "Test financial analysis",
+                    "signature": sig_data['signature']
+                }
+            )
+            
+            if response.status_code == 200:
+                verify = response.json()
+                print(f"✅ Signature verification: {verify['valid']}")
+                assert verify['valid'], "Signature should be valid"
+        else:
+            print(f"⚠️ Signature generation failed: {response.text}")
+
+    return True
+
+async def test_database_maintenance():
     """Test database maintenance endpoints"""
     print("\n🔧 Testing: Database maintenance")
-    response = test_client.get("/api/v1/admin/maintenance/status")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(f"{BASE_URL}/api/v1/admin/maintenance/status")
 
-    if response.status_code == 200:
-        status = response.json()
-        print(f"✅ Maintenance scheduler: {status['scheduler_running']}")
-        print(f"   Next VACUUM: {status.get('next_vacuum', 'Not scheduled')}")
-        print(f"   Next analysis: {status.get('next_analysis', 'Not scheduled')}")
-    else:
-        print(f"⚠️ Maintenance status not available: {response.text}")
+        if response.status_code == 200:
+            status = response.json()
+            print(f"✅ Maintenance scheduler: {status['scheduler_running']}")
+            print(f"   Next VACUUM: {status.get('next_vacuum', 'Not scheduled')}")
+            print(f"   Next analysis: {status.get('next_analysis', 'Not scheduled')}")
+        else:
+            print(f"⚠️ Maintenance status not available: {response.text}")
 
     return True
 
-async def test_talent_management(test_client):
+async def test_talent_management():
     """Test talent management endpoints"""
     print("\n👥 Testing: Talent management")
-    # List talents
-    response = test_client.get("/api/v1/talents")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # List talents
+        response = await client.get(f"{BASE_URL}/api/v1/talents")
 
-    if response.status_code == 200:
-        talents = response.json()
-        print(f"✅ Found {len(talents)} talents")
-        if talents:
-            for talent in talents[:3]:
-                print(f"   • {talent.get('name', 'Unknown')}: {talent.get('role', 'Unknown')}")
-    else:
-        print(f"⚠️ Talents API not available: {response.text}")
+        if response.status_code == 200:
+            talents = response.json()
+            print(f"✅ Found {len(talents)} talents")
+            if talents:
+                for talent in talents[:3]:
+                    print(f"   • {talent.get('name', 'Unknown')}: {talent.get('role', 'Unknown')}")
+        else:
+            print(f"⚠️ Talents API not available: {response.text}")
 
     return True
 
-async def test_openai_model(test_client):
+async def test_openai_model():
     """Test OpenAI model configuration"""
     print("\n🤖 Testing: OpenAI Model (gpt-4o-mini)")
     
@@ -289,6 +293,9 @@ async def test_openai_model(test_client):
             print(f"✅ Direct OpenAI test: {content}")
             assert content, "Should have response content"
             
+            # Track OpenAI API cost
+            print("💰 Cost incurred: OpenAI chat completion API call")
+            
         except Exception as e:
             print(f"❌ OpenAI direct test failed: {e}")
             return False
@@ -304,8 +311,9 @@ async def main():
     
     # Check if backend is running
     try:
-        response = test_client.get("/health/")
-        if response.status_code != 200:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{BASE_URL}/health/")
+            if response.status_code != 200:
                 print("❌ Backend is not running! Please start it first.")
                 return
     except Exception as e:

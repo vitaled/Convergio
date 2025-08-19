@@ -286,16 +286,21 @@ async def test_circuit_breaker_scenarios(test_client):
 @pytest.mark.asyncio
 async def test_startup_failure_scenarios():
     """Test startup failure scenarios."""
+    import httpx
+    import os
+    
+    BASE_URL = f"http://localhost:{os.getenv('BACKEND_PORT', '9000')}"
     
     # Test startup verification under various failure conditions
     with patch('core.error_handling_enhanced.validate_service_connectivity', 
                side_effect=Exception("Service validation failed")):
-        response = await test_client.get("/health/startup-verification")
-        assert response.status_code in [200, 500]
-        
-        if response.status_code == 200:
-            data = response.json()
-            assert data["startup_ready"] == False
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{BASE_URL}/health/startup-verification")
+            assert response.status_code in [200, 500]
+            
+            if response.status_code == 200:
+                data = response.json()
+                assert data["startup_ready"] == False
     
     # Test partial service failures during startup
     with patch('core.error_handling_enhanced.validate_service_connectivity', 

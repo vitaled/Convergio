@@ -53,8 +53,9 @@ async def test_system_health_real_connectivity(test_client):
     
     data = response.json()
     # Real system health should reflect actual service status
-    assert "database" in data
-    assert "redis" in data
+    assert "checks" in data
+    assert "database" in data["checks"]
+    assert "cache" in data["checks"]  # Redis is called "cache" in the response
     assert data["status"] in ["healthy", "degraded"]  # Allow for partial failures
 
 
@@ -160,15 +161,16 @@ async def test_agent_conversation_real_api(test_client):
 @pytest.mark.asyncio
 async def test_cost_management_real_data(test_client):
     """Test cost management endpoint with real data."""
-    response = await test_client.get("/api/v1/cost-management/current")
+    response = await test_client.get("/api/v1/cost-management/realtime/current")
     
     # Cost management should work even without API keys
     assert response.status_code == 200
     
     data = response.json()
-    assert "total_cost" in data
-    assert "period" in data
-    assert isinstance(data["total_cost"], (int, float))
+    assert "model_breakdown" in data  # Real API response structure
+    assert "last_updated" in data
+    assert "budget_utilization" in data
+    assert isinstance(data["budget_utilization"], (int, float))
 
 
 @pytest.mark.integration

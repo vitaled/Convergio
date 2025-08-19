@@ -169,31 +169,30 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_circuit_breaker_pattern(self):
         """Test circuit breaker for service protection"""
-        from src.core.circuit_breaker import CircuitBreaker
+        from core.error_handling_enhanced import CircuitBreaker, CircuitBreakerConfig, ServiceStatus
         
-        breaker = CircuitBreaker(
+        config = CircuitBreakerConfig(
             failure_threshold=5,
             recovery_timeout=1,
-            expected_exception=Exception
+            half_open_max_calls=3
         )
+        breaker = CircuitBreaker("test_service", config)
         
         # Simulate failures
         for i in range(5):
-            with pytest.raises(Exception):
-                breaker.call(lambda: (_ for _ in ()).throw(Exception("Service error")))
+            breaker.on_failure()
         
         # Circuit should be open
-        assert breaker.state == "open"
+        assert breaker.status == ServiceStatus.CIRCUIT_OPEN
         
-        # Further calls should fail fast
-        with pytest.raises(Exception, match="Circuit breaker is open"):
-            breaker.call(lambda: "success")
+        # Further calls should be rejected
+        assert not breaker.should_allow_request()
         
         # Wait for recovery
         await asyncio.sleep(1.1)
         
-        # Circuit should be half-open
-        assert breaker.state == "half-open"
+        # Circuit should be half-open now
+        assert breaker.should_allow_request()  # Recovery timeout elapsed
     
     def test_distributed_rate_limiting(self):
         """Test rate limiting across multiple instances"""
@@ -248,17 +247,22 @@ class TestRateLimiting:
 class TestRateLimitPerformance:
     """Performance benchmarks for rate limiting"""
     
-    def test_rate_limit_overhead(self, benchmark):
-        """Benchmark rate limiting overhead"""
+    def test_rate_limit_overhead(self):
+        """Test rate limiting overhead without benchmark fixture"""
+        import time
         limiter = RateLimiter()
         client_id = "perf_client"
         
-        def check_rate_limit():
-            return limiter.allow_request(client_id)
+        # Measure time for multiple calls
+        start_time = time.time()
+        for _ in range(1000):
+            limiter.allow_request(client_id)
+        end_time = time.time()
         
-        # Should complete in < 1ms
-        result = benchmark(check_rate_limit)
-        assert benchmark.stats['mean'] < 0.001  # < 1ms
+        # Should complete 1000 calls in reasonable time
+        total_time = end_time - start_time
+        avg_time_per_call = total_time / 1000
+        assert avg_time_per_call < 0.001  # < 1ms per call
     
     @pytest.mark.asyncio
     async def test_high_concurrency_performance(self):

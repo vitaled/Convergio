@@ -334,7 +334,8 @@
           // Use backend data or fallback to helper functions
           const role = backendAgent.tier || getSimpleRole(backendAgent.id);
           const description = backendAgent.role || getSimpleDescription(backendAgent.id);
-          const specialty = backendAgent.category || getSimpleSpecialty(backendAgent.id);
+          // Map backend tier to specialty for consistency with fallback agents
+          const specialty = backendAgent.tier || getSimpleSpecialty(backendAgent.id);
           const personality = getSimplePersonality(backendAgent.id);
           
           return {
@@ -377,8 +378,15 @@
   }
 
   // Extract unique skills for filter (reactive)
-  $: allSkills = [...new Set(allAgents.map(agent => agent.specialty.split(', ')).flat())]
-    .map(skill => skill.charAt(0).toUpperCase() + skill.slice(1));
+  $: allSkills = [...new Set(allAgents.map(agent => {
+    // Handle both comma-separated specialties and single tier values
+    if (agent.specialty && agent.specialty.includes(',')) {
+      return agent.specialty.split(', ').map(skill => skill.trim());
+    } else if (agent.specialty) {
+      return [agent.specialty.trim()];
+    }
+    return [];
+  }).flat())].map(skill => skill.charAt(0).toUpperCase() + skill.slice(1)).sort();
 
   // Featured agents (reactive)
   $: featuredAgents = allAgents.filter(agent => agent.is_featured);
@@ -388,10 +396,10 @@
     const matchesSearch = !searchQuery || 
       agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       agent.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      agent.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+      (agent.specialty && agent.specialty.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesSkill = !selectedSkill || 
-      agent.specialty.toLowerCase().includes(selectedSkill.toLowerCase());
+      (agent.specialty && agent.specialty.toLowerCase().includes(selectedSkill.toLowerCase()));
     
     return matchesSearch && matchesSkill;
   });
@@ -679,578 +687,679 @@
 </svelte:head>
 
 <!-- AI Agents Page -->
-<div class="min-h-screen bg-gray-50 space-y-6">
-  <!-- Header -->
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-lg font-medium text-gray-900">AI Team</h1>
-      <p class="mt-1 text-sm text-gray-700">Your specialized AI agents powered by Microsoft AutoGen</p>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 space-y-8">
+  <!-- Enhanced Header -->
+  <div class="px-6 py-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center">
+        <h1 class="text-3xl font-bold text-gray-900 mb-3">AI Team</h1>
+        <p class="text-lg text-gray-600 max-w-2xl mx-auto">Your specialized AI agents powered by Microsoft AutoGen, ready to tackle any business challenge with strategic intelligence and operational excellence.</p>
+      </div>
     </div>
   </div>
 
-  <div class="grid lg:grid-cols-5 gap-8">
-    <!-- Agents List with integrated search -->
-    <div class="lg:col-span-2">
-      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <!-- Search in header -->
-        <div class="p-4 border-b border-gray-200 bg-gray-50">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-md font-medium text-gray-900">AI Team</h3>
-            <!-- Hire New Agent Button -->
-            <button
-              on:click={() => showHireForm = true}
-              on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? (e.preventDefault(), showHireForm = true) : null}
-              class="btn-primary btn-sm flex items-center space-x-1"
-              aria-label="Hire new AI agent"
-              tabindex="0"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-              </svg>
-              <span>Hire Agent</span>
-            </button>
-          </div>
-          <div class="space-y-3">
-            <input
-              type="text"
-              bind:value={searchQuery}
-              placeholder="Search agents by name, role, or skills..."
-              class="input-field"
-              aria-label="Search agents by name, role, or skills"
-              role="searchbox"
-            />
-            <select
-              bind:value={selectedSkill}
-              class="input-field"
-              aria-label="Filter agents by specialty"
-              role="combobox"
-            >
-              <option value="">All Specialties</option>
-              {#each allSkills.slice(0, 12) as skill}
-                <option value={skill}>{skill}</option>
-              {/each}
-            </select>
-          </div>
-          
-          <div class="flex items-center justify-between text-xs mt-3 pt-3 border-t border-gray-300">
-            <div class="flex items-center space-x-2">
-              <span class="text-gray-600">{filteredAgents.length} of {allAgents.length} available</span>
-              {#if isLoadingAgents}
-                <div class="flex items-center space-x-1 text-blue-600">
-                  <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span>Loading...</span>
+  <div class="px-6 pb-8">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid lg:grid-cols-5 gap-8">
+        <!-- Enhanced Agents List with integrated search -->
+        <div class="lg:col-span-2">
+          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
+            <!-- Search in header -->
+            <div class="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+              <div class="flex items-center justify-between mb-6">
+                <div>
+                  <h3 class="text-xl font-bold text-gray-900 mb-1">AI Team</h3>
+                  <p class="text-sm text-gray-600">Manage your specialized AI agents</p>
                 </div>
-              {:else if loadingError}
-                <div class="flex items-center space-x-1 text-red-600">
-                  <div class="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                  <span>Fallback mode</span>
-                </div>
-              {/if}
-            </div>
-            <div class="flex items-center space-x-1 text-blue-600">
-              <div class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-              <span>Powered by AutoGen</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Agents List -->
-        <div class="max-h-[500px] overflow-y-auto">
-          <div class="divide-y divide-gray-200">
-            {#each filteredAgents as agent}
-              <button
-                on:click={() => selectAgent(agent)}
-                on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), selectAgent(agent)) : null}
-                class="w-full p-3 hover:bg-blue-50 transition-colors text-left group {selectedAgent.id === agent.id ? 'bg-blue-100 border-r-4 border-blue-500' : ''}"
-                aria-label="Select {agent.name} - {agent.role}"
-                aria-pressed="{selectedAgent.id === agent.id}"
+                <!-- Hire New Agent Button -->
+                <button
+                  on:click={() => showHireForm = true}
+                  on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? (e.preventDefault(), showHireForm = true) : null}
+                  class="btn-primary flex items-center space-x-2 px-4 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                  aria-label="Hire new AI agent"
                   tabindex="0"
-              >
-                <div class="flex items-center space-x-3">
-                  <div class="w-8 h-8 rounded-lg flex items-center justify-center border-2 border-gray-300 bg-gray-100 group-hover:border-blue-400 transition-colors">
-                    <AgentIcons agentName={agent.name} size="w-4 h-4" />
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  <span class="font-medium">Hire Agent</span>
+                </button>
+              </div>
+              
+              <!-- Enhanced Filter Section -->
+              <div class="space-y-4">
+                <!-- Search Bar with Icon -->
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
                   </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="body-md font-semibold text-gray-900">{agent.name}</div>
-                    <div class="body-sm text-blue-600">{agent.role}</div>
-                    <div class="caption text-gray-600 truncate mt-0.5">{agent.description}</div>
+                  <input
+                    type="text"
+                    bind:value={searchQuery}
+                    placeholder="Search agents by name, role, or skills..."
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                    aria-label="Search agents by name, role, or skills"
+                    role="searchbox"
+                  />
+                </div>
+                
+                <!-- Specialty Filter with Better Styling -->
+                <div class="relative">
+                  <label for="specialty-filter" class="block text-sm font-medium text-gray-700 mb-2">Filter by Tier & Specialty</label>
+                  <div class="relative">
+                    <select
+                      id="specialty-filter"
+                      bind:value={selectedSkill}
+                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm appearance-none cursor-pointer"
+                      aria-label="Filter agents by tier/specialty"
+                      role="combobox"
+                    >
+                      <option value="">All Tiers & Specialties</option>
+                      {#each allSkills.slice(0, 15) as skill}
+                        <option value={skill}>{skill}</option>
+                      {/each}
+                    </select>
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
                   </div>
-                  {#if agent.key}
-                    <AgentStatus agentId={agent.key} agentName={agent.name} compact={true} />
-                  {:else}
-                    <div class="flex items-center space-x-1 px-2 py-1 bg-green-100 rounded-full">
-                      <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                      <span class="caption text-green-700 font-medium">Ready</span>
+                </div>
+              </div>
+              
+              <!-- Enhanced Status Bar -->
+              <div class="flex items-center justify-between text-sm mt-6 pt-4 border-t border-gray-200">
+                <div class="flex items-center space-x-4">
+                  <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span class="text-gray-700 font-medium">{filteredAgents.length} of {allAgents.length} agents available</span>
+                  </div>
+                  {#if isLoadingAgents}
+                    <div class="flex items-center space-x-2 text-blue-600">
+                      <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span class="text-sm">Loading...</span>
+                    </div>
+                  {:else if loadingError}
+                    <div class="flex items-center space-x-2 text-amber-600">
+                      <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
+                      <span class="text-sm">Fallback mode</span>
                     </div>
                   {/if}
                 </div>
-              </button>
-            {/each}
-            
-            {#if filteredAgents.length === 0}
-              <div class="text-center py-8 text-gray-600">
-                <div class="body-md mb-2">No agents found</div>
-                <button 
-                  on:click={() => { searchQuery = ''; selectedSkill = ''; }}
-                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), searchQuery = '', selectedSkill = '') : null}
-                  class="text-blue-600 hover:text-blue-700 underline body-sm font-medium"
-                  aria-label="Clear search filters"
-                      tabindex="0"
-                >
-                  Clear filters
-                </button>
-              </div>
-            {/if}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Enlarged Chat Interface -->
-    <div class="lg:col-span-3">
-      <div class="bg-white border border-gray-200 rounded-lg h-[600px] flex flex-col">
-        <!-- Chat Header -->
-        <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 rounded-lg flex items-center justify-center border-2 border-blue-300 bg-white">
-                <AgentIcons agentName={selectedAgent?.name || ''} size="w-5 h-5" />
-              </div>
-              <div class="flex-1">
-                <div class="text-md font-medium text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
-                <div class="text-sm text-blue-600">{selectedAgent?.role || ''}</div>
-                <div class="text-xs text-gray-600 mt-1">{selectedAgent?.description || ''}</div>
+                
+                <!-- Clear Filters Button -->
+                {#if searchQuery || selectedSkill}
+                  <button
+                    on:click={() => { searchQuery = ''; selectedSkill = ''; }}
+                    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), searchQuery = '', selectedSkill = '') : null}
+                    class="text-sm text-gray-500 hover:text-gray-700 underline transition-colors duration-200"
+                    aria-label="Clear search filters"
+                    tabindex="0"
+                  >
+                    Clear filters
+                  </button>
+                {/if}
+                
+                <div class="flex items-center space-x-2 text-blue-600">
+                  <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span class="text-sm font-medium">Powered by AutoGen</span>
+                </div>
               </div>
             </div>
             
-            <!-- Executive/Oversight Mode Toggle (only for Ali) -->
-            {#if selectedAgent?.name === 'Ali'}
-              <div class="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-                <span class="text-xs font-medium text-gray-600">View:</span>
-                <button
-                  on:click={() => isOversightMode = false}
-                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), isOversightMode = false) : null}
-                  class="px-3 py-1 text-xs font-medium rounded transition-colors {!isOversightMode ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600'}"
-                  aria-label="Switch to Executive view mode"
-                  aria-pressed="{!isOversightMode}"
-                      tabindex="0"
-                >
-                  Executive
-                </button>
-                <button
-                  on:click={() => isOversightMode = true}
-                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), isOversightMode = true) : null}
-                  class="px-3 py-1 text-xs font-medium rounded transition-colors {isOversightMode ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600'}"
-                  aria-label="Switch to Oversight view mode"
-                  aria-pressed="{isOversightMode}"
-                      tabindex="0"
-                >
-                  Oversight
-                </button>
-              </div>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Messages / Oversight Timeline -->
-        <div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-6 space-y-4">
-          
-          {#if !isOversightMode || selectedAgent?.name !== 'Ali'}
-            <!-- Executive Mode: Regular Messages -->
-            {#each messages as message}
-              <div class="flex {message.type === 'user' ? 'justify-end' : 'justify-start'}">
-                <div class="max-w-lg">
-                  {#if message.type === 'user'}
-                    <div class="bg-blue-500 text-white p-4 rounded-xl rounded-br-sm">
-                      <div class="font-medium mb-1 opacity-75 text-sm">You</div>
-                      <div class="text-sm leading-relaxed">
-                        <MarkdownRenderer content={message.content} />
-                      </div>
-                    </div>
-                  {:else}
-                    <div class="bg-gray-50 p-4 rounded-xl rounded-bl-sm border">
-                      <div class="flex items-center space-x-2 mb-2">
-                        <AgentIcons agentName={selectedAgent?.name || ''} size="w-4 h-4" />
-                        <span class="font-medium text-gray-900 text-sm">{selectedAgent?.name || ''}</span>
-                        <span class="text-xs text-blue-600">• {selectedAgent?.role || ''}</span>
-                      </div>
-                      <div class="text-gray-800 text-sm leading-relaxed">
-                        <MarkdownRenderer content={message.content} />
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            {/each}
-            
-            {#if isLoading}
-              <div class="flex justify-start">
-                <div class="bg-gray-50 p-4 rounded-xl border max-w-lg">
-                  <div class="flex items-center space-x-2 mb-2">
-                    <AgentIcons agentName={selectedAgent?.name || ''} size="w-4 h-4" />
-                    <span class="text-sm text-gray-600">{selectedAgent?.name || 'Agent'} is thinking...</span>
-                  </div>
-                  <div class="flex space-x-1">
-                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                    <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                  </div>
-                </div>
-              </div>
-            {/if}
-          {:else}
-            <!-- Oversight Mode: Timeline with Agent Iterations -->
-            <div class="oversight-timeline">
-              <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
-                <div class="w-2 h-2 bg-purple-600 rounded-full mr-2 animate-pulse"></div>
-                Oversight Mode: Team Coordination Timeline
-              </h3>
-              
-              <!-- User Message -->
-              {#each messages.filter(m => m.type === 'user') as userMessage}
-                <div class="timeline-item mb-6">
-                  <div class="flex items-start space-x-3">
-                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <span class="text-white text-xs font-bold">You</span>
-                    </div>
-                    <div class="flex-1 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                      <div class="font-medium text-blue-900 text-sm mb-1">Your Request</div>
-                      <div class="text-blue-800 text-sm">
-                        <MarkdownRenderer content={userMessage.content} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {/each}
-              
-              <!-- Agent Iterations -->
-              {#each oversightIterations as iteration, i}
-                <div class="timeline-item mb-4 relative">
-                  <!-- Timeline connector -->
-                  {#if i < oversightIterations.length - 1}
-                    <div class="absolute left-4 top-12 w-0.5 h-8 bg-gray-200"></div>
-                  {/if}
-                  
-                  <div class="flex items-start space-x-3">
-                    <!-- Agent Avatar with Status -->
-                    <div class="relative">
-                      <div class="w-8 h-8 rounded-full flex items-center justify-center border-2" style="background-color: {iteration.color}20; border-color: {iteration.color}">
-                        <AgentIcons agentName={iteration.agent_name} size="w-4 h-4" />
+            <!-- Agents List -->
+            <div class="max-h-[600px] overflow-y-auto">
+              <div class="divide-y divide-gray-100">
+                {#each filteredAgents as agent}
+                  <button
+                    on:click={() => selectAgent(agent)}
+                    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), selectAgent(agent)) : null}
+                    class="w-full p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 text-left group {selectedAgent.id === agent.id ? 'bg-gradient-to-r from-blue-100 to-indigo-100 border-r-4 border-blue-500 shadow-sm' : ''}"
+                    aria-label="Select {agent.name} - {agent.role}"
+                    aria-pressed="{selectedAgent.id === agent.id}"
+                    tabindex="0"
+                  >
+                    <div class="flex items-start space-x-4">
+                      <!-- Agent Avatar with Enhanced Styling -->
+                      <div class="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100 group-hover:border-blue-400 group-hover:from-blue-50 group-hover:to-indigo-50 transition-all duration-200 shadow-sm">
+                        <AgentIcons agentName={agent.name} size="w-6 h-6" />
                       </div>
                       
-                      <!-- Status Indicator -->
-                      {#if iteration.status === 'thinking'}
-                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
-                      {:else if iteration.status === 'completed'}
-                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full">
-                          <svg class="w-2 h-2 text-white absolute top-0.5 left-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                          </svg>
+                      <!-- Agent Information -->
+                      <div class="flex-1 min-w-0 space-y-2">
+                        <div class="flex items-start justify-between">
+                          <div class="flex-1 min-w-0">
+                            <div class="text-lg font-semibold text-gray-900 group-hover:text-blue-900 transition-colors duration-200">{agent.name}</div>
+                            <div class="text-sm font-medium text-blue-600 group-hover:text-blue-700 transition-colors duration-200">{agent.role}</div>
+                          </div>
+                          
+                          <!-- Status Indicator -->
+                          {#if agent.key}
+                            <AgentStatus agentId={agent.key} agentName={agent.name} compact={true} />
+                          {:else}
+                            <div class="flex items-center space-x-2 px-3 py-1 bg-green-100 rounded-full">
+                              <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span class="text-xs text-green-700 font-medium">Ready</span>
+                            </div>
+                          {/if}
                         </div>
-                      {:else if iteration.status === 'active'}
-                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-                      {/if}
-                    </div>
-                    
-                    <!-- Agent Content -->
-                    <div class="flex-1 border-l-4 p-3 rounded-r-lg" style="background-color: {iteration.color}05; border-left-color: {iteration.color}">
-                      <div class="flex items-center space-x-2 mb-2">
-                        <span class="font-medium text-sm" style="color: {iteration.color}">{iteration.agent_name}</span>
-                        <span class="text-xs text-gray-500">{iteration.agent_role}</span>
-                        <div class="text-xs px-2 py-1 rounded-full" style="background-color: {iteration.color}20; color: {iteration.color}">
-                          Turn {iteration.turn}
-                        </div>
-                      </div>
-                      
-                      {#if iteration.status === 'thinking'}
-                        <div class="text-sm text-gray-600 italic">{iteration.message || `${iteration.agent_name} is analyzing your request...`}</div>
-                      {:else}
-                        <div class="text-sm text-gray-800">{iteration.content}</div>
-                      {/if}
-                      
-                      <div class="text-xs text-gray-400 mt-2">
-                        {new Date(iteration.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {/each}
-              
-              <!-- Loading state in oversight mode -->
-              {#if isLoading}
-                <div class="timeline-item mb-4">
-                  <div class="flex items-start space-x-3">
-                    <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center animate-pulse">
-                      <AgentIcons agentName="Ali" size="w-4 h-4" />
-                    </div>
-                    <div class="flex-1 bg-gray-50 border-l-4 border-gray-200 p-3 rounded-r-lg">
-                      <div class="text-sm text-gray-600">Ali is coordinating the team response...</div>
-                      <div class="flex space-x-1 mt-2">
-                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce"></div>
-                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                        <div class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              {/if}
-            </div>
-          {/if}
-        </div>
-
-        <!-- Enhanced Input -->
-        <div class="p-6 border-t border-gray-200 bg-gray-50">
-          <div class="flex space-x-3">
-            <textarea
-              bind:value={currentMessage}
-              on:keydown={handleKeyPress}
-              placeholder="Ask {selectedAgent?.name || 'the agent'} about strategy, analysis, or anything in their expertise area..."
-              class="flex-1 input-field resize-none"
-              rows="2"
-              disabled={isLoading}
-              aria-label="Type your message to {selectedAgent?.name || 'the agent'}"
-            ></textarea>
-            <button
-              on:click={sendMessage}
-              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !(!currentMessage.trim() || isLoading) ? (e.preventDefault(), sendMessage()) : null}
-              disabled={!currentMessage.trim() || isLoading}
-              class="btn-primary px-6 py-3"
-              aria-label="Send message to {selectedAgent?.name || 'agent'}"
-            >
-              Send
-            </button>
-          </div>
-          <div class="text-xs text-gray-600 mt-2">
-            Press Shift+Enter for new line, Enter to send
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Hire New Agent Modal -->
-  {#if showHireForm}
-    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="modal-content max-w-md">
-        <!-- Modal Header -->
-        <div class="modal-header">
-          <div class="flex items-center justify-between">
-            <h2 id="modal-title" class="text-lg font-medium text-gray-900">Hire New Agent</h2>
-            <button
-              on:click={() => showHireForm = false}
-              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), showHireForm = false) : null}
-              class="text-gray-600 hover:text-gray-900 transition-colors"
-              aria-label="Close modal"
-              tabindex="0"
-            >
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-        
-        <!-- Modal Body -->
-        <div class="modal-body">
-          {#if !showPreview}
-            <!-- Initial Form -->
-            <form on:submit|preventDefault={generateAgent} class="space-y-4">
-              <!-- Agent Name -->
-              <div>
-                <label for="agent-name" class="form-label">
-                  Agent Name *
-                </label>
-                <input
-                  id="agent-name"
-                  type="text"
-                  bind:value={newAgentForm.name}
-                  placeholder="e.g., Mario, Elena, Giorgio..."
-                  class="input-field"
-                  required
-                />
-              </div>
-
-              <!-- Role -->
-              <div>
-                <label for="agent-role" class="form-label">
-                  Role *
-                </label>
-                <input
-                  id="agent-role"
-                  type="text"
-                  bind:value={newAgentForm.role}
-                  placeholder="e.g., Marketing Manager, Data Analyst..."
-                  class="input-field"
-                  required
-                />
-              </div>
-
-              <!-- Description -->
-              <div>
-                <label for="agent-description" class="form-label">
-                  Description *
-                </label>
-                <textarea
-                  id="agent-description"
-                  bind:value={newAgentForm.description}
-                  placeholder="Brief description of what this agent does..."
-                  rows="2"
-                  class="input-field resize-none"
-                  required
-                ></textarea>
-              </div>
-
-              <!-- Specialty -->
-              <div>
-                <label for="agent-specialty" class="form-label">
-                  Specialty *
-                </label>
-                <input
-                  id="agent-specialty"
-                  type="text"
-                  bind:value={newAgentForm.specialty}
-                  placeholder="e.g., Social media, financial planning..."
-                  class="input-field"
-                  required
-                />
-              </div>
-
-              <!-- Personality -->
-              <div>
-                <label for="agent-personality" class="form-label">
-                  Personality
-                </label>
-                <input
-                  id="agent-personality"
-                  type="text"
-                  bind:value={newAgentForm.personality}
-                  placeholder="e.g., Creative, analytical, detail-oriented..."
-                  class="input-field"
-                />
-              </div>
-
-              <!-- Error Messages -->
-              {#if creationError}
-                <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p class="text-sm text-red-700">{creationError}</p>
-                </div>
-              {/if}
-
-              <!-- Buttons -->
-              <div class="flex space-x-3 pt-4">
-                <button
-                  type="button"
-                  on:click={cancelAgentCreation}
-                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isGeneratingAgent ? (e.preventDefault(), cancelAgentCreation()) : null}
-                  class="btn-secondary flex-1"
-                  disabled={isGeneratingAgent}
-                  aria-label="Cancel agent creation"
-                    >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  class="btn-primary flex-1"
-                  disabled={isGeneratingAgent}
-                  aria-label="Generate agent with AI"
-                    >
-                  {#if isGeneratingAgent}
-                    <div class="flex items-center justify-center space-x-2">
-                      <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>AI Creating...</span>
-                    </div>
-                  {:else}
-                    ✨ Generate with AI
-                  {/if}
-                </button>
-              </div>
-              
-              <div class="caption text-center pt-2">
-                AI will create a complete job description aligned with your team
-              </div>
-            </form>
-            
-          {:else}
-            <!-- AI Generated Preview -->
-            <div class="space-y-6">
-              <div class="text-center">
-                <div class="inline-flex items-center space-x-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
-                  <span>🤖</span>
-                  <span>AI Generated Agent</span>
-                </div>
-              </div>
-              
-              {#if generatedAgent}
-                <!-- Agent Preview Card -->
-                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                  <div class="flex items-center space-x-3 mb-3">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg" 
-                         style="background-color: {generatedAgent.color || '#6366f1'}">
-                      {generatedAgent.name?.charAt(0) || 'A'}
-                    </div>
-                    <div>
-                      <h3 class="font-semibold text-gray-900">{generatedAgent.name}</h3>
-                      <p class="text-sm text-blue-600">{generatedAgent.role}</p>
-                    </div>
-                  </div>
-                  
-                  <div class="space-y-3 text-sm">
-                    <div>
-                      <span class="font-medium text-gray-700">Description:</span>
-                      <p class="text-gray-600 mt-1">{generatedAgent.description}</p>
-                    </div>
-                    
-                    <div>
-                      <span class="font-medium text-gray-700">Specialty:</span>
-                      <p class="text-gray-600 mt-1">{generatedAgent.specialty}</p>
-                    </div>
-                    
-                    <div>
-                      <span class="font-medium text-gray-700">Personality:</span>
-                      <p class="text-gray-600 mt-1">{generatedAgent.personality}</p>
-                    </div>
-                    
-                    {#if generatedAgent.tools && generatedAgent.tools.length > 0}
-                      <div>
-                        <span class="font-medium text-gray-700">Tools:</span>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                          {#each generatedAgent.tools.slice(0, 3) as tool}
-                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{tool}</span>
-                          {/each}
-                          {#if generatedAgent.tools.length > 3}
-                            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">+{generatedAgent.tools.length - 3} more</span>
+                        
+                        <!-- Description and Specialty -->
+                        <div class="space-y-1">
+                          <p class="text-sm text-gray-600 line-clamp-2 leading-relaxed">{agent.description}</p>
+                          {#if agent.specialty}
+                            <div class="flex items-center space-x-2">
+                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                {agent.specialty}
+                              </span>
+                            </div>
                           {/if}
                         </div>
                       </div>
-                    {/if}
+                    </div>
+                  </button>
+                {/each}
+                
+                <!-- Enhanced Empty State -->
+                {#if filteredAgents.length === 0}
+                  <div class="text-center py-12 text-gray-500">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                      </svg>
+                    </div>
+                    <div class="text-lg font-medium text-gray-900 mb-2">No agents found</div>
+                    <p class="text-sm text-gray-600 mb-4">Try adjusting your search or filter criteria</p>
+                    <button 
+                      on:click={() => { searchQuery = ''; selectedSkill = ''; }}
+                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), searchQuery = '', selectedSkill = '') : null}
+                      class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                      aria-label="Clear search filters"
+                      tabindex="0"
+                    >
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                      Clear filters
+                    </button>
+                  </div>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enlarged Chat Interface -->
+        <div class="lg:col-span-3">
+          <div class="bg-white border border-gray-200 rounded-2xl h-[700px] flex flex-col shadow-lg">
+            <!-- Enhanced Chat Header -->
+            <div class="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-blue-300 bg-white shadow-sm">
+                    <AgentIcons agentName={selectedAgent?.name || ''} size="w-6 h-6" />
+                  </div>
+                  <div class="flex-1">
+                    <div class="text-lg font-semibold text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
+                    <div class="text-sm font-medium text-blue-600">{selectedAgent?.role || ''}</div>
+                    <div class="text-xs text-gray-600 mt-1 max-w-md truncate">{selectedAgent?.description || ''}</div>
                   </div>
                 </div>
-              {/if}
-
-              <!-- Success Messages -->
-              {#if creationSuccess}
-                <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p class="text-sm text-green-700">Agent created successfully!</p>
-                </div>
-              {/if}
-
-              <!-- Error Messages -->
-              {#if creationError}
-                <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p class="text-sm text-red-700">{creationError}</p>
-                </div>
-              {/if}
-
-              <!-- Action Buttons -->
-              <div class="flex space-x-3">
-                <button
-                  type="button"
-                  on:click={backToEdit}
-                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isCreatingAgent ? (e.preventDefault(), backToEdit()) : null}
-                  class="btn-secondary flex-1"
-                  disabled={isCreatingAgent}
-                  aria-label="Go back to edit agent details"
+                
+                <!-- Executive/Oversight Mode Toggle (only for Ali) -->
+                {#if selectedAgent?.name === 'Ali'}
+                  <div class="flex items-center space-x-2 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm">
+                    <span class="text-xs font-medium text-gray-600">View Mode:</span>
+                    <button
+                      on:click={() => isOversightMode = false}
+                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), isOversightMode = false) : null}
+                      class="px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 {!isOversightMode ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'}"
+                      aria-label="Switch to Executive view mode"
+                      aria-pressed="{!isOversightMode}"
+                      tabindex="0"
                     >
+                      Executive
+                    </button>
+                    <button
+                      on:click={() => isOversightMode = true}
+                      on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), isOversightMode = true) : null}
+                      class="px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 {isOversightMode ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50'}"
+                      aria-label="Switch to Oversight view mode"
+                      aria-pressed="{isOversightMode}"
+                      tabindex="0"
+                    >
+                      Oversight
+                    </button>
+                  </div>
+                {/if}
+              </div>
+            </div>
+            
+            <!-- Enhanced Messages / Oversight Timeline -->
+            <div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-6 space-y-6">
+              
+              {#if !isOversightMode || selectedAgent?.name !== 'Ali'}
+                <!-- Executive Mode: Regular Messages -->
+                {#each messages as message}
+                  <div class="flex {message.type === 'user' ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-2xl">
+                      {#if message.type === 'user'}
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-2xl rounded-br-md shadow-sm">
+                          <div class="font-medium mb-2 opacity-90 text-sm flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            You
+                          </div>
+                          <div class="text-sm leading-relaxed">
+                            <MarkdownRenderer content={message.content} />
+                          </div>
+                        </div>
+                      {:else}
+                        <div class="bg-gradient-to-r from-gray-50 to-blue-50 p-5 rounded-2xl rounded-bl-md border border-gray-100 shadow-sm">
+                          <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center border-2 border-blue-200 bg-white">
+                              <AgentIcons agentName={selectedAgent?.name || ''} size="w-4 h-4" />
+                            </div>
+                            <div class="flex items-center space-x-2">
+                              <span class="font-semibold text-gray-900 text-sm">{selectedAgent?.name || ''}</span>
+                              <span class="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">{selectedAgent?.role || ''}</span>
+                            </div>
+                          </div>
+                          <div class="text-gray-800 text-sm leading-relaxed">
+                            <MarkdownRenderer content={message.content} />
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+                
+                {#if isLoading}
+                  <div class="flex justify-start">
+                    <div class="bg-gradient-to-r from-gray-50 to-blue-50 p-5 rounded-2xl border border-gray-100 max-w-2xl shadow-sm">
+                      <div class="flex items-center space-x-3 mb-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center border-2 border-blue-200 bg-white">
+                          <AgentIcons agentName={selectedAgent?.name || ''} size="w-4 h-4" />
+                        </div>
+                        <span class="text-sm text-gray-600 font-medium">{selectedAgent?.name || 'Agent'} is thinking...</span>
+                      </div>
+                      <div class="flex space-x-2">
+                        <div class="w-3 h-3 bg-blue-400 rounded-full animate-bounce"></div>
+                        <div class="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                      </div>
+                    </div>
+                  </div>
+                {/if}
+              {:else}
+                <!-- Oversight Mode: Timeline with Agent Iterations -->
+                <div class="oversight-timeline">
+                  <h3 class="text-lg font-semibold text-gray-800 mb-6 flex items-center">
+                    <div class="w-3 h-3 bg-purple-600 rounded-full mr-3 animate-pulse"></div>
+                    Oversight Mode: Team Coordination Timeline
+                  </h3>
+                  
+                  <!-- User Message -->
+                  {#each messages.filter(m => m.type === 'user') as userMessage}
+                    <div class="timeline-item mb-8">
+                      <div class="flex items-start space-x-4">
+                        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                          <span class="text-white text-sm font-bold">You</span>
+                        </div>
+                        <div class="flex-1 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-5 rounded-r-2xl shadow-sm">
+                          <div class="font-semibold text-blue-900 text-sm mb-2">Your Request</div>
+                          <div class="text-blue-800 text-sm">
+                            <MarkdownRenderer content={userMessage.content} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/each}
+                  
+                  <!-- Agent Iterations -->
+                  {#each oversightIterations as iteration, i}
+                    <div class="timeline-item mb-6 relative">
+                      <!-- Timeline connector -->
+                      {#if i < oversightIterations.length - 1}
+                        <div class="absolute left-5 top-14 w-0.5 h-12 bg-gray-200"></div>
+                      {/if}
+                      
+                      <div class="flex items-start space-x-4">
+                        <!-- Agent Avatar with Status -->
+                        <div class="relative">
+                          <div class="w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-sm" style="background-color: {iteration.color}20; border-color: {iteration.color}">
+                            <AgentIcons agentName={iteration.agent_name} size="w-5 h-5" />
+                          </div>
+                          
+                          <!-- Status Indicator -->
+                          {#if iteration.status === 'thinking'}
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full animate-pulse border-2 border-white"></div>
+                          {:else if iteration.status === 'completed'}
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white">
+                              <svg class="w-2.5 h-2.5 text-white absolute top-0.5 left-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                              </svg>
+                            </div>
+                          {:else if iteration.status === 'active'}
+                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white animate-bounce"></div>
+                          {/if}
+                        </div>
+                        
+                        <!-- Agent Content -->
+                        <div class="flex-1 border-l-4 p-4 rounded-r-2xl shadow-sm" style="background-color: {iteration.color}05; border-left-color: {iteration.color}">
+                          <div class="flex items-center space-x-3 mb-3">
+                            <span class="font-semibold text-sm" style="color: {iteration.color}">{iteration.agent_name}</span>
+                            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{iteration.agent_role}</span>
+                            <div class="text-xs px-3 py-1 rounded-full font-medium" style="background-color: {iteration.color}20; color: {iteration.color}">
+                              Turn {iteration.turn}
+                            </div>
+                          </div>
+                          
+                          {#if iteration.status === 'thinking'}
+                            <div class="text-sm text-gray-600 italic">{iteration.message || `${iteration.agent_name} is analyzing your request...`}</div>
+                          {:else}
+                            <div class="text-sm text-gray-800 leading-relaxed">{iteration.content}</div>
+                          {/if}
+                          
+                          <div class="text-xs text-gray-400 mt-3 flex items-center">
+                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            {new Date(iteration.timestamp).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/each}
+                  
+                  <!-- Loading state in oversight mode -->
+                  {#if isLoading}
+                    <div class="timeline-item mb-6">
+                      <div class="flex items-start space-x-4">
+                        <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center animate-pulse">
+                          <AgentIcons agentName="Ali" size="w-5 h-5" />
+                        </div>
+                        <div class="flex-1 bg-gray-50 border-l-4 border-gray-200 p-4 rounded-r-2xl">
+                          <div class="text-sm text-gray-600 font-medium">Ali is coordinating the team response...</div>
+                          <div class="flex space-x-2 mt-3">
+                            <div class="w-3 h-3 bg-purple-400 rounded-full animate-bounce"></div>
+                            <div class="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+            
+            <!-- Enhanced Input Section -->
+            <div class="p-6 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+              <div class="flex space-x-4">
+                <textarea
+                  bind:value={currentMessage}
+                  on:keydown={handleKeyPress}
+                  placeholder="Ask {selectedAgent?.name || 'the agent'} about strategy, analysis, or anything in their expertise area..."
+                  class="flex-1 resize-none border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-sm"
+                  rows="3"
+                  disabled={isLoading}
+                  aria-label="Type your message to {selectedAgent?.name || 'the agent'}"
+                ></textarea>
+                <button
+                  on:click={sendMessage}
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !(!currentMessage.trim() || isLoading) ? (e.preventDefault(), sendMessage()) : null}
+                  disabled={!currentMessage.trim() || isLoading}
+                  class="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105"
+                  aria-label="Send message to {selectedAgent?.name || 'agent'}"
+                >
+                  <div class="flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                    </svg>
+                    <span>Send</span>
+                  </div>
+                </button>
+              </div>
+              <div class="text-xs text-gray-500 mt-3 flex items-center justify-center">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Press Shift+Enter for new line, Enter to send
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hire New Agent Modal -->
+    {#if showHireForm}
+      <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-content max-w-md">
+          <!-- Modal Header -->
+          <div class="modal-header">
+            <div class="flex items-center justify-between">
+              <h2 id="modal-title" class="text-lg font-medium text-gray-900">Hire New Agent</h2>
+              <button
+                on:click={() => showHireForm = false}
+                on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), showHireForm = false) : null}
+                class="text-gray-600 hover:text-gray-900 transition-colors"
+                aria-label="Close modal"
+                tabindex="0"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Modal Body -->
+          <div class="modal-body">
+            {#if !showPreview}
+              <!-- Initial Form -->
+              <form on:submit|preventDefault={generateAgent} class="space-y-4">
+                <!-- Agent Name -->
+                <div>
+                  <label for="agent-name" class="form-label">
+                    Agent Name *
+                  </label>
+                  <input
+                    id="agent-name"
+                    type="text"
+                    bind:value={newAgentForm.name}
+                    placeholder="e.g., Mario, Elena, Giorgio..."
+                    class="input-field"
+                    required
+                  />
+                </div>
+
+                <!-- Role -->
+                <div>
+                  <label for="agent-role" class="form-label">
+                    Role *
+                  </label>
+                  <input
+                    id="agent-role"
+                    type="text"
+                    bind:value={newAgentForm.role}
+                    placeholder="e.g., Marketing Manager, Data Analyst..."
+                    class="input-field"
+                    required
+                  />
+                </div>
+
+                <!-- Description -->
+                <div>
+                  <label for="agent-description" class="form-label">
+                    Description *
+                  </label>
+                  <textarea
+                    id="agent-description"
+                    bind:value={newAgentForm.description}
+                    placeholder="Brief description of what this agent does..."
+                    rows="2"
+                    class="input-field resize-none"
+                    required
+                  ></textarea>
+                </div>
+
+                <!-- Specialty -->
+                <div>
+                  <label for="agent-specialty" class="form-label">
+                    Specialty *
+                  </label>
+                  <input
+                    id="agent-specialty"
+                    type="text"
+                    bind:value={newAgentForm.specialty}
+                    placeholder="e.g., Social media, financial planning..."
+                    class="input-field"
+                    required
+                  />
+                </div>
+
+                <!-- Personality -->
+                <div>
+                  <label for="agent-personality" class="form-label">
+                    Personality
+                  </label>
+                  <input
+                    id="agent-personality"
+                    type="text"
+                    bind:value={newAgentForm.personality}
+                    placeholder="e.g., Creative, analytical, detail-oriented..."
+                    class="input-field"
+                  />
+                </div>
+
+                <!-- Error Messages -->
+                {#if creationError}
+                  <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-700">{creationError}</p>
+                  </div>
+                {/if}
+
+                <!-- Buttons -->
+                <div class="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    on:click={cancelAgentCreation}
+                    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isGeneratingAgent ? (e.preventDefault(), cancelAgentCreation()) : null}
+                    class="btn-secondary flex-1"
+                    disabled={isGeneratingAgent}
+                    aria-label="Cancel agent creation"
+                      >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn-primary flex-1"
+                    disabled={isGeneratingAgent}
+                    aria-label="Generate agent with AI"
+                      >
+                    {#if isGeneratingAgent}
+                      <div class="flex items-center justify-center space-x-2">
+                        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>AI Creating...</span>
+                      </div>
+                    {:else}
+                      ✨ Generate with AI
+                    {/if}
+                  </button>
+                </div>
+                
+                <div class="caption text-center pt-2">
+                  AI will create a complete job description aligned with your team
+                </div>
+              </form>
+              
+            {:else}
+              <!-- AI Generated Preview -->
+              <div class="space-y-6">
+                <div class="text-center">
+                  <div class="inline-flex items-center space-x-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
+                    <span>🤖</span>
+                    <span>AI Generated Agent</span>
+                  </div>
+                </div>
+                
+                {#if generatedAgent}
+                  <!-- Agent Preview Card -->
+                  <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div class="flex items-center space-x-3 mb-3">
+                      <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg" 
+                           style="background-color: {generatedAgent.color || '#6366f1'}">
+                        {generatedAgent.name?.charAt(0) || 'A'}
+                      </div>
+                      <div>
+                        <h3 class="font-semibold text-gray-900">{generatedAgent.name}</h3>
+                        <p class="text-sm text-blue-600">{generatedAgent.role}</p>
+                      </div>
+                    </div>
+                    
+                    <div class="space-y-3 text-sm">
+                      <div>
+                        <span class="font-medium text-gray-700">Description:</span>
+                        <p class="text-gray-600 mt-1">{generatedAgent.description}</p>
+                      </div>
+                      
+                      <div>
+                        <span class="font-medium text-gray-700">Specialty:</span>
+                        <p class="text-gray-600 mt-1">{generatedAgent.specialty}</p>
+                      </div>
+                      
+                      <div>
+                        <span class="font-medium text-gray-700">Personality:</span>
+                        <p class="text-gray-600 mt-1">{generatedAgent.personality}</p>
+                      </div>
+                      
+                      {#if generatedAgent.tools && generatedAgent.tools.length > 0}
+                        <div>
+                          <span class="font-medium text-gray-700">Tools:</span>
+                          <div class="flex flex-wrap gap-1 mt-1">
+                            {#each generatedAgent.tools.slice(0, 3) as tool}
+                              <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{tool}</span>
+                            {/each}
+                            {#if generatedAgent.tools.length > 3}
+                              <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">+{generatedAgent.tools.length - 3} more</span>
+                            {/if}
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- Success Messages -->
+                {#if creationSuccess}
+                  <div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p class="text-sm text-green-700">Agent created successfully!</p>
+                  </div>
+                {/if}
+
+                <!-- Error Messages -->
+                {#if creationError}
+                  <div class="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-sm text-red-700">{creationError}</p>
+                  </div>
+                {/if}
+
+                <!-- Action Buttons -->
+                <div class="flex space-x-3">
+                  <button
+                    type="button"
+                    on:click={backToEdit}
+                    on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isCreatingAgent ? (e.preventDefault(), backToEdit()) : null}
+                    class="btn-secondary flex-1"
+                    disabled={isCreatingAgent}
+                    aria-label="Go back to edit agent details"
+                      >
                   ← Edit Details
                 </button>
                 <button
@@ -1260,7 +1369,7 @@
                   class="btn-primary flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-300"
                   disabled={isCreatingAgent}
                   aria-label="Hire this agent"
-                    >
+                      >
                   {#if isCreatingAgent}
                     <div class="flex items-center justify-center space-x-2">
                       <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

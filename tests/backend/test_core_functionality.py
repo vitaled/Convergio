@@ -96,14 +96,14 @@ class TestCoreBackendFunctionality:
         logger.info("Testing API health endpoints...")
         
         # Test basic health
-        response = test_client.get("/health")
+        response = await test_client.get("/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] in ["healthy", "degraded"]
         logger.info(f"✓ Health check passed: {data['status']}")
         
         # Test system status
-        response = test_client.get("/api/v1/system/status")
+        response = await test_client.get("/api/v1/system/status")
         assert response.status_code == 200
         data = response.json()
         assert "version" in data
@@ -111,7 +111,7 @@ class TestCoreBackendFunctionality:
         logger.info(f"✓ System status: v{data['version']} - {data['environment']}")
         
         # Test API status
-        response = test_client.get("/api/v1/system/api-status")
+        response = await test_client.get("/api/v1/system/api-status")
         assert response.status_code == 200
         data = response.json()
         assert "openai" in data
@@ -203,7 +203,7 @@ class TestCoreBackendFunctionality:
             "context": {}
         }
         
-        response = test_client.post(
+        response = await test_client.post(
             "/api/v1/agents/conversation",
             json=payload
         )
@@ -212,8 +212,9 @@ class TestCoreBackendFunctionality:
         if response.status_code == 200:
             data = response.json()
             assert "response" in data or "content" in data
-            assert "agent" in data
-            logger.info(f"✓ Conversation API responded: {data.get('agent', 'unknown')}")
+            assert "agents_used" in data or "agent" in data
+            agent_info = data.get('agents_used', [data.get('agent', 'unknown')])
+            logger.info(f"✓ Conversation API responded: {agent_info}")
         else:
             logger.warning(f"Conversation API returned {response.status_code}")
             # This is acceptable in test environment
@@ -238,7 +239,7 @@ class TestCoreBackendFunctionality:
         logger.info(f"✓ Cost limit configured: ${settings.MAX_CONVERSATION_COST}")
         
         # Test cost tracking in conversation
-        response = test_client.post(
+        response = await test_client.post(
             "/api/v1/agents/conversation",
             json={
                 "message": "Hi",
@@ -292,14 +293,14 @@ class TestCoreBackendFunctionality:
         logger.info("Testing security framework...")
         
         # Test CORS headers
-        response = test_client.options("/api/v1/agents/conversation")
+        response = await test_client.options("/api/v1/agents/conversation")
         if "access-control-allow-origin" in response.headers:
             logger.info(f"✓ CORS configured: {response.headers['access-control-allow-origin']}")
         
         # Test rate limiting (if configured)
         responses = []
         for i in range(5):
-            r = test_client.get("/health")
+            r = await test_client.get("/health")
             responses.append(r.status_code)
         
         # Check if rate limiting kicks in (429 status)
@@ -322,7 +323,7 @@ class TestCoreBackendFunctionality:
         
         # Note: This requires websocket-client library
         # For now, just test that the endpoint exists
-        response = test_client.get("/ws")
+        response = await test_client.get("/ws")
         # WebSocket endpoints typically return 426 Upgrade Required
         if response.status_code in [426, 101, 404]:
             logger.info("✓ WebSocket endpoint configured")
