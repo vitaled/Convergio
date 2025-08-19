@@ -122,7 +122,7 @@
   <!-- Main Cost Display -->
   <button
     on:click={() => showDetails = !showDetails}
-    class="flex items-center space-x-2 text-xs text-white/90 hover:bg-white/10 backdrop-blur-sm px-3 py-2 rounded-lg transition-all duration-300 border border-white/20"
+    class="flex items-center space-x-2 text-xs text-gray-700 hover:bg-gray-100/50 backdrop-blur-sm px-3 py-2 rounded-lg transition-all duration-300 border border-gray-200/50"
     title="Click to toggle detailed cost breakdown"
   >
     <span class="text-xs">{getStatusIcon($costData.status)}</span>
@@ -149,13 +149,13 @@
 
   <!-- Enhanced Detailed Cost Panel -->
   {#if showDetails}
-    <div class="absolute right-0 top-full mt-2 w-80 bg-slate-900/95 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl z-[60] p-4">
+    <div class="absolute right-0 top-full mt-2 w-80 bg-white/95 backdrop-blur-lg border border-gray-200/50 rounded-xl shadow-2xl z-[100] p-4">
       <div class="space-y-4">
         <!-- Header -->
-        <div class="flex items-center justify-between pb-2 border-b border-white/20">
-          <h3 class="text-sm font-medium text-white">💰 Cost Overview</h3>
+        <div class="flex items-center justify-between pb-2 border-b border-gray-200/50">
+          <h3 class="text-sm font-medium text-gray-800">💰 Cost Overview</h3>
           <div class="flex items-center space-x-2">
-            <span class="text-xs px-2 py-1 rounded-full font-mono {$costData.status === 'healthy' ? 'bg-green-500/20 text-green-400' : $costData.status === 'warning' ? 'bg-yellow-500/20 text-yellow-400' : $costData.status === 'exceeded' ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/70'}">
+            <span class="text-xs px-2 py-1 rounded-full font-mono {$costData.status === 'healthy' ? 'bg-green-100 text-green-700' : $costData.status === 'warning' ? 'bg-yellow-100 text-yellow-700' : $costData.status === 'exceeded' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}">
               {$costData.status}
             </span>
           </div>
@@ -164,15 +164,15 @@
         <!-- Cost Metrics -->
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1">
-            <div class="text-xs text-white/70">Total Cost</div>
-            <div class="text-sm font-mono font-medium text-white">
+            <div class="text-xs text-gray-600">Total Cost</div>
+            <div class="text-sm font-mono font-medium text-gray-800">
               {formatCost($costData.total_cost_usd)}
             </div>
           </div>
           
           <div class="space-y-1">
-            <div class="text-xs text-white/70">Today</div>
-            <div class="text-sm font-mono font-medium text-blue-400">
+            <div class="text-xs text-gray-600">Today</div>
+            <div class="text-sm font-mono font-medium text-blue-600">
               {formatCost($costData.today_cost_usd)}
             </div>
           </div>
@@ -182,10 +182,10 @@
         {#if $costData.budget_utilization > 0}
           <div class="space-y-1">
             <div class="flex justify-between text-xs">
-              <span class="text-white/70">Budget Used:</span>
-              <span class="font-mono text-white">{$costData.budget_utilization.toFixed(1)}%</span>
+              <span class="text-gray-600">Budget Used:</span>
+              <span class="font-mono text-gray-800">{$costData.budget_utilization.toFixed(1)}%</span>
             </div>
-            <div class="w-full bg-white/20 rounded-full h-1.5">
+            <div class="w-full bg-gray-200 rounded-full h-1.5">
               <div class="h-1.5 rounded-full {$costData.budget_utilization > 80 ? 'bg-red-400' : $costData.budget_utilization > 50 ? 'bg-yellow-400' : 'bg-green-400'}" 
                    style="width: {Math.min($costData.budget_utilization, 100)}%"></div>
             </div>
@@ -195,16 +195,16 @@
         <!-- Provider Breakdown -->
         {#if Object.keys($costData.provider_breakdown).length > 0}
           <div class="space-y-2">
-            <div class="text-xs font-medium text-white/90 flex items-center">
+            <div class="text-xs font-medium text-gray-800 flex items-center">
               <span>Provider Costs (Today)</span>
             </div>
             {#each Object.entries($costData.provider_breakdown) as [provider, cost]}
               <div class="flex justify-between items-center text-xs">
                 <div class="flex items-center space-x-2">
-                  <div class="w-2 h-2 rounded-full {provider === 'openai' ? 'bg-green-400' : provider === 'anthropic' ? 'bg-purple-400' : provider === 'perplexity' ? 'bg-blue-400' : 'bg-white/50'}"></div>
-                  <span class="capitalize text-white/70">{provider}</span>
+                  <div class="w-2 h-2 rounded-full {provider === 'openai' ? 'bg-green-500' : provider === 'anthropic' ? 'bg-purple-500' : provider === 'perplexity' ? 'bg-blue-500' : 'bg-gray-400'}"></div>
+                  <span class="capitalize text-gray-600">{provider}</span>
                 </div>
-                <span class="font-mono text-white">{formatCost(cost)}</span>
+                <span class="font-mono text-gray-800">{formatCost(cost)}</span>
               </div>
             {/each}
           </div>
@@ -213,11 +213,11 @@
         <!-- Top Models -->
         {#if Object.keys($costData.model_breakdown).length > 0}
           <div class="space-y-2">
-            <div class="text-xs font-medium text-white/90">Top Models (Today)</div>
+            <div class="text-xs font-medium text-gray-800">Top Models (Today)</div>
             {#each Object.entries($costData.model_breakdown).slice(0, 3) as [model, cost]}
               <div class="flex justify-between items-center text-xs">
-                <span class="text-white/70 truncate">{model}</span>
-                <span class="font-mono text-white">{formatCost(cost)}</span>
+                <span class="text-gray-600 truncate">{model}</span>
+                <span class="font-mono text-gray-800">{formatCost(cost)}</span>
               </div>
             {/each}
           </div>
@@ -225,28 +225,28 @@
 
         <!-- Usage Metrics -->
         {#if $costData.total_interactions > 0}
-          <div class="pt-2 border-t border-white/20 space-y-2">
+          <div class="pt-2 border-t border-gray-200/50 space-y-2">
             <div class="flex justify-between text-xs">
-              <span class="text-white/70">Interactions:</span>
-              <span class="font-mono text-white">{$costData.total_interactions.toLocaleString()}</span>
+              <span class="text-gray-600">Interactions:</span>
+              <span class="font-mono text-gray-800">{$costData.total_interactions.toLocaleString()}</span>
             </div>
             
             <div class="flex justify-between text-xs">
-              <span class="text-white/70">Tokens:</span>
-              <span class="font-mono text-white">{$costData.total_tokens.toLocaleString()}</span>
+              <span class="text-gray-600">Tokens:</span>
+              <span class="font-mono text-gray-800">{$costData.total_tokens.toLocaleString()}</span>
             </div>
 
             {#if $costData.active_sessions > 0}
               <div class="flex justify-between text-xs">
-                <span class="text-white/70">Active Sessions:</span>
-                <span class="font-mono text-white">{$costData.active_sessions}</span>
+                <span class="text-gray-600">Active Sessions:</span>
+                <span class="font-mono text-gray-800">{$costData.active_sessions}</span>
               </div>
             {/if}
           </div>
         {/if}
 
         <!-- Last Updated -->
-        <div class="pt-2 border-t border-white/20 flex justify-between items-center text-xs text-white/60">
+        <div class="pt-2 border-t border-gray-200/50 flex justify-between items-center text-xs text-gray-500">
           <span>Updated:</span>
           <span class="font-mono">
             {$costData.last_updated ? new Date($costData.last_updated + (($costData.last_updated.includes('Z') || $costData.last_updated.includes('+')) ? '' : 'Z')).toLocaleTimeString() : 'N/A'}
@@ -255,7 +255,7 @@
 
         <!-- Status Message -->
         {#if $costData.status === 'error' || $costData.status === 'unavailable'}
-          <div class="pt-2 text-xs text-white/60 italic">
+          <div class="pt-2 text-xs text-gray-500 italic">
             Cost tracking temporarily unavailable
           </div>
         {/if}
@@ -267,7 +267,7 @@
 <!-- Click outside to close -->
 {#if showDetails}
   <div 
-    class="fixed inset-0 z-[55]" 
+    class="fixed inset-0 z-[90]" 
     role="button"
     tabindex="-1"
     aria-label="Close cost details"

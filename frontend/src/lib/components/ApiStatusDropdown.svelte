@@ -134,17 +134,17 @@
   
   function getStatusColor(status: 'online' | 'partial' | 'offline') {
     switch (status) {
-      case 'online': return 'text-green-600';
-      case 'partial': return 'text-yellow-600';
-      case 'offline': return 'text-red-600';
+      case 'online': return 'text-green-400';
+      case 'partial': return 'text-yellow-400';
+      case 'offline': return 'text-red-400';
     }
   }
   
   function getStatusBgColor(status: 'online' | 'partial' | 'offline') {
     switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'partial': return 'bg-yellow-500';
-      case 'offline': return 'bg-red-500';
+      case 'online': return 'bg-green-400';
+      case 'partial': return 'bg-yellow-400';
+      case 'offline': return 'bg-red-400';
     }
   }
   
@@ -191,22 +191,22 @@
   <!-- Dropdown Panel -->
   {#if isOpen}
     <div
-      class="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+      class="absolute right-0 mt-2 w-72 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-200/50 z-50"
       on:click|stopPropagation
     >
-      <div class="p-3 border-b border-gray-100">
-        <h3 class="text-xs font-semibold text-gray-900">API Connection Status</h3>
-        <p class="text-xs text-gray-500 mt-0.5">Real-time service availability</p>
+      <div class="p-3 border-b border-gray-200/50">
+        <h3 class="text-xs font-semibold text-gray-800">API Connection Status</h3>
+        <p class="text-xs text-gray-600 mt-0.5">Real-time service availability</p>
       </div>
       
       <div class="p-2 space-y-2">
         <!-- Backend Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
           <div class="flex items-center space-x-2">
             <span class="text-base">{getServiceIcon('backend')}</span>
             <div>
-              <p class="text-xs font-medium text-gray-900">Backend Server</p>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs font-medium text-white">Backend Server</p>
+              <p class="text-xs text-white/70">
                 {#if apiStatus.backend.connected}
                   v{apiStatus.backend.version || 'Unknown'}
                 {:else}
@@ -216,20 +216,20 @@
             </div>
           </div>
           <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.backend.connected ? 'bg-green-500' : 'bg-red-500'}"></div>
-            <span class="text-xs {apiStatus.backend.connected ? 'text-green-600' : 'text-red-600'}">
+            <div class="h-2 w-2 rounded-full {apiStatus.backend.connected ? 'bg-green-400' : 'bg-red-400'}"></div>
+            <span class="text-xs {apiStatus.backend.connected ? 'text-green-400' : 'text-red-400'}">
               {apiStatus.backend.connected ? 'Online' : 'Offline'}
             </span>
           </div>
         </div>
         
         <!-- OpenAI Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
           <div class="flex items-center space-x-2">
             <span class="text-base">{getServiceIcon('openai')}</span>
             <div>
-              <p class="text-xs font-medium text-gray-900">OpenAI</p>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs font-medium text-white">OpenAI</p>
+              <p class="text-xs text-white/70">
                 {#if apiStatus.openai.connected}
                   {apiStatus.openai.model || 'Connected'}
                 {:else if apiStatus.openai.error}
@@ -241,20 +241,20 @@
             </div>
           </div>
           <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.openai.connected ? 'bg-green-500' : 'bg-gray-300'}"></div>
-            <span class="text-xs {apiStatus.openai.connected ? 'text-green-600' : 'text-gray-500'}">
+            <div class="h-2 w-2 rounded-full {apiStatus.openai.connected ? 'bg-green-400' : 'bg-white/30'}"></div>
+            <span class="text-xs {apiStatus.openai.connected ? 'text-green-400' : 'text-white/60'}">
               {apiStatus.openai.connected ? 'Active' : 'Inactive'}
             </span>
           </div>
         </div>
         
         <!-- Anthropic Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
           <div class="flex items-center space-x-2">
             <span class="text-base">{getServiceIcon('anthropic')}</span>
             <div>
-              <p class="text-xs font-medium text-gray-900">Anthropic</p>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs font-medium text-white">Anthropic</p>
+              <p class="text-xs text-white/70">
                 {#if apiStatus.anthropic.connected}
                   {apiStatus.anthropic.model || 'Connected'}
                 {:else if apiStatus.anthropic.error}
@@ -266,20 +266,20 @@
             </div>
           </div>
           <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.anthropic.connected ? 'bg-green-500' : 'bg-gray-300'}"></div>
-            <span class="text-xs {apiStatus.anthropic.connected ? 'text-green-600' : 'text-gray-500'}">
+            <div class="h-2 w-2 rounded-full {apiStatus.anthropic.connected ? 'bg-green-400' : 'bg-white/30'}"></div>
+            <span class="text-xs {apiStatus.anthropic.connected ? 'text-green-400' : 'text-white/60'}">
               {apiStatus.anthropic.connected ? 'Active' : 'Inactive'}
             </span>
           </div>
         </div>
         
         <!-- Perplexity Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
           <div class="flex items-center space-x-2">
             <span class="text-base">{getServiceIcon('perplexity')}</span>
             <div>
-              <p class="text-xs font-medium text-gray-900">Perplexity</p>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs font-medium text-white">Perplexity</p>
+              <p class="text-xs text-white/70">
                 {#if apiStatus.perplexity.connected}
                   {apiStatus.perplexity.model || 'Web Search Ready'}
                 {:else if apiStatus.perplexity.error}
@@ -291,22 +291,22 @@
             </div>
           </div>
           <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.perplexity.connected ? 'bg-green-500' : 'bg-yellow-500'}"></div>
-            <span class="text-xs {apiStatus.perplexity.connected ? 'text-green-600' : 'text-yellow-600'}">
+            <div class="h-2 w-2 rounded-full {apiStatus.perplexity.connected ? 'bg-green-400' : 'bg-yellow-400'}"></div>
+            <span class="text-xs {apiStatus.perplexity.connected ? 'text-green-400' : 'text-yellow-400'}">
               {apiStatus.perplexity.connected ? 'Active' : 'Optional'}
             </span>
           </div>
         </div>
       </div>
       
-      <div class="p-3 border-t border-gray-100 bg-gray-50">
+      <div class="p-3 border-t border-white/20 bg-white/5">
         <div class="flex items-center justify-between">
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-white/60">
             Last checked: {new Date().toLocaleTimeString()}
           </p>
           <button
             on:click={checkApiStatus}
-            class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            class="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
           >
             Refresh
           </button>

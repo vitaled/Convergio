@@ -114,7 +114,7 @@
 </svelte:head>
 
 <!-- Comprehensive Dashboard -->
-<div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 space-y-6">
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 space-y-6">
   <!-- Dashboard Navigation -->
   <DashboardNavigation bind:activeSection />
 

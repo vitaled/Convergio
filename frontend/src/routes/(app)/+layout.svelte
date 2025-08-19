@@ -60,17 +60,17 @@
   }
 </script>
 
-<!-- Modern Glassmorphism Layout -->
-<div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-mono text-sm">
-  <!-- Glassmorphism Top Navigation -->
-  <div class="bg-white/10 backdrop-blur-lg border-b border-white/20">
+<!-- Modern Light Glassmorphism Layout -->
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 font-mono text-sm">
+  <!-- Light Glassmorphism Top Navigation -->
+  <div class="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-14">
         <!-- Logo & Title -->
         <div class="flex items-center space-x-4">
           <button on:click={() => goto('/')} class="flex items-center space-x-3 hover:opacity-75 transition-all">
             <img src="/convergio_logo.png" alt="Platform Convergio" class="h-8 w-auto" />
-            <span class="text-white font-medium tracking-tight">platform.Convergio.io</span>
+            <span class="text-gray-800 font-medium tracking-tight">platform.Convergio.io</span>
           </button>
         </div>
         
@@ -82,8 +82,8 @@
               sveltekit:prefetch
               aria-current={isActive(item.href) ? 'page' : undefined}
               class="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 {isActive(item.href)
-                ? 'bg-white/20 text-white border border-white/30 shadow-lg'
-                : 'text-white/80 hover:text-white hover:bg-white/10 border border-transparent'}"
+                ? 'bg-gray-200/60 text-gray-900 border border-gray-300/50 shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent'}"
             >
               <img src={item.iconPath} alt="" class="h-3 w-3" />
               <span>{item.label}</span>

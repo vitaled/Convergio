@@ -31,19 +31,19 @@
   }
 </script>
 
-<div class="bg-white border border-gray-200 rounded mb-6">
-  <div class="px-4 py-3 border-b border-gray-200">
-    <h2 class="text-sm font-medium text-gray-900">Dashboard</h2>
+<div class="bg-white/80 backdrop-blur-lg border border-gray-200/50 rounded-xl mb-6 shadow-lg">
+  <div class="px-4 py-3 border-b border-gray-200/50">
+    <h2 class="text-sm font-medium text-gray-800">Dashboard</h2>
   </div>
   <div class="p-4">
     <nav class="flex flex-wrap gap-1">
       {#each sections as section}
         <button
           on:click={() => handleSectionChange(section.id)}
-          class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors {
+          class="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 {
             activeSection === section.id
-              ? 'bg-orange-100 text-orange-900 font-semibold'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              ? 'bg-gray-200/60 text-gray-900 border border-gray-300/50 shadow-md'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent'
           }"
         >
           <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
