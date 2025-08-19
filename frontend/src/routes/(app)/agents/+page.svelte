@@ -679,25 +679,30 @@
 </svelte:head>
 
 <!-- AI Agents Page -->
-<div class="space-y-6">
+<div class="min-h-screen bg-gray-50 space-y-6">
   <!-- Header -->
-  <div>
-    <h1 class="heading-lg">AI Team</h1>
-    <p class="body-sm text-gray-600">Your specialized AI agents powered by Microsoft AutoGen</p>
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-medium text-gray-900">AI Team</h1>
+      <p class="mt-1 text-sm text-gray-700">Your specialized AI agents powered by Microsoft AutoGen</p>
+    </div>
   </div>
 
   <div class="grid lg:grid-cols-5 gap-8">
     <!-- Agents List with integrated search -->
     <div class="lg:col-span-2">
-      <div class="bg-white border-2 border-gray-300 rounded-xl shadow-lg overflow-hidden">
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <!-- Search in header -->
-        <div class="p-4 border-b border-gray-300 bg-gray-50">
+        <div class="p-4 border-b border-gray-200 bg-gray-50">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="heading-md text-gray-900">AI Team</h3>
+            <h3 class="text-md font-medium text-gray-900">AI Team</h3>
             <!-- Hire New Agent Button -->
             <button
               on:click={() => showHireForm = true}
+              on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? (e.preventDefault(), showHireForm = true) : null}
               class="btn-primary btn-sm flex items-center space-x-1"
+              aria-label="Hire new AI agent"
+              tabindex="0"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -711,10 +716,14 @@
               bind:value={searchQuery}
               placeholder="Search agents by name, role, or skills..."
               class="input-field"
+              aria-label="Search agents by name, role, or skills"
+              role="searchbox"
             />
             <select
               bind:value={selectedSkill}
               class="input-field"
+              aria-label="Filter agents by specialty"
+              role="combobox"
             >
               <option value="">All Specialties</option>
               {#each allSkills.slice(0, 12) as skill}
@@ -751,7 +760,11 @@
             {#each filteredAgents as agent}
               <button
                 on:click={() => selectAgent(agent)}
+                on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), selectAgent(agent)) : null}
                 class="w-full p-3 hover:bg-blue-50 transition-colors text-left group {selectedAgent.id === agent.id ? 'bg-blue-100 border-r-4 border-blue-500' : ''}"
+                aria-label="Select {agent.name} - {agent.role}"
+                aria-pressed="{selectedAgent.id === agent.id}"
+                  tabindex="0"
               >
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 rounded-lg flex items-center justify-center border-2 border-gray-300 bg-gray-100 group-hover:border-blue-400 transition-colors">
@@ -779,7 +792,10 @@
                 <div class="body-md mb-2">No agents found</div>
                 <button 
                   on:click={() => { searchQuery = ''; selectedSkill = ''; }}
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), searchQuery = '', selectedSkill = '') : null}
                   class="text-blue-600 hover:text-blue-700 underline body-sm font-medium"
+                  aria-label="Clear search filters"
+                      tabindex="0"
                 >
                   Clear filters
                 </button>
@@ -792,34 +808,42 @@
 
     <!-- Enlarged Chat Interface -->
     <div class="lg:col-span-3">
-      <div class="bg-white border-2 border-gray-300 rounded-xl shadow-lg h-[600px] flex flex-col">
+      <div class="bg-white border border-gray-200 rounded-lg h-[600px] flex flex-col">
         <!-- Chat Header -->
-        <div class="px-6 py-4 border-b border-gray-300 bg-blue-50">
+        <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
               <div class="w-10 h-10 rounded-lg flex items-center justify-center border-2 border-blue-300 bg-white">
                 <AgentIcons agentName={selectedAgent?.name || ''} size="w-5 h-5" />
               </div>
               <div class="flex-1">
-                <div class="heading-md text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
-                <div class="body-sm text-blue-600">{selectedAgent?.role || ''}</div>
-                <div class="caption text-gray-600 mt-1">{selectedAgent?.description || ''}</div>
+                <div class="text-md font-medium text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
+                <div class="text-sm text-blue-600">{selectedAgent?.role || ''}</div>
+                <div class="text-xs text-gray-600 mt-1">{selectedAgent?.description || ''}</div>
               </div>
             </div>
             
             <!-- Executive/Oversight Mode Toggle (only for Ali) -->
             {#if selectedAgent?.name === 'Ali'}
-              <div class="flex items-center space-x-2 bg-white border-2 border-gray-300 rounded-lg px-3 py-2">
-                <span class="caption font-medium text-gray-600">View:</span>
+              <div class="flex items-center space-x-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                <span class="text-xs font-medium text-gray-600">View:</span>
                 <button
                   on:click={() => isOversightMode = false}
-                  class="px-3 py-1 caption font-medium rounded transition-colors {!isOversightMode ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600'}"
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), isOversightMode = false) : null}
+                  class="px-3 py-1 text-xs font-medium rounded transition-colors {!isOversightMode ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600'}"
+                  aria-label="Switch to Executive view mode"
+                  aria-pressed="{!isOversightMode}"
+                      tabindex="0"
                 >
                   Executive
                 </button>
                 <button
                   on:click={() => isOversightMode = true}
-                  class="px-3 py-1 caption font-medium rounded transition-colors {isOversightMode ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600'}"
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), isOversightMode = true) : null}
+                  class="px-3 py-1 text-xs font-medium rounded transition-colors {isOversightMode ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600'}"
+                  aria-label="Switch to Oversight view mode"
+                  aria-pressed="{isOversightMode}"
+                      tabindex="0"
                 >
                   Oversight
                 </button>
@@ -975,7 +999,7 @@
         </div>
 
         <!-- Enhanced Input -->
-        <div class="p-6 border-t border-gray-300 bg-gray-50">
+        <div class="p-6 border-t border-gray-200 bg-gray-50">
           <div class="flex space-x-3">
             <textarea
               bind:value={currentMessage}
@@ -984,16 +1008,19 @@
               class="flex-1 input-field resize-none"
               rows="2"
               disabled={isLoading}
+              aria-label="Type your message to {selectedAgent?.name || 'the agent'}"
             ></textarea>
             <button
               on:click={sendMessage}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !(!currentMessage.trim() || isLoading) ? (e.preventDefault(), sendMessage()) : null}
               disabled={!currentMessage.trim() || isLoading}
               class="btn-primary px-6 py-3"
+              aria-label="Send message to {selectedAgent?.name || 'agent'}"
             >
               Send
             </button>
           </div>
-          <div class="caption text-gray-600 mt-2">
+          <div class="text-xs text-gray-600 mt-2">
             Press Shift+Enter for new line, Enter to send
           </div>
         </div>
@@ -1003,16 +1030,18 @@
 
   <!-- Hire New Agent Modal -->
   {#if showHireForm}
-    <div class="modal-overlay">
+    <div class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal-content max-w-md">
         <!-- Modal Header -->
         <div class="modal-header">
           <div class="flex items-center justify-between">
-            <h2 class="heading-lg">Hire New Agent</h2>
+            <h2 id="modal-title" class="text-lg font-medium text-gray-900">Hire New Agent</h2>
             <button
               on:click={() => showHireForm = false}
+              on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') ? (e.preventDefault(), showHireForm = false) : null}
               class="text-gray-600 hover:text-gray-900 transition-colors"
               aria-label="Close modal"
+              tabindex="0"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -1112,16 +1141,19 @@
                 <button
                   type="button"
                   on:click={cancelAgentCreation}
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isGeneratingAgent ? (e.preventDefault(), cancelAgentCreation()) : null}
                   class="btn-secondary flex-1"
                   disabled={isGeneratingAgent}
-                >
+                  aria-label="Cancel agent creation"
+                    >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   class="btn-primary flex-1"
                   disabled={isGeneratingAgent}
-                >
+                  aria-label="Generate agent with AI"
+                    >
                   {#if isGeneratingAgent}
                     <div class="flex items-center justify-center space-x-2">
                       <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1214,17 +1246,21 @@
                 <button
                   type="button"
                   on:click={backToEdit}
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isCreatingAgent ? (e.preventDefault(), backToEdit()) : null}
                   class="btn-secondary flex-1"
                   disabled={isCreatingAgent}
-                >
+                  aria-label="Go back to edit agent details"
+                    >
                   ← Edit Details
                 </button>
                 <button
                   type="button"
                   on:click={createFinalAgent}
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && !isCreatingAgent ? (e.preventDefault(), createFinalAgent()) : null}
                   class="btn-primary flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-300"
                   disabled={isCreatingAgent}
-                >
+                  aria-label="Hire this agent"
+                    >
                   {#if isCreatingAgent}
                     <div class="flex items-center justify-center space-x-2">
                       <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
