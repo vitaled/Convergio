@@ -19,91 +19,31 @@
   
   // Modern Glassmorphism colors
   const colors = {
-    primary: '#6366f1',
+    primary: '#3b82f6',
     secondary: '#8b5cf6', 
     success: '#10b981',
     warning: '#f59e0b',
     danger: '#ef4444',
-    background: 'rgba(255, 255, 255, 0.05)',
-    glass: 'rgba(255, 255, 255, 0.1)',
-    text: '#f8fafc',
-    textSecondary: '#cbd5e1'
+    background: '#ffffff',
+    glass: '#ffffff',
+    text: '#111827',
+    textSecondary: '#6b7280'
   };
   
-  // Mock tasks data with AI integration
-  const mockTasks = [
-    {
-      id: 'task1',
-      name: 'Market Research & Analysis',
-      start: new Date('2025-01-15'),
-      end: new Date('2025-02-15'),
-      progress: 0.75,
-      priority: 'high',
-      assignedAgent: 'Marcus PM',
-      dependencies: [],
-      status: 'in_progress',
-      aiInsights: 'On track, market trends favorable'
-    },
-    {
-      id: 'task2', 
-      name: 'Product Design Sprint',
-      start: new Date('2025-02-10'),
-      end: new Date('2025-03-10'),
-      progress: 0.30,
-      priority: 'high',
-      assignedAgent: 'Sara UX Designer',
-      dependencies: ['task1'],
-      status: 'planning',
-      aiInsights: 'Requires additional design resources'
-    },
-    {
-      id: 'task3',
-      name: 'Technical Architecture',
-      start: new Date('2025-02-20'),
-      end: new Date('2025-04-01'),
-      progress: 0.15,
-      priority: 'critical',
-      assignedAgent: 'Baccio Tech Architect', 
-      dependencies: ['task2'],
-      status: 'planning',
-      aiInsights: 'Complex integration requirements identified'
-    },
-    {
-      id: 'task4',
-      name: 'Development Phase 1',
-      start: new Date('2025-03-15'),
-      end: new Date('2025-05-30'),
-      progress: 0.05,
-      priority: 'high',
-      assignedAgent: 'Dan Engineering GM',
-      dependencies: ['task3'],
-      status: 'waiting',
-      aiInsights: 'Resource allocation optimized by AI'
-    },
-    {
-      id: 'task5',
-      name: 'QA & Testing',
-      start: new Date('2025-05-01'),
-      end: new Date('2025-06-15'),
-      progress: 0.0,
-      priority: 'medium',
-      assignedAgent: 'Thor QA Guardian',
-      dependencies: ['task4'],
-      status: 'waiting',
-      aiInsights: 'Automated testing pipeline ready'
-    }
-  ];
+  // Only real tasks from backend
+  $: displayTasks = tasks;
   
-  $: displayTasks = tasks.length > 0 ? tasks : mockTasks;
-  
-  // Time scale setup
-  $: timeExtent = extent(displayTasks.flatMap(d => [d.start, d.end]));
+  // Time scale setup (robust when no tasks are present)
+  $: now = new Date();
+  $: fallbackExtent = [now, new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)] as [Date, Date];
+  $: datePairs = (displayTasks || []).flatMap((d: any) => [d.start, d.end]).filter(Boolean) as Date[];
+  $: timeExtent = (datePairs.length ? extent(datePairs) : fallbackExtent) as [Date, Date];
   $: xScale = scaleTime()
     .domain(timeExtent)
     .range([200, svgWidth - 50]);
   
   $: yScale = scaleLinear()
-    .domain([0, displayTasks.length])
+    .domain([0, (displayTasks || []).length])
     .range([50, svgHeight - 50]);
   
   const formatDate = timeFormat('%b %d');
@@ -117,23 +57,29 @@
   
   async function loadProjectTasks() {
     try {
-      // Load activities for the engagement (project)
-      const response = await fetch(`/api/v1/projects/engagements/${projectId}/details`);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      // Prefer filtered activities endpoint to avoid empty details
+      const response = await fetch(`${apiUrl}/api/v1/projects/activities?engagement_id=${projectId}`);
       if (response.ok) {
         const projectData = await response.json();
-        // Use activities as tasks for the Gantt chart
-        tasks = projectData.activities.map(activity => ({
-          id: activity.id,
-          name: activity.title,
-          start: new Date(activity.created_at || Date.now()),
-          end: new Date(activity.updated_at || Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from created
-          progress: activity.progress / 100,
-          priority: activity.status === 'completed' ? 'low' : activity.status === 'in-progress' ? 'high' : 'medium',
-          assignedAgent: 'AI Agent',
-          dependencies: [],
-          status: activity.status,
-          aiInsights: `Activity from ${activity.status} status`
-        }));
+        const list = Array.isArray(projectData.activities) ? projectData.activities : [];
+        tasks = list.map((activity: any) => {
+          const progressValue = typeof activity.progress === 'number' ? (activity.progress > 1 ? activity.progress / 100 : activity.progress) : 0;
+          const startDate = activity.start_date || activity.created_at;
+          const endDate = activity.end_date || activity.due_date || activity.updated_at;
+          return {
+            id: activity.id,
+            name: activity.title || 'Untitled',
+            start: new Date(startDate || Date.now()),
+            end: new Date(endDate || Date.now() + 7 * 24 * 60 * 60 * 1000),
+            progress: progressValue,
+            priority: activity.priority || 'medium',
+            assignedAgent: activity.assigned_agent || 'Unassigned',
+            dependencies: activity.dependencies || [],
+            status: activity.status || 'planning',
+            aiInsights: activity.ai_insights || ''
+          };
+        });
       }
     } catch (error) {
       console.error('Failed to load tasks:', error);
@@ -142,29 +88,17 @@
   
   async function getAISuggestions() {
     try {
-      // Simulate AI suggestions for project optimization
-      aiSuggestions = [
-        {
-          type: 'optimization',
-          message: 'Ali suggests parallelizing tasks 2 and 3 to reduce timeline by 15 days',
-          confidence: 0.92,
-          impact: 'high'
-        },
-        {
-          type: 'resource',
-          message: 'Marcus recommends adding 1 additional developer to critical path',
-          confidence: 0.85,
-          impact: 'medium'
-        },
-        {
-          type: 'risk',
-          message: 'Potential bottleneck detected in task 4 - consider early mitigation',
-          confidence: 0.78,
-          impact: 'high'
-        }
-      ];
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      const response = await fetch(`${apiUrl}/api/v1/projects/engagements/${projectId}/ai-suggestions`);
+      if (response.ok) {
+        const data = await response.json();
+        aiSuggestions = Array.isArray(data) ? data : (data.suggestions || []);
+      } else {
+        aiSuggestions = [];
+      }
     } catch (error) {
       console.error('Failed to get AI suggestions:', error);
+      aiSuggestions = [];
     }
   }
   
@@ -201,7 +135,8 @@
   
   async function askAliOptimization() {
     try {
-      const response = await fetch('/api/v1/agents/ali/optimize-project', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      const response = await fetch(`${apiUrl}/api/v1/agents/ali/optimize-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -217,7 +152,7 @@
       }
     } catch (error) {
       console.error('Failed to get Ali optimization:', error);
-      alert('🤖 Ali is analyzing your project timeline for optimization opportunities...');
+      alert('Optimization service unavailable right now.');
     }
   }
 </script>
