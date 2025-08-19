@@ -109,61 +109,70 @@ async def test_ali_intelligence():
     
     return response.status_code == 200
 
-async def test_vector_search(test_client):
+async def test_vector_search():
     """Test vector search functionality"""
     print("\n🔍 Testing: Vector search")
-    # Create embedding
-    response = test_client.post(
-        "/api/v1/vector/embeddings",
-        json={"texts": ["Microsoft Q4 earnings", "Apple financial performance"]}
-    )
-    
-    if response.status_code == 200:
-        embeddings = response.json()
-        print(f"✅ Created {len(embeddings['embeddings'])} embeddings")
-        print(f"   Model: {embeddings.get('model', 'Unknown')}")
-        print(f"   Dimension: {len(embeddings['embeddings'][0]) if embeddings['embeddings'] else 0}")
-    else:
-        print(f"⚠️ Embeddings creation failed: {response.text}")
-    
-    # Test search
-    response = test_client.post(
-        "/api/v1/vector/search",
-        json={
-            "query": "financial earnings",
-            "table": "documents",
-            "limit": 5
-        }
-    )
-    
-    if response.status_code == 200:
-        results = response.json()
-        print(f"✅ Vector search returned {len(results.get('results', []))} results")
-    else:
-        print(f"⚠️ Vector search failed: {response.text}")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        # Create embedding - This will call OpenAI API and incur costs
+        response = await client.post(
+            f"{BASE_URL}/api/v1/vector/embeddings",
+            json={"text": "Microsoft Q4 earnings"}
+        )
+        
+        if response.status_code == 200:
+            embedding_result = response.json()
+            print(f"✅ Created embedding")
+            print(f"   Model: {embedding_result.get('model', 'Unknown')}")
+            print(f"   Dimension: {len(embedding_result.get('embedding', []))}")
+            
+            # Track OpenAI API cost
+            print("💰 Cost incurred: OpenAI embedding API call")
+        else:
+            print(f"⚠️ Embeddings creation failed: {response.text}")
+        
+        # Test search
+        response = await client.post(
+            f"{BASE_URL}/api/v1/vector/search",
+            json={
+                "query": "financial earnings",
+                "table": "documents",
+                "limit": 5
+            }
+        )
+        
+        if response.status_code == 200:
+            results = response.json()
+            print(f"✅ Vector search returned {len(results.get('results', []))} results")
+        else:
+            print(f"⚠️ Vector search failed: {response.text}")
     
     return True
 
-async def test_cost_management(test_client):
+async def test_cost_management():
     """Test cost management endpoints"""
     print("\n💰 Testing: Cost management")
-    # Get current costs
-    response = test_client.get("/api/v1/cost-management/current")
-    
-    if response.status_code == 200:
-        costs = response.json()
-        print(f"✅ Cost tracking active:")
-        print(f"   Total cost: ${costs.get('total_cost', 0):.4f}")
-        print(f"   Total tokens: {costs.get('total_tokens', 0)}")
-        print(f"   API calls: {costs.get('api_calls', 0)}")
+    async with httpx.AsyncClient() as client:
+        # Get current costs
+        response = await client.get(f"{BASE_URL}/api/v1/cost-management/realtime/current")
         
-        # Get optimization suggestions
-        response = test_client.get("/api/v1/cost-management/optimization-suggestions")
         if response.status_code == 200:
-            suggestions = response.json()
-            print(f"✅ Got {len(suggestions.get('suggestions', []))} optimization suggestions")
-    else:
-        print(f"⚠️ Cost management not available: {response.text}")
+            costs = response.json()
+            print(f"✅ Cost tracking active:")
+            print(f"   Total cost: ${costs.get('total_cost_usd', 0):.4f}")
+            print(f"   Total tokens: {costs.get('total_tokens', 0)}")
+            print(f"   Interactions: {costs.get('total_interactions', 0)}")
+            print(f"   Provider breakdown: {costs.get('provider_breakdown', {})}")
+            
+            # Get optimization suggestions if endpoint exists
+            try:
+                response = await client.get(f"{BASE_URL}/api/v1/cost-management/optimization-suggestions")
+                if response.status_code == 200:
+                    suggestions = response.json()
+                    print(f"✅ Got {len(suggestions.get('suggestions', []))} optimization suggestions")
+            except Exception as e:
+                print(f"ℹ️ Optimization endpoint not available: {e}")
+        else:
+            print(f"⚠️ Cost management not available: {response.text}")
     
     return True
 
