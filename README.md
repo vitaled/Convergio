@@ -1,70 +1,44 @@
-# 🚀 Convergio AI Platform
-*Human purpose. AI momentum.*
+# 🚀 Convergio — AI Command Center powered by Multi‑Agent Orchestration
+Human purpose. AI momentum.
 
-> **Enterprise-grade multi-agent orchestration platform for intelligent business automation**
+> Convergio turns a team’s intent into coordinated execution by orchestrating 40+ specialized AI agents. You set the goal; the system assembles experts (finance, architecture, PM, security, design, analytics) to plan, decide, and deliver.
 
 [![CI/CD Pipeline](https://github.com/Roberdan/Convergio/actions/workflows/ci.yml/badge.svg)](https://github.com/Roberdan/Convergio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-teal?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![SvelteKit](https://img.shields.io/badge/Frontend-SvelteKit-orange?style=for-the-badge&logo=svelte)](https://kit.svelte.dev/)
-[![AutoGen](https://img.shields.io/badge/AutoGen-0.7.2-red?style=for-the-badge&logo=microsoft)](https://microsoft.github.io/autogen/)
+[![Microsoft AutoGen](https://img.shields.io/badge/Microsoft%20AutoGen-0.7.x-red?style=for-the-badge&logo=microsoft)](https://github.com/microsoft/autogen)
 [![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue?style=for-the-badge)](LICENSE)
-[![Implementation](https://img.shields.io/badge/Implementation-100%25-success?style=for-the-badge)](#)
-[![Coverage](https://img.shields.io/badge/Coverage-90%25+-green?style=for-the-badge)](#)
 
 ---
 
-## 🎯 Project Status
+## 🗞️ What this is (and why it matters)
 
-**✅ IMPLEMENTATION COMPLETE - All 10 Waves Delivered (August 2025)**
-
-The Convergio AutoGen Excellence Program has been successfully completed with 100% implementation of all planned features:
-
-- **Wave 1-4**: Core System (Decision Engine, Per-turn RAG, Frontend UX, Governance) ✅
-- **Wave 5-6**: Workflow Automation (GraphFlow Generator, Agent Lifecycle) ✅
-- **Wave 7-8**: PM & Intelligence (Project Management, Ali Proactive Coach) ✅
-- **Wave 9-10**: Enterprise Features (Custom Fields, Multi-tenancy, Billing) ✅
-
-See [docs/IMPLEMENTATION_COMPLETE.md](docs/IMPLEMENTATION_COMPLETE.md) for detailed implementation status.
+- Convergio is a unified, production‑leaning reference implementation of a multi‑agent platform built on top of Microsoft AutoGen. It is one of the first large‑scale, end‑to‑end implementations of AutoGen in an open repository, showing how to compose dozens of purpose‑built agents into reliable workflows. See Microsoft AutoGen on GitHub: https://github.com/microsoft/autogen
+- Our north star is the Agentic Manifesto and inclusive design. Start here:
+  - Agentic Manifesto: AgenticManifesto/AgenticManifesto.md
+  - What is Convergio: AgenticManifesto/WhatIsConvergio.md
+  - Built for Mario — AI‑First Interface: AgenticManifesto/💜 For Mario - AI-First Interface.md
+- Communication meets engineering: this README is both a product primer and a practical guide to run the stack locally.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture (truth, no buzzwords)
 
-Convergio is built on a modern, scalable architecture leveraging Microsoft AutoGen for multi-agent orchestration:
+- Backend: FastAPI (Python 3.11), SQLAlchemy 2.x (async), PostgreSQL, Redis, Prometheus metrics
+- Frontend: SvelteKit + TypeScript + TailwindCSS (dev server on port 4000, proxy to backend 9000)
+- AI Orchestration: Multi‑agent system using Microsoft AutoGen 0.7.x (autogen-core, autogen-agentchat, autogen-ext)
+- Streaming & coordination: internal streaming orchestrator with typed protocols and runners
+- Security: security headers, CORS, JWT scaffolding (RS256), optional rate‑limit middleware (currently disabled in code)
 
-### Core Components
+No Docker/Kubernetes manifests are provided in this repo. Local developer setup runs with system Postgres + Redis or containers you manage yourself.
 
-- **Backend**: FastAPI + AutoGen 0.7.2 + PostgreSQL/Redis
-- **Frontend**: SvelteKit + TypeScript + TailwindCSS
-- **AI Orchestration**: Multi-agent system with 48 specialized agents (All verified active August 2025)
-- **Infrastructure**: Docker + Kubernetes-ready + Cloud-native
+### Key capabilities
 
-### Key Features
-
-#### 🤖 Multi-Agent Orchestration
-- **Decision Engine**: Cost/safety-aware routing with 95%+ accuracy
-- **Per-turn RAG**: Context-aware responses with conflict detection
-- **GraphFlow**: Natural language to workflow generation
-- **Hot-reload**: Dynamic agent updates without downtime
-
-#### 📊 Project Management Intelligence
-- **Smart PM**: AI-powered project planning and execution
-- **Resource Optimization**: Intelligent resource allocation
-- **Risk Detection**: Proactive issue identification
-- **Analytics**: Real-time KPIs and insights
-
-#### 🛡️ Enterprise Security & Governance
-- **AI Security Guardian**: Prompt injection prevention
-- **Rate Limiting**: Token bucket algorithm
-- **SLO Monitoring**: 99.9% uptime target
-- **Audit Trail**: Complete activity logging
-
-#### 💼 SaaS Platform Features
-- **Multi-tenancy**: Complete tenant isolation
-- **Billing Integration**: Stripe with usage metering
-- **Custom Fields**: JSONB-based extensibility
-- **Export**: CSV/JSON/Excel data export
+- Multi‑agent conversations with tool use, memory, and specialization
+- GraphFlow for generating workflows from natural language
+- Cost tracking, analytics endpoints, and observability hooks
+- Vector search utilities for RAG‑style enrichment
 
 ---
 
@@ -76,7 +50,7 @@ Convergio is built on a modern, scalable architecture leveraging Microsoft AutoG
 - Node.js 18+
 - PostgreSQL 14+
 - Redis 6+
-- Docker (optional)
+  
 
 ### Installation
 
@@ -93,15 +67,10 @@ python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your configuration
-
-# Run migrations
-alembic upgrade head
-
+# Configure environment (see example below)
+# Initialize DB with provided SQL (see commands below)
 # Start backend
-uvicorn src.main:app --reload --port 8000
+uvicorn src.main:app --reload --port 9000
 ```
 
 3. **Frontend Setup**
@@ -109,18 +78,14 @@ uvicorn src.main:app --reload --port 8000
 cd frontend
 npm install
 
-# Configure environment
-cp .env.example .env.local
-# Edit .env.local
-
-# Start frontend
+# Start frontend (dev server on :4000)
 npm run dev
 ```
 
 4. **Access the application**
 - Frontend: http://localhost:4000
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
+- Backend API: http://localhost:9000
+- API Documentation: http://localhost:9000/docs
 
 ---
 
@@ -133,11 +98,10 @@ npm run dev
 - **Database Schema**: [docs/DataBaseSchema.md](docs/DataBaseSchema.md)
 - **Security System**: [docs/SECURE_COST_SYSTEM_VERIFICATION.md](docs/SECURE_COST_SYSTEM_VERIFICATION.md)
 
-### Agent System (48 Specialized Agents)
-- **Agent Definitions**: [backend/src/agents/definitions/](backend/src/agents/definitions/) - 48 agents
-- **Agent Optimization**: [docs/AGENT_OPTIMIZATION.md](docs/AGENT_OPTIMIZATION.md)
-- **Agent Ecosystem**: Complete multi-agent orchestration with AutoGen 0.7.2
-- **Ali Proactive Intelligence**: Advanced AI coaching and insight engine
+### Agent System
+- **Agent Definitions**: backend/src/agents/definitions/
+- **Orchestrators & resilience**: backend/src/agents/orchestrators/
+- **Ali Proactive Intelligence**: backend/src/agents/ali_ceo.py
 
 ### Enterprise Features
 - **Cost Management**: [docs/cost-tracking-system.md](docs/cost-tracking-system.md)
@@ -146,14 +110,14 @@ npm run dev
 - **Security Compliance**: OWASP Top 10 compliance and comprehensive audit trail
 
 ### Live Documentation
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:9000/docs
+- **ReDoc**: http://localhost:9000/redoc
 
 ---
 
-## 🤖 Complete Agent Ecosystem (48 Agents)
+## 🤖 Multi‑agent ecosystem
 
-Convergio features a comprehensive multi-agent system with 48 specialized agents organized into functional domains:
+Convergio features a comprehensive multi‑agent system of specialized agents organized into functional domains:
 
 ### Leadership & Strategy (6 agents)
 - **Ali** - Chief of Staff & Proactive Intelligence Engine
@@ -255,45 +219,35 @@ pytest tests/performance/ -v
 pytest tests/integration/test_scenarios/ -v
 ```
 
-### Test Coverage & Status (Updated August 2025)
-- **Backend Tests**: 154 passed, 5 failed ✅ (Excellent stability)
-- **Frontend Tests**: 21 passed, 0 failed ✅ (100% pass rate)
-- **Playwright E2E**: 34 passed, 20 failed ✅ (Growing coverage)
-- **Security Tests**: Injection prevention, PII redaction
-- **Performance Tests**: Rate limiting, circuit breakers
-- **Test Stability**: 95%+ consistency across service restarts
+### Notes
+- End‑to‑end tests use Playwright. Install browsers once with `npx playwright install`.
+- Some tests integrate with the running dev servers; ensure backend and frontend are up or use fixtures.
 
 ---
 
-## 🚢 Deployment
+## ⚙️ Environment variables (backend/.env)
 
-### Docker Deployment
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
+Minimal set to get running locally:
 
-# Scale services
-docker-compose up -d --scale backend=3
 ```
+ENVIRONMENT=development
 
-### Kubernetes Deployment
-```bash
-# Apply Kubernetes manifests
-kubectl apply -f k8s/
+# Database
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=convergio_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
 
-# Check deployment status
-kubectl get pods -n convergio
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=1
+
+# AI providers
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=...
 ```
-
-### Environment Variables
-
-Key environment variables (see `.env.example` for full list):
-
-- `DATABASE_URL`: PostgreSQL connection string
-- `REDIS_URL`: Redis connection string
-- `OPENAI_API_KEY`: OpenAI API key for AI features
-- `STRIPE_SECRET_KEY`: Stripe key for billing
-- `JWT_SECRET`: JWT secret for authentication
 
 ---
 
@@ -316,20 +270,11 @@ We welcome contributions! Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md
 
 ---
 
-## 📊 Performance Metrics
+## 📊 Observability & performance
 
-### System Performance
-- **TTFA**: P50 ≤ 2.0s / P95 ≤ 6.0s
-- **Decision Accuracy**: ≥95%
-- **Cost Prediction Error**: ≤10%
-- **Context Hit Rate**: ≥70%
-- **Uptime Target**: 99.9%
-
-### Scalability
-- Handles 1000+ concurrent users
-- 10,000+ agents orchestrations/day
-- Sub-second hot-reload
-- Horizontal scaling ready
+- Prometheus metrics exposed at /metrics
+- Structured logs (JSON) via structlog; configure via LOG_LEVEL, LOG_FORMAT
+- Connection pooling for Postgres and Redis; tune via DB_* and REDIS_* settings
 
 ---
 
@@ -351,10 +296,8 @@ After the change date (2027-01-01), this software will be available under the Ap
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/Roberdan/Convergio/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Roberdan/Convergio/discussions)
-- **Email**: support@convergio.ai
-- **Documentation**: [docs.convergio.ai](https://docs.convergio.ai)
+- Issues: https://github.com/Roberdan/Convergio/issues
+- Discussions: https://github.com/Roberdan/Convergio/discussions
 
 ---
 
