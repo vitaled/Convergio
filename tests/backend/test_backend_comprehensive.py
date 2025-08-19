@@ -6,87 +6,106 @@ Tests all major functionality with gpt-4o-mini model
 
 import asyncio
 import json
+import os
 from typing import Any, Dict
+import httpx
 
-BASE_URL = "http://localhost:9000"
+# Read base URL from environment
+BASE_URL = f"http://localhost:{os.getenv('BACKEND_PORT', '9000')}"
 
-async def test_health_endpoints(test_client):
+async def test_health_endpoints():
     """Test health check endpoints"""
     print("\n🏥 Testing: Health endpoints")
     
-    # Basic health
-    response = test_client.get("/health/")
-    assert response.status_code == 200
-    health = response.json()
-    print(f"✅ Basic health: {health['status']}")
-    
-    # System health
-    response = test_client.get("/health/system")
-    assert response.status_code == 200
-    system_health = response.json()
-    print(f"✅ System health: Database={system_health['database']}, Redis={system_health['redis']}")
-    
-    # Agent health
-    response = test_client.get("/health/agents")
-    assert response.status_code == 200
-    agent_health = response.json()
-    print(f"✅ Agent health: {agent_health['status']}, Count={agent_health.get('agent_count', 0)}")
+    async with httpx.AsyncClient() as client:
+        # Basic health
+        response = await client.get(f"{BASE_URL}/health/")
+        assert response.status_code == 200
+        health = response.json()
+        print(f"✅ Basic health: {health['status']}")
+        
+        # System health
+        response = await client.get(f"{BASE_URL}/health/system")
+        assert response.status_code == 200
+        system_health = response.json()
+        db_status = system_health['checks']['database']['status']
+        cache_status = system_health['checks']['cache']['status']
+        print(f"✅ System health: Database={db_status}, Cache={cache_status}")
+        
+        # Agent health
+        response = await client.get(f"{BASE_URL}/health/agents")
+        assert response.status_code == 200
+        agent_health = response.json()
+        print(f"✅ Agent health: {agent_health['status']}, Count={agent_health.get('agent_count', 0)}")
     
     return True
 
-async def test_api_status(test_client):
+async def test_api_status():
     """Test API status endpoint"""
     print("\n🔌 Testing: API status")
     
-    response = test_client.get("/api/v1/system/api-status")
-    assert response.status_code == 200
-    status = response.json()
-    
-    print(f"✅ Backend: {status['backend']['connected']} - v{status['backend'].get('version', 'Unknown')}")
-    print(f"✅ OpenAI: {status['openai']['connected']} - Model: {status['openai'].get('model', 'None')}")
-    print(f"✅ Perplexity: {status['perplexity']['connected']}")
-    
-    # Check if OpenAI is configured with gpt-4o-mini
-    assert status['openai']['connected'], "OpenAI should be connected"
-    assert 'gpt-4o-mini' in status['openai'].get('model', ''), f"Model should be gpt-4o-mini, got {status['openai'].get('model')}"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{BASE_URL}/api/v1/system/api-status")
+        assert response.status_code == 200
+        status = response.json()
+        
+        print(f"✅ Backend: {status['backend']['connected']} - v{status['backend'].get('version', 'Unknown')}")
+        print(f"✅ OpenAI: {status['openai']['connected']} - Model: {status['openai'].get('model', 'None')}")
+        print(f"✅ Perplexity: {status['perplexity']['connected']}")
+        
+        # Check if OpenAI is configured with gpt-4o-mini
+        assert status['openai']['connected'], "OpenAI should be connected"
+        assert 'gpt-4o-mini' in status['openai'].get('model', ''), f"Model should be gpt-4o-mini, got {status['openai'].get('model')}"
     
     return status
 
-async def test_agent_ecosystem(test_client):
-    """Test agent ecosystem endpoint"""
-    print("\n🤖 Testing: Agent ecosystem")
-    response = test_client.get("/api/v1/agents/agents-ecosystem/")
-    assert response.status_code == 200
-    ecosystem = response.json()
-    print(f"✅ Agent Ecosystem Status: {ecosystem['status']}")
-    print(f"   Total agents: {ecosystem['agent_count']}")
-    print(f"   Orchestrators: {ecosystem['orchestrator_count']}")
+async def test_agent_ecosystem():
+    """Test agent management endpoint"""
+    print("\n🤖 Testing: Agent Management")
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{BASE_URL}/api/v1/agent-management/agents")
+        assert response.status_code == 200
+        agents = response.json()
+        
+        assert isinstance(agents, list), "Expected agents to be a list"
+        agent_count = len(agents)
+        print(f"✅ Agent Management Status: healthy")
+        print(f"   Total agents: {agent_count}")
+        
+        # Count agents by tier
+        tiers = {}
+        for agent in agents:
+            tier = agent.get('tier', 'Unknown')
+            tiers[tier] = tiers.get(tier, 0) + 1
+        
+        print(f"   Tier distribution: {tiers}")
+        
+        # Show some agents
+        if agents:
+            print("   Sample agents:")
+            for agent in agents[:5]:
+                print(f"     • {agent['name']}: {agent['role'][:100]}...")
     
-    # Show some agents
-    if ecosystem.get('agents'):
-        print("   Sample agents:")
-        for agent in list(ecosystem['agents'].values())[:5]:
-            print(f"     • {agent['name']}: {agent['role']}")
-    
-    return ecosystem
+    return {"status": "healthy", "agent_count": agent_count, "agents": agents}
 
-async def test_ali_intelligence(test_client):
+async def test_ali_intelligence():
     """Test Ali Intelligence endpoint with simple query"""
     print("\n🧠 Testing: Ali Intelligence (CEO assistant)")
-    response = test_client.post(
-        "/api/v1/ali-intelligence/ask",
-        json={
-            "query": "What is 2+2?",
-            "context": {"test": True}
-        }
-    )
-    
-    if response.status_code == 200:
-        result = response.json()
-        print(f"✅ Ali responded: {result.get('response', '')[:100]}...")
-        print(f"   Processing time: {result.get('processing_time', 0):.2f}s")
-    else:
-        print(f"⚠️ Ali Intelligence not available: {response.text}")
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{BASE_URL}/api/v1/ali/intelligence",
+            json={
+                "query": "What is 2+2?",
+                "context": {"test": True}
+            }
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            print(f"✅ Ali responded: {result.get('response', '')[:100]}...")
+            print(f"   Processing time: {result.get('processing_time', 0):.2f}s")
+        else:
+            print(f"⚠️ Ali Intelligence not available: {response.text}")
     
     return response.status_code == 200
 
