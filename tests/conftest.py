@@ -122,6 +122,14 @@ def ensure_backend_server():
         backend_dir = str(BACKEND_DIR)
         env = os.environ.copy()
         env.setdefault("ENVIRONMENT", "test")
+        # Ensure the uvicorn subprocess can import from backend/src using absolute imports like 'core.*'
+        # Prepend backend/src and backend to PYTHONPATH
+        existing_pythonpath = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = os.pathsep.join([
+            str(BACKEND_SRC_DIR),
+            str(BACKEND_DIR),
+            existing_pythonpath,
+        ])
         cmd = [
             sys.executable,
             "-m",
@@ -166,8 +174,36 @@ def ensure_backend_server():
                     pass
 
 @pytest.fixture
-def test_client():
-    """Provide a mock test client for API testing without requiring a running server."""
+async def test_client():
+    """Provide a real test client with actual database and Redis connections."""
+    import httpx
+    from core.database import init_db, close_db
+    from core.redis import init_redis, close_redis
+    
+    # Initialize real database and Redis connections for testing
+    try:
+        await init_db()
+        await init_redis()
+    except Exception as e:
+        # If we can't connect to real services, use HTTP client to running test server
+        logging.getLogger(__name__).warning(f"Direct service connection failed, using HTTP client: {e}")
+    
+    # Use httpx async client to connect to the test server
+    base_url = os.environ.get("API_BASE_URL", "http://localhost:9000")
+    
+    async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
+        yield client
+    
+    # Cleanup connections
+    try:
+        await close_redis()
+        await close_db()
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Service cleanup failed: {e}")
+
+@pytest.fixture
+def mock_client():
+    """Legacy mock client for tests that specifically need mocked responses."""
     from unittest.mock import Mock
     
     # Create a mock client that simulates HTTP responses
@@ -271,6 +307,112 @@ async def db_session():
     async for session in get_db_session():
         yield session
         break
+
+@pytest.fixture
+async def redis_client():
+    """Provide a real Redis client for testing."""
+    from core.redis import get_redis_client
+    try:
+        client = await get_redis_client()
+        # Test connectivity with a ping
+        await client.ping()
+        yield client
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Redis connection failed: {e}")
+        # Yield None so tests can handle gracefully
+        yield None
+
+@pytest.fixture
+async def database_connectivity_test():
+    """Test real database connectivity."""
+    from core.database import get_db_session
+    from sqlalchemy import text
+    
+    try:
+        async with get_db_session() as session:
+            result = await session.execute(text("SELECT 1 as test_value"))
+            row = result.fetchone()
+            assert row[0] == 1
+            return True
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Database connectivity test failed: {e}")
+        return False
+
+@pytest.fixture  
+async def redis_connectivity_test():
+    """Test real Redis connectivity with actual operations."""
+    from core.redis import get_redis_client
+    import uuid
+    
+    try:
+        client = await get_redis_client()
+        
+        # Test basic operations
+        test_key = f"test:connectivity:{uuid.uuid4()}"
+        test_value = "connectivity_test_value"
+        
+        # Set operation
+        await client.set(test_key, test_value, ex=60)  # 60 second expiry
+        
+        # Get operation
+        retrieved = await client.get(test_key)
+        assert retrieved.decode() == test_value
+        
+        # Delete operation
+        await client.delete(test_key)
+        
+        # Verify deletion
+        deleted_value = await client.get(test_key)
+        assert deleted_value is None
+        
+        return True
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Redis connectivity test failed: {e}")
+        return False
+
+@pytest.fixture
+async def ai_api_connectivity_test():
+    """Test AI API connectivity with actual API key validation."""
+    import os
+    from openai import AsyncOpenAI
+    from anthropic import AsyncAnthropic
+    
+    results = {
+        "openai": False,
+        "anthropic": False,
+        "at_least_one": False
+    }
+    
+    # Test OpenAI
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key and not openai_key.startswith("sk-..."):
+        try:
+            client = AsyncOpenAI(api_key=openai_key)
+            # Simple API test - list models (doesn't consume tokens)
+            models = await client.models.list()
+            if models and len(models.data) > 0:
+                results["openai"] = True
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"OpenAI API test failed: {e}")
+    
+    # Test Anthropic
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+    if anthropic_key and not anthropic_key.startswith("sk-ant-..."):
+        try:
+            client = AsyncAnthropic(api_key=anthropic_key)
+            # Test with minimal message (1-2 tokens)
+            response = await client.messages.create(
+                model="claude-3-haiku-20240307",
+                max_tokens=5,
+                messages=[{"role": "user", "content": "Hi"}]
+            )
+            if response and response.content:
+                results["anthropic"] = True
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Anthropic API test failed: {e}")
+    
+    results["at_least_one"] = results["openai"] or results["anthropic"]
+    return results
 
 # Test markers
 pytest_plugins = []
