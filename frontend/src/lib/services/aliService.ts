@@ -25,8 +25,8 @@ export interface AliAnalysis {
 }
 
 class AliService {
-  private baseUrl = 'http://localhost:9000/api/v1';
-  private wsUrl = 'ws://localhost:9000/api/v1';
+  private baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:9000'}/api/v1`;
+  private wsUrl = `${import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:9000'}/api/v1`;
   
   // Store for Ali's connection status
   public connectionStatus = writable<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected');

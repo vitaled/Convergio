@@ -18,7 +18,7 @@ export interface TalentHierarchy {
 }
 
 class TalentsService {
-  private baseUrl = 'http://localhost:9000/api/v1';
+  private baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:9000'}/api/v1`;
 
   async getTalents(): Promise<Talent[]> {
     try {

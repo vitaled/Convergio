@@ -50,7 +50,7 @@ export interface LLMProvider {
 }
 
 class CostService {
-  private baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/v1`;
+  private baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:9000'}/api/v1`;
 
   async getCostOverview(): Promise<CostOverview> {
     try {

@@ -39,7 +39,7 @@ export interface AgentTask {
 }
 
 class AgentsService {
-  private baseUrl = 'http://localhost:9000/api/v1';
+  private baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:9000'}/api/v1`;
 
   async getAgents(): Promise<Agent[]> {
     try {

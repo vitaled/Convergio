@@ -47,7 +47,7 @@ export interface ProjectOverview {
 }
 
 class ProjectsService {
-  private baseUrl = 'http://localhost:9000/api/v1';
+  private baseUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:9000'}/api/v1`;
 
   async getProjectOverview(): Promise<ProjectOverview> {
     try {
