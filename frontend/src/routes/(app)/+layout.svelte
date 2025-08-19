@@ -30,7 +30,7 @@
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
       const response = await fetch(`${apiUrl}/health`, {
         signal: controller.signal
       });
@@ -85,8 +85,8 @@
           {#each navItems as item}
             <a
               href={item.href}
-              sveltekit:prefetch
-              aria-current={isActive(item.href) ? 'page' : undefined}
+              data-sveltekit-prefetch
+              aria-current={isActive(item.href) ? 'page' : null}
               class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 {isActive(item.href)
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-800 hover:text-blue-600 hover:bg-blue-50'}"

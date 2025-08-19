@@ -166,7 +166,7 @@
   <!-- Status Button -->
   <button
     on:click={() => isOpen = !isOpen}
-    class="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 shadow-sm {getStatusColor(overallStatus)}"
+    class="flex items-start space-x-2 px-4 py-2 bg-white rounded-lg hover:bg-blue-50 transition-all duration-200 shadow-sm {getStatusColor(overallStatus)}"
     aria-label="API connection status"
     aria-expanded={isOpen}
   >
