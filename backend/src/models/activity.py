@@ -6,10 +6,10 @@ SQLAlchemy 2.0 Activity model matching existing database schema
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from sqlalchemy import Integer, String, DateTime, func, Text, BigInteger
+from sqlalchemy import Integer, String, DateTime, func, Text, BigInteger, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
 
@@ -21,6 +21,9 @@ class Activity(Base):
     
     # Primary key
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, index=True)
+    
+    # Foreign key to engagement
+    engagement_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("engagements.id"), nullable=True)
     
     # Activity info
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -43,6 +46,9 @@ class Activity(Base):
         onupdate=func.now(),
         nullable=True
     )
+    
+    # Relationship back to engagement
+    engagement: Mapped[Optional["Engagement"]] = relationship("Engagement", back_populates="activities")
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert activity to dictionary"""
