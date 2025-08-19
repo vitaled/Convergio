@@ -351,35 +351,38 @@ async def redis_connectivity_test():
     """Test real Redis connectivity with actual operations."""
     from core.redis import get_redis_client, init_redis
     import uuid
+    import asyncio
     
     try:
         # Initialize Redis if not already done
         try:
             client = get_redis_client()
-        except RuntimeError:
+            # Quick ping test to check if client is alive
+            await client.ping()
+        except (RuntimeError, Exception):
             await init_redis()
             client = get_redis_client()
         
-        # Test basic operations
+        # Test basic operations with timeout protection
         test_key = f"test:connectivity:{uuid.uuid4()}"
         test_value = "connectivity_test_value"
         
-        # Set operation
-        await client.set(test_key, test_value, ex=60)  # 60 second expiry
+        # Set operation with short timeout
+        await asyncio.wait_for(client.set(test_key, test_value, ex=60), timeout=5.0)
         
-        # Get operation
-        retrieved = await client.get(test_key)
+        # Get operation with short timeout  
+        retrieved = await asyncio.wait_for(client.get(test_key), timeout=5.0)
         assert retrieved == test_value  # decode_responses=True in init
         
         # Delete operation
-        await client.delete(test_key)
+        await asyncio.wait_for(client.delete(test_key), timeout=5.0)
         
         # Verify deletion
-        deleted_value = await client.get(test_key)
+        deleted_value = await asyncio.wait_for(client.get(test_key), timeout=5.0)
         assert deleted_value is None
         
         return True
-    except Exception as e:
+    except (asyncio.TimeoutError, Exception) as e:
         logging.getLogger(__name__).error(f"Redis connectivity test failed: {e}")
         return False
 
