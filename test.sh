@@ -81,8 +81,16 @@ run_pytest() {
   if [[ "$RUN_COVERAGE" == "true" ]]; then
     pytest_flags="$pytest_flags --cov=backend/src --cov-report=html --cov-report=term-missing"
   fi
-  
-  pytest $pytest_flags $extra_flags "$test_path" -c tests/pytest.ini
+
+  # Pick an available pytest config if present
+  local config_arg=""
+  if [[ -f "tests/pytest.ini" ]]; then
+    config_arg="-c tests/pytest.ini"
+  elif [[ -f "pytest.ini" ]]; then
+    config_arg="-c pytest.ini"
+  fi
+
+  pytest $pytest_flags $extra_flags "$test_path" $config_arg
 }
 
 # -----------------------------
@@ -117,52 +125,17 @@ fi
 # -----------------------------
 # Backend: Unit Tests
 # -----------------------------
-section "🧪 Backend Unit Tests (pytest)"
+section "🧪 Backend Python Tests (pytest)"
 
-run_pytest "tests/backend/unit" "Unit Tests"
-
-# -----------------------------
-# Backend: Core Functionality Tests
-# -----------------------------
-section "🔧 Backend Core Functionality Tests"
-
-run_pytest "tests/backend" "Core Backend Tests"
-
-# -----------------------------
-# Backend: Integration Tests
-# -----------------------------
-section "🔗 Backend Integration Tests"
-
-run_pytest "tests/integration" "Integration Tests"
-
-# -----------------------------
-# Backend: End-to-End Tests
-# -----------------------------
-section "🌐 Backend End-to-End Tests"
-
-run_pytest "tests/e2e" "E2E Tests"
-
-# -----------------------------
-# Backend: Security Tests
-# -----------------------------
-if [[ "$RUN_SECURITY" == "true" ]]; then
-  section "🔒 Backend Security Tests"
-  
-  run_pytest "tests/security" "Security Tests"
-else
-  info "Skipping security tests (RUN_SECURITY=false)"
+# Run ALL python tests under tests/ once to ensure nothing is missed (unit, integration, e2e, security, performance)
+ignore_args=""
+if [[ "$RUN_SECURITY" != "true" ]]; then
+  ignore_args+=" --ignore=tests/security"
 fi
-
-# -----------------------------
-# Backend: Performance Tests
-# -----------------------------
-if [[ "$RUN_PERFORMANCE" == "true" ]]; then
-  section "⚡ Backend Performance Tests"
-  
-  run_pytest "tests/performance" "Performance Tests"
-else
-  info "Skipping performance tests (RUN_PERFORMANCE=false)"
+if [[ "$RUN_PERFORMANCE" != "true" ]]; then
+  ignore_args+=" --ignore=tests/performance"
 fi
+run_pytest "tests" "All Python Tests" "$ignore_args"
 
 # -----------------------------
 # Master Test Runner (Comprehensive Agent Testing)
@@ -171,9 +144,13 @@ if [[ "$RUN_MASTER_RUNNER" == "true" ]]; then
   section "🎯 Master Test Runner (Comprehensive Agent Suite)"
   
   subsection "Running Master Test Runner"
-  cd tests
-  python master_test_runner.py
-  cd ..
+  if [[ -f "tests/master_test_runner.py" ]]; then
+    cd tests
+    python master_test_runner.py
+    cd ..
+  else
+    info "Master test runner not found at tests/master_test_runner.py — skipping"
+  fi
 else
   info "Skipping master test runner (RUN_MASTER_RUNNER=false)"
 fi
@@ -201,15 +178,16 @@ if [[ -d "frontend" ]]; then
   section "🧪 Frontend Unit Tests (Vitest)"
   
   subsection "Running Vitest unit tests"
-  local vitest_flags=""
+  vitest_flags=""
   if [[ "$FAIL_FAST" == "true" ]]; then
     vitest_flags="--bail=1"
   fi
   if [[ "$RUN_COVERAGE" == "true" ]]; then
     vitest_flags="$vitest_flags --coverage"
   fi
-  
-  npm run -s test -- $vitest_flags
+
+  # Prefer package script, fallback to direct vitest
+  npm run -s test -- $vitest_flags || npx vitest run $vitest_flags
   
   # -----------------------------
   # Frontend: Storybook Tests
@@ -217,7 +195,9 @@ if [[ -d "frontend" ]]; then
   section "📚 Frontend Storybook Tests"
   
   subsection "Running Storybook tests"
-  npm run -s test:ui -- $vitest_flags || warning "Storybook tests failed or not available"
+  npm run -s test:ui -- $vitest_flags \
+    || npm run -s test:storybook -- $vitest_flags \
+    || warning "Storybook tests failed or not available"
   
   # -----------------------------
   # Frontend: Playwright E2E Tests
@@ -228,12 +208,13 @@ if [[ -d "frontend" ]]; then
   npx playwright install --with-deps || true
   
   subsection "Running Playwright E2E tests"
-  local playwright_flags=""
+  playwright_flags=""
   if [[ "$FAIL_FAST" == "true" ]]; then
     playwright_flags="--max-failures=1"
   fi
-  
-  npm run -s test:e2e -- $playwright_flags
+
+  # Prefer package script, fallback to direct playwright
+  npm run -s test:e2e -- $playwright_flags || npx playwright test $playwright_flags
   
   # -----------------------------
   # Frontend: Security Audit
@@ -256,17 +237,40 @@ fi
 section "🔍 Additional Test Suites"
 
 # Check if there are any other test files in the root tests directory
-if [[ -f "tests/conftest.py" ]]; then
-  subsection "Running root-level tests"
-  cd tests
-  python -m pytest conftest.py -v || warning "Root-level tests failed"
-  cd ..
+subsection "Go tests (if present)"
+if [[ -f "backend/go.mod" ]]; then
+  if command -v go >/dev/null 2>&1; then
+  if find backend -type f -name "*_test.go" | grep -q .; then
+      pushd backend >/dev/null
+      info "Running go test ./..."
+      go test ./...
+      popd >/dev/null
+    else
+      info "No Go tests found under backend/"
+    fi
+  else
+    warning "Go toolchain not found; skipping Go tests"
+  fi
+else
+  info "No backend/go.mod detected; skipping Go tests"
+fi
+
+subsection "Additional Python test files under tests/ (direct runs, if any)"
+# In rare setups, there may be test entrypoints not auto-discovered; run explicit test_*.py under tests/ directly.
+mapfile -t extra_py_tests < <(find tests -maxdepth 1 -type f -name "test_*.py" 2>/dev/null || true)
+if (( ${#extra_py_tests[@]} > 0 )); then
+  info "Running top-level python test files: ${extra_py_tests[*]}"
+  for f in "${extra_py_tests[@]}"; do
+    run_pytest "$f" "Top-level Python Test: $(basename "$f")"
+  done
+else
+  info "No extra top-level python test files found under tests/"
 fi
 
 # Check for any HTML test files (like playground tests)
 if [[ -f "tests/playground/test_playground.html" ]]; then
-  subsection "Running playground tests"
-  info "Playground tests found (HTML format) - manual verification required"
+  subsection "Playground HTML test detected"
+  info "Playground tests found (HTML) — ensure they are covered by your E2E suite or run manually"
 fi
 
 # -----------------------------
