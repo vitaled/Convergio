@@ -18,13 +18,16 @@
 	async function loadProjects() {
 		loading = true;
 		try {
-			const response = await fetch('/api/v1/pm/projects');
+			// Use the correct backend API endpoint for engagements (projects)
+			const response = await fetch('/api/v1/projects/engagements');
 			if (response.ok) {
 				projects = await response.json();
 				if (projects.length > 0) {
 					selectedProjectId = projects[0].id;
 					await loadProjectAnalytics();
 				}
+			} else {
+				console.error('Failed to load projects:', response.status, response.statusText);
 			}
 		} catch (error) {
 			console.error('Failed to load projects:', error);
@@ -37,7 +40,8 @@
 		if (!selectedProjectId) return;
 		
 		try {
-			const response = await fetch(`/api/v1/pm/projects/${selectedProjectId}/analytics`);
+			// Get detailed engagement data
+			const response = await fetch(`/api/v1/projects/engagements/${selectedProjectId}/details`);
 			if (response.ok) {
 				projectAnalytics = await response.json();
 			}

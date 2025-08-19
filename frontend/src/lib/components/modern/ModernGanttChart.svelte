@@ -117,9 +117,23 @@
   
   async function loadProjectTasks() {
     try {
-      const response = await fetch(`/api/v1/pm/projects/${projectId}/tasks`);
+      // Load activities for the engagement (project)
+      const response = await fetch(`/api/v1/projects/engagements/${projectId}/details`);
       if (response.ok) {
-        tasks = await response.json();
+        const projectData = await response.json();
+        // Use activities as tasks for the Gantt chart
+        tasks = projectData.activities.map(activity => ({
+          id: activity.id,
+          name: activity.title,
+          start: new Date(activity.created_at || Date.now()),
+          end: new Date(activity.updated_at || Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from created
+          progress: activity.progress / 100,
+          priority: activity.status === 'completed' ? 'low' : activity.status === 'in-progress' ? 'high' : 'medium',
+          assignedAgent: 'AI Agent',
+          dependencies: [],
+          status: activity.status,
+          aiInsights: `Activity from ${activity.status} status`
+        }));
       }
     } catch (error) {
       console.error('Failed to load tasks:', error);

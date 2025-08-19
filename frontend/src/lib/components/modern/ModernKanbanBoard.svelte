@@ -181,13 +181,33 @@
   
   async function loadKanbanData() {
     try {
-      const [columnsRes, tasksRes] = await Promise.all([
-        fetch(`/api/v1/pm/projects/${projectId}/columns`),
-        fetch(`/api/v1/pm/projects/${projectId}/tasks`)
-      ]);
+      // Load project details including activities
+      const response = await fetch(`/api/v1/projects/engagements/${projectId}/details`);
       
-      if (columnsRes.ok) columns = await columnsRes.json();
-      if (tasksRes.ok) tasks = await tasksRes.json();
+      if (response.ok) {
+        const projectData = await response.json();
+        
+        // Create standard Kanban columns
+        columns = [
+          { id: 'planning', name: 'Planning', color: '#6366f1' },
+          { id: 'in-progress', name: 'In Progress', color: '#f59e0b' },
+          { id: 'review', name: 'Review', color: '#8b5cf6' },
+          { id: 'completed', name: 'Completed', color: '#10b981' }
+        ];
+        
+        // Convert activities to tasks and organize by status
+        tasks = projectData.activities.map(activity => ({
+          id: activity.id,
+          title: activity.title,
+          description: activity.description || '',
+          status: activity.status || 'planning',
+          priority: activity.status === 'completed' ? 'low' : activity.status === 'in-progress' ? 'high' : 'medium',
+          assignedAgent: 'AI Agent',
+          progress: activity.progress,
+          dueDate: activity.updated_at,
+          tags: ['backend', 'task']
+        }));
+      }
     } catch (error) {
       console.error('Failed to load kanban data:', error);
     }
@@ -237,11 +257,13 @@
   
   async function updateTaskStatus(taskId: string, newStatus: string) {
     try {
-      await fetch(`/api/v1/pm/tasks/${taskId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
+      // TODO: Implement activity status update endpoint
+      console.log(`Would update task ${taskId} to status: ${newStatus}`);
+      // await fetch(`/api/v1/projects/activities/${taskId}/status`, {
+      //   method: 'PATCH', 
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ status: newStatus })
+      // });
     } catch (error) {
       console.error('Failed to update task status:', error);
     }
