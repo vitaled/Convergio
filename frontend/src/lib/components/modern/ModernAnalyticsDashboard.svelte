@@ -12,27 +12,6 @@
   let kpiMetrics: any = {};
   let aiInsights: any[] = [];
   
-  // Modern glassmorphism colors with data visualization palette
-  const colors = {
-    primary: '#6366f1',
-    secondary: '#8b5cf6',
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444',
-    info: '#06b6d4',
-    background: 'rgba(15, 23, 42, 1)',
-    glass: 'rgba(255, 255, 255, 0.1)',
-    glassBorder: 'rgba(255, 255, 255, 0.2)',
-    text: '#f8fafc',
-    textSecondary: '#cbd5e1',
-    chartGradients: [
-      'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-      'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
-      'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-      'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)'
-    ]
-  };
-  
   // Mock KPI data with AI insights
   const mockKPIMetrics = {
     overview: {
@@ -110,23 +89,23 @@
     projectVelocity: {
       labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
       datasets: [
-        { label: 'Completed', data: [12, 19, 15, 22], color: colors.success },
-        { label: 'In Progress', data: [8, 12, 10, 15], color: colors.primary },
-        { label: 'Planned', data: [15, 18, 20, 25], color: colors.warning }
+        { label: 'Completed', data: [12, 19, 15, 22], color: '#10b981' },
+        { label: 'In Progress', data: [8, 12, 10, 15], color: '#2563eb' },
+        { label: 'Planned', data: [15, 18, 20, 25], color: '#f59e0b' }
       ]
     },
     agentUtilization: {
       labels: ['Marcus PM', 'Sara UX', 'Baccio Arch', 'Dan Eng', 'Thor QA', 'Ali Chief'],
       datasets: [
-        { label: 'Utilization %', data: [85, 92, 78, 88, 95, 72], color: colors.secondary }
+        { label: 'Utilization %', data: [85, 92, 78, 88, 95, 72], color: '#8b5cf6' }
       ]
     },
     costTrends: {
       labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
       datasets: [
-        { label: 'AI Costs', data: [12500, 13200, 11800, 14100, 13600, 12900], color: colors.danger },
-        { label: 'Infrastructure', data: [8500, 8800, 8200, 8900, 8600, 8400], color: colors.info },
-        { label: 'Revenue', data: [45000, 48500, 42000, 52000, 49500, 51200], color: colors.success }
+        { label: 'AI Costs', data: [12500, 13200, 11800, 14100, 13600, 12900], color: '#ef4444' },
+        { label: 'Infrastructure', data: [8500, 8800, 8200, 8900, 8600, 8400], color: '#06b6d4' },
+        { label: 'Revenue', data: [45000, 48500, 42000, 52000, 49500, 51200], color: '#10b981' }
       ]
     }
   };
@@ -225,18 +204,12 @@
     return '➖';
   }
   
-  function getChangeColor(change: number): string {
-    if (change > 0) return colors.success;
-    if (change < 0) return colors.danger;
-    return colors.textSecondary;
-  }
-  
   function getPriorityColor(priority: string): string {
     switch (priority) {
-      case 'high': return colors.danger;
-      case 'medium': return colors.warning;
-      case 'low': return colors.success;
-      default: return colors.primary;
+      case 'high': return '#ef4444';
+      case 'medium': return '#f59e0b';
+      case 'low': return '#10b981';
+      default: return '#2563eb';
     }
   }
   
@@ -277,105 +250,104 @@
   $: currentMetrics = kpiMetrics[selectedMetric] || {};
 </script>
 
-<div class="modern-analytics-container">
+<div class="analytics-container">
   <!-- Header with Controls -->
-  <div class="analytics-header">
-    <div class="header-left">
-      <h2 class="analytics-title">
-        <span class="title-icon">📊</span>
-        Analytics Intelligence
-      </h2>
-      <p class="analytics-subtitle">AI-powered insights and performance metrics</p>
-    </div>
-    
-    <div class="header-controls">
-      <!-- Time Range Selector -->
-      <div class="time-range-selector">
-        <select bind:value={timeRange} on:change={loadAnalyticsData}>
-          <option value="7d">Last 7 Days</option>
-          <option value="30d">Last 30 Days</option>
-          <option value="90d">Last 3 Months</option>
-          <option value="1y">Last Year</option>
-        </select>
+  <div class="content-section">
+    <div class="analytics-header">
+      <div class="header-left">
+        <h2 class="heading-lg">
+          <span class="title-icon">📊</span>
+          Analytics Intelligence
+        </h2>
+        <p class="body-md text-muted">AI-powered insights and performance metrics</p>
       </div>
       
-      <!-- Metric Category Tabs -->
-      <div class="metric-tabs">
-        <button 
-          class="tab-btn"
-          class:active={selectedMetric === 'overview'}
-          on:click={() => selectedMetric = 'overview'}
-        >
-          Overview
-        </button>
-        <button 
-          class="tab-btn"
-          class:active={selectedMetric === 'performance'}
-          on:click={() => selectedMetric = 'performance'}
-        >
-          Performance
-        </button>
-        <button 
-          class="tab-btn"
-          class:active={selectedMetric === 'business'}
-          on:click={() => selectedMetric === 'business'}
-        >
-          Business
-        </button>
-      </div>
-      
-      <!-- Real-time indicator -->
-      <div class="real-time-status">
-        <div class="pulse-dot"></div>
-        <span>Live</span>
+      <div class="header-controls">
+        <!-- Time Range Selector -->
+        <div class="control-group">
+          <select bind:value={timeRange} on:change={loadAnalyticsData} class="input-field">
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 3 Months</option>
+            <option value="1y">Last Year</option>
+          </select>
+        </div>
+        
+        <!-- Metric Category Tabs -->
+        <div class="metric-tabs">
+          <button 
+            class="btn-secondary {selectedMetric === 'overview' ? 'btn-primary' : ''}"
+            on:click={() => selectedMetric = 'overview'}
+          >
+            Overview
+          </button>
+          <button 
+            class="btn-secondary {selectedMetric === 'performance' ? 'btn-primary' : ''}"
+            on:click={() => selectedMetric = 'performance'}
+          >
+            Performance
+          </button>
+          <button 
+            class="btn-secondary {selectedMetric === 'business' ? 'btn-primary' : ''}"
+            on:click={() => selectedMetric = 'business'}
+          >
+            Business
+          </button>
+        </div>
+        
+        <!-- Real-time indicator -->
+        <div class="real-time-status">
+          <div class="pulse-dot"></div>
+          <span class="body-sm">Live</span>
+        </div>
       </div>
     </div>
   </div>
   
   <!-- AI Insights Panel -->
   {#if aiInsights.length > 0}
-    <div class="ai-insights-panel">
-      <div class="insights-header">
-        <h3>
+    <div class="content-section">
+      <div class="card-header">
+        <h3 class="heading-md">
           <span class="ai-icon">🧠</span>
           AI Strategic Insights
         </h3>
-        <p>Proactive recommendations from your AI team</p>
+        <p class="body-md text-muted">Proactive recommendations from your AI team</p>
       </div>
       
       <div class="insights-grid">
         {#each aiInsights as insight}
-          <div class="insight-card" style="border-left: 4px solid {getPriorityColor(insight.priority)}">
+          <div class="card insight-card" style="border-left: 4px solid {getPriorityColor(insight.priority)}">
             <div class="insight-header">
               <div class="insight-meta">
                 <span class="insight-icon">{getInsightIcon(insight.type)}</span>
-                <span class="insight-type">{insight.type.toUpperCase()}</span>
-                <span class="priority-badge" style="background: {getPriorityColor(insight.priority)}">
+                <span class="insight-type body-xs">{insight.type.toUpperCase()}</span>
+                <span class="priority-badge body-xs" style="background: {getPriorityColor(insight.priority)}">
                   {insight.priority.toUpperCase()}
                 </span>
               </div>
-              <div class="confidence-score">
+              <div class="confidence-score body-xs">
                 {Math.round(insight.confidence * 100)}% confidence
               </div>
             </div>
             
-            <h4 class="insight-title">{insight.title}</h4>
-            <p class="insight-message">{insight.message}</p>
+            <h4 class="heading-xs insight-title">{insight.title}</h4>
+            <p class="body-md insight-message">{insight.message}</p>
             
             <div class="insight-impact">
-              <span class="impact-label">Estimated Impact:</span>
-              <span class="impact-value">{insight.estimatedImpact}</span>
+              <span class="body-xs text-muted">Estimated Impact:</span>
+              <span class="body-xs font-bold text-green-700">{insight.estimatedImpact}</span>
             </div>
             
             <div class="insight-recommendation">
-              <span class="rec-label">Recommendation:</span>
-              <p class="rec-text">{insight.recommendation}</p>
+              <span class="body-xs font-bold text-blue-700">Recommendation:</span>
+              <p class="body-sm">{insight.recommendation}</p>
             </div>
             
             <div class="insight-actions">
-              <span class="agent-attribution">by {insight.agent}</span>
+              <span class="body-xs text-muted">by {insight.agent}</span>
               <button 
-                class="implement-btn"
+                class="btn-primary btn-sm"
                 on:click={() => implementRecommendation(insight)}
               >
                 Implement
@@ -388,105 +360,109 @@
   {/if}
   
   <!-- KPI Metrics Grid -->
-  <div class="kpi-grid">
-    {#each Object.entries(currentMetrics) as [key, metric]}
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <h4 class="kpi-title">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h4>
-          <span class="change-indicator" style="color: {getChangeColor(metric.change)}">
-            {getChangeIcon(metric.change)}
-          </span>
-        </div>
-        
-        <div class="kpi-value">
-          {#if key === 'revenue'}
-            {formatMetricValue(metric.value, 'currency')}
-          {:else if key.includes('Rate') || key.includes('Margin') || key.includes('Efficiency') || key.includes('Uptime')}
-            {formatMetricValue(metric.value, 'percentage')}
-          {:else if key.includes('Satisfaction')}
-            {formatMetricValue(metric.value, 'rating')}
-          {:else if key.includes('Time') && key.includes('Response')}
-            {formatMetricValue(metric.value, 'decimal')}s
-          {:else if key.includes('Time')}
-            {formatMetricValue(metric.value, 'days')}
-          {:else}
-            {formatMetricValue(metric.value, 'number')}
-          {/if}
-        </div>
-        
-        <div class="kpi-meta">
-          <div class="change-info">
-            <span class="change-value" style="color: {getChangeColor(metric.change)}">
-              {metric.change > 0 ? '+' : ''}{formatMetricValue(Math.abs(metric.change), 
-                key === 'revenue' ? 'currency' : 
-                key.includes('Rate') || key.includes('Margin') || key.includes('Efficiency') ? 'percentage' : 'number')}
+  <div class="content-section">
+    <div class="kpi-grid">
+      {#each Object.entries(currentMetrics) as [key, metric]}
+        <div class="card kpi-card">
+          <div class="kpi-header">
+            <h4 class="heading-xs">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</h4>
+            <span class="change-indicator text-2xl">
+              {getChangeIcon(metric.change)}
             </span>
-            <span class="change-period">vs last period</span>
           </div>
           
-          <div class="target-progress">
-            <div class="progress-bar">
-              <div 
-                class="progress-fill" 
-                style="width: {Math.min((metric.value / metric.target) * 100, 100)}%; background: {colors.primary}"
-              ></div>
+          <div class="kpi-value heading-lg">
+            {#if key === 'revenue'}
+              {formatMetricValue(metric.value, 'currency')}
+            {:else if key.includes('Rate') || key.includes('Margin') || key.includes('Efficiency') || key.includes('Uptime')}
+              {formatMetricValue(metric.value, 'percentage')}
+            {:else if key.includes('Satisfaction')}
+              {formatMetricValue(metric.value, 'rating')}
+            {:else if key.includes('Time') && key.includes('Response')}
+              {formatMetricValue(metric.value, 'decimal')}s
+            {:else if key.includes('Time')}
+              {formatMetricValue(metric.value, 'days')}
+            {:else}
+              {formatMetricValue(metric.value, 'number')}
+            {/if}
+          </div>
+          
+          <div class="kpi-meta">
+            <div class="change-info">
+              <span class="body-sm font-bold {metric.change > 0 ? 'text-green-700' : metric.change < 0 ? 'text-red-700' : 'text-gray-700'}">
+                {metric.change > 0 ? '+' : ''}{formatMetricValue(Math.abs(metric.change), 
+                  key === 'revenue' ? 'currency' : 
+                  key.includes('Rate') || key.includes('Margin') || key.includes('Efficiency') ? 'percentage' : 'number')}
+              </span>
+              <span class="body-sm text-muted">vs last period</span>
             </div>
-            <span class="target-label">Target: {formatMetricValue(metric.target, 
-              key === 'revenue' ? 'currency' : 
-              key.includes('Rate') || key.includes('Margin') || key.includes('Efficiency') ? 'percentage' : 'number')}</span>
+            
+            <div class="target-progress">
+              <div class="progress-bar">
+                <div 
+                  class="progress-fill bg-blue-600" 
+                  style="width: {Math.min((metric.value / metric.target) * 100, 100)}%"
+                ></div>
+              </div>
+              <span class="body-xs text-muted">Target: {formatMetricValue(metric.target, 
+                key === 'revenue' ? 'currency' : 
+                key.includes('Rate') || key.includes('Margin') || key.includes('Efficiency') ? 'percentage' : 'number')}</span>
+            </div>
           </div>
         </div>
-      </div>
-    {/each}
+      {/each}
+    </div>
   </div>
   
   <!-- Charts Section -->
-  <div class="charts-section">
-    <div class="chart-card">
-      <h3 class="chart-title">Project Velocity Trends</h3>
-      <div class="chart-container">
-        <!-- Simplified chart visualization -->
-        <div class="simple-chart">
-          {#each chartData.projectVelocity?.datasets || [] as dataset, i}
-            <div class="chart-legend-item">
-              <div class="legend-color" style="background: {dataset.color}"></div>
-              <span>{dataset.label}</span>
-            </div>
-          {/each}
-          <div class="chart-bars">
-            {#each chartData.projectVelocity?.labels || [] as label, i}
-              <div class="bar-group">
-                <div class="bar-label">{label}</div>
-                {#each chartData.projectVelocity?.datasets || [] as dataset, j}
-                  <div 
-                    class="chart-bar" 
-                    style="height: {(dataset.data[i] / 30) * 100}%; background: {dataset.color}"
-                  ></div>
-                {/each}
+  <div class="content-section">
+    <div class="charts-section">
+      <div class="card">
+        <h3 class="heading-md">Project Velocity Trends</h3>
+        <div class="chart-container">
+          <!-- Simplified chart visualization -->
+          <div class="simple-chart">
+            {#each chartData.projectVelocity?.datasets || [] as dataset, i}
+              <div class="chart-legend-item">
+                <div class="legend-color" style="background: {dataset.color}"></div>
+                <span class="body-sm">{dataset.label}</span>
               </div>
             {/each}
+            <div class="chart-bars">
+              {#each chartData.projectVelocity?.labels || [] as label, i}
+                <div class="bar-group">
+                  <div class="bar-label body-xs text-muted">{label}</div>
+                  {#each chartData.projectVelocity?.datasets || [] as dataset, j}
+                    <div 
+                      class="chart-bar" 
+                      style="height: {(dataset.data[i] / 30) * 100}%; background: {dataset.color}"
+                    ></div>
+                  {/each}
+                </div>
+              {/each}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    
-    <div class="chart-card">
-      <h3 class="chart-title">Agent Utilization</h3>
-      <div class="chart-container">
-        <div class="utilization-chart">
-          {#each chartData.agentUtilization?.labels || [] as agent, i}
-            {@const utilization = chartData.agentUtilization?.datasets[0]?.data[i] || 0}
-            <div class="utilization-row">
-              <div class="agent-name">{agent}</div>
-              <div class="utilization-bar">
-                <div 
-                  class="utilization-fill" 
-                  style="width: {utilization}%; background: {utilization > 90 ? colors.danger : utilization > 80 ? colors.warning : colors.success}"
-                ></div>
+      
+      <div class="card">
+        <h3 class="heading-md">Agent Utilization</h3>
+        <div class="chart-container">
+          <div class="utilization-chart">
+            {#each chartData.agentUtilization?.labels || [] as agent, i}
+              {@const utilization = chartData.agentUtilization?.datasets[0]?.data[i] || 0}
+              <div class="utilization-row">
+                <div class="agent-name body-sm">{agent}</div>
+                <div class="utilization-bar">
+                  <div 
+                    class="utilization-fill" 
+                    style="width: {utilization}%; background: {utilization > 90 ? '#ef4444' : utilization > 80 ? '#f59e0b' : '#10b981'}"
+                  ></div>
+                </div>
+                <div class="utilization-value body-sm font-bold">{utilization}%</div>
               </div>
-              <div class="utilization-value">{utilization}%</div>
-            </div>
-          {/each}
+            {/each}
+          </div>
         </div>
       </div>
     </div>
@@ -494,31 +470,31 @@
   
   <!-- Real-time Metrics -->
   {#if $realTimeData.timestamp}
-    <div class="realtime-panel">
-      <h3 class="realtime-title">
+    <div class="content-section">
+      <h3 class="heading-md">
         <span class="pulse-icon">📡</span>
         Real-time Metrics
       </h3>
       
       <div class="realtime-grid">
-        <div class="realtime-metric">
-          <span class="metric-label">Active Users</span>
-          <span class="metric-value">{$realTimeData.activeUsers}</span>
+        <div class="realtime-metric card">
+          <span class="body-sm text-muted">Active Users</span>
+          <span class="heading-md">{$realTimeData.activeUsers}</span>
         </div>
         
-        <div class="realtime-metric">
-          <span class="metric-label">System Load</span>
-          <span class="metric-value">{$realTimeData.systemLoad?.toFixed(1)}%</span>
+        <div class="realtime-metric card">
+          <span class="body-sm text-muted">System Load</span>
+          <span class="heading-md">{$realTimeData.systemLoad?.toFixed(1)}%</span>
         </div>
         
-        <div class="realtime-metric">
-          <span class="metric-label">Throughput</span>
-          <span class="metric-value">{$realTimeData.throughput}/min</span>
+        <div class="realtime-metric card">
+          <span class="body-sm text-muted">Throughput</span>
+          <span class="heading-md">{$realTimeData.throughput}/min</span>
         </div>
         
-        <div class="realtime-metric">
-          <span class="metric-label">Last Update</span>
-          <span class="metric-value">{$realTimeData.timestamp?.toLocaleTimeString()}</span>
+        <div class="realtime-metric card">
+          <span class="body-sm text-muted">Last Update</span>
+          <span class="body-md">{$realTimeData.timestamp?.toLocaleTimeString()}</span>
         </div>
       </div>
     </div>
@@ -526,94 +502,42 @@
 </div>
 
 <style>
-  .modern-analytics-container {
-    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  .analytics-container {
+    background: var(--bg-secondary);
     min-height: 100vh;
     padding: 24px;
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .modern-analytics-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
   }
   
   .analytics-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
-    position: relative;
-    z-index: 1;
+    align-items: flex-start;
+    gap: 24px;
   }
   
-  .analytics-title {
-    font-size: 32px;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 16px;
+  .header-left {
+    flex: 1;
   }
   
   .title-icon {
     font-size: 36px;
-  }
-  
-  .analytics-subtitle {
-    color: #cbd5e1;
-    margin: 6px 0 0 52px;
-    font-size: 16px;
+    margin-right: 12px;
   }
   
   .header-controls {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
   }
   
-  .time-range-selector select {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #f8fafc;
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-size: 14px;
+  .control-group select {
+    min-width: 150px;
   }
   
   .metric-tabs {
     display: flex;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 4px;
-    backdrop-filter: blur(12px);
-  }
-  
-  .tab-btn {
-    padding: 10px 20px;
-    border: none;
-    background: transparent;
-    color: #cbd5e1;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    font-weight: 500;
-  }
-  
-  .tab-btn.active {
-    background: rgba(99, 102, 241, 0.3);
-    color: #6366f1;
+    gap: 8px;
   }
   
   .real-time-status {
@@ -621,8 +545,7 @@
     align-items: center;
     gap: 8px;
     color: #10b981;
-    font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
   }
   
   .pulse-dot {
@@ -639,33 +562,6 @@
     100% { opacity: 1; }
   }
   
-  .ai-insights-panel {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 32px;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .insights-header h3 {
-    color: #f8fafc;
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .insights-header p {
-    color: #cbd5e1;
-    font-size: 14px;
-    margin-bottom: 20px;
-  }
-  
   .insights-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -673,16 +569,7 @@
   }
   
   .insight-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 20px;
-    transition: all 0.3s ease;
-  }
-  
-  .insight-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    position: relative;
   }
   
   .insight-header {
@@ -703,38 +590,29 @@
   }
   
   .insight-type {
-    font-size: 10px;
-    font-weight: 700;
-    color: #6366f1;
+    color: var(--primary-blue);
     text-transform: uppercase;
     letter-spacing: 1px;
+    font-weight: 700;
   }
   
   .priority-badge {
     padding: 4px 8px;
     border-radius: 6px;
-    font-size: 10px;
-    font-weight: 700;
     color: white;
+    font-weight: 700;
   }
   
   .confidence-score {
     color: #10b981;
-    font-size: 12px;
     font-weight: 600;
   }
   
   .insight-title {
-    color: #f8fafc;
-    font-size: 16px;
-    font-weight: 600;
     margin-bottom: 8px;
   }
   
   .insight-message {
-    color: #cbd5e1;
-    font-size: 14px;
-    line-height: 1.5;
     margin-bottom: 12px;
   }
   
@@ -744,38 +622,12 @@
     margin-bottom: 12px;
   }
   
-  .impact-label {
-    color: #94a3b8;
-    font-size: 12px;
-  }
-  
-  .impact-value {
-    color: #10b981;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  
   .insight-recommendation {
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: var(--bg-accent);
+    border: 2px solid var(--border-default);
     border-radius: 8px;
     padding: 12px;
     margin-bottom: 16px;
-  }
-  
-  .rec-label {
-    color: #a78bfa;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .rec-text {
-    color: #ddd6fe;
-    font-size: 13px;
-    margin: 6px 0 0 0;
-    line-height: 1.4;
   }
   
   .insight-actions {
@@ -784,49 +636,24 @@
     align-items: center;
   }
   
-  .agent-attribution {
-    color: #94a3b8;
-    font-size: 11px;
-    font-style: italic;
-  }
-  
-  .implement-btn {
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    color: #6366f1;
+  .btn-sm {
     padding: 6px 12px;
-    border-radius: 6px;
     font-size: 12px;
-    font-weight: 600;
-    transition: all 0.3s ease;
-  }
-  
-  .implement-btn:hover {
-    background: rgba(99, 102, 241, 0.3);
-    transform: translateY(-1px);
   }
   
   .kpi-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 20px;
-    margin-bottom: 32px;
-    position: relative;
-    z-index: 1;
   }
   
   .kpi-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 20px;
     transition: all 0.3s ease;
   }
   
   .kpi-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-xl);
   }
   
   .kpi-header {
@@ -836,23 +663,7 @@
     margin-bottom: 12px;
   }
   
-  .kpi-title {
-    color: #cbd5e1;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: 0;
-  }
-  
-  .change-indicator {
-    font-size: 16px;
-  }
-  
   .kpi-value {
-    color: #f8fafc;
-    font-size: 28px;
-    font-weight: 700;
     margin-bottom: 16px;
     line-height: 1;
   }
@@ -869,16 +680,6 @@
     gap: 8px;
   }
   
-  .change-value {
-    font-size: 14px;
-    font-weight: 600;
-  }
-  
-  .change-period {
-    color: #94a3b8;
-    font-size: 12px;
-  }
-  
   .target-progress {
     display: flex;
     flex-direction: column;
@@ -887,9 +688,9 @@
   
   .progress-bar {
     width: 100%;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    height: 8px;
+    background: var(--bg-accent);
+    border-radius: 4px;
     overflow: hidden;
   }
   
@@ -898,33 +699,10 @@
     transition: width 0.5s ease;
   }
   
-  .target-label {
-    color: #94a3b8;
-    font-size: 11px;
-  }
-  
   .charts-section {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
     gap: 24px;
-    margin-bottom: 32px;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .chart-card {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 24px;
-  }
-  
-  .chart-title {
-    color: #f8fafc;
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 20px;
   }
   
   .simple-chart {
@@ -937,8 +715,6 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #cbd5e1;
-    font-size: 12px;
   }
   
   .legend-color {
@@ -963,12 +739,6 @@
     flex: 1;
   }
   
-  .bar-label {
-    color: #94a3b8;
-    font-size: 11px;
-    text-align: center;
-  }
-  
   .chart-bar {
     width: 100%;
     min-height: 4px;
@@ -989,16 +759,13 @@
   }
   
   .agent-name {
-    color: #cbd5e1;
-    font-size: 12px;
-    font-weight: 500;
-    min-width: 80px;
+    min-width: 100px;
   }
   
   .utilization-bar {
     flex: 1;
     height: 8px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-accent);
     border-radius: 4px;
     overflow: hidden;
   }
@@ -1009,60 +776,25 @@
   }
   
   .utilization-value {
-    color: #f8fafc;
-    font-size: 12px;
-    font-weight: 600;
-    min-width: 35px;
+    min-width: 45px;
     text-align: right;
-  }
-  
-  .realtime-panel {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 20px;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .realtime-title {
-    color: #f8fafc;
-    font-size: 18px;
-    font-weight: 600;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .pulse-icon {
-    animation: pulse 2s infinite;
   }
   
   .realtime-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
   }
   
   .realtime-metric {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
     text-align: center;
+    padding: 16px;
   }
   
-  .metric-label {
-    color: #94a3b8;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .metric-value {
-    color: #f8fafc;
-    font-size: 20px;
-    font-weight: 700;
+  .pulse-icon {
+    animation: pulse 2s infinite;
   }
 </style>

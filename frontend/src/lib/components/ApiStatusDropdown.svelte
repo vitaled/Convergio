@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   
+  // Get app version from environment or fallback
+  const APP_VERSION: string = (typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : (typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'V1.0.129')) as unknown as string;
+  
   interface ApiStatus {
     openai: { connected: boolean; model?: string; error?: string };
     anthropic: { connected: boolean; model?: string; error?: string };
@@ -134,17 +137,17 @@
   
   function getStatusColor(status: 'online' | 'partial' | 'offline') {
     switch (status) {
-      case 'online': return 'text-green-400';
-      case 'partial': return 'text-yellow-400';
-      case 'offline': return 'text-red-400';
+      case 'online': return 'text-green-700';
+      case 'partial': return 'text-yellow-700';
+      case 'offline': return 'text-red-700';
     }
   }
   
   function getStatusBgColor(status: 'online' | 'partial' | 'offline') {
     switch (status) {
-      case 'online': return 'bg-green-400';
-      case 'partial': return 'bg-yellow-400';
-      case 'offline': return 'bg-red-400';
+      case 'online': return 'bg-green-500';
+      case 'partial': return 'bg-yellow-500';
+      case 'offline': return 'bg-red-500';
     }
   }
   
@@ -157,29 +160,20 @@
       default: return '📡';
     }
   }
-  
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.api-status-dropdown')) {
-      isOpen = false;
-    }
-  }
 </script>
 
-<svelte:window on:click={handleClickOutside} />
-
-<div class="api-status-dropdown relative">
+<div class="relative">
   <!-- Status Button -->
   <button
-    on:click|stopPropagation={() => isOpen = !isOpen}
-    class="flex items-center space-x-2 text-xs {getStatusColor(overallStatus)} hover:opacity-80 transition-opacity cursor-pointer"
+    on:click={() => isOpen = !isOpen}
+    class="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 shadow-sm {getStatusColor(overallStatus)}"
     aria-label="API connection status"
     aria-expanded={isOpen}
   >
-    <div class="h-1.5 w-1.5 {getStatusBgColor(overallStatus)} rounded-full animate-pulse"></div>
-    <span class="hidden sm:inline capitalize">{overallStatus}</span>
+    <div class="h-2 w-2 {getStatusBgColor(overallStatus)} rounded-full animate-pulse"></div>
+    <span class="hidden sm:inline capitalize font-bold text-sm">{overallStatus}</span>
     <svg
-      class="w-3 h-3 transition-transform {isOpen ? 'rotate-180' : ''}"
+      class="w-4 h-4 text-gray-700 transform transition-transform {isOpen ? 'rotate-180' : ''}"
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -190,23 +184,33 @@
   
   <!-- Dropdown Panel -->
   {#if isOpen}
-    <div
-      class="absolute right-0 mt-2 w-72 bg-white/95 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-200/50 z-50"
-      on:click|stopPropagation
-    >
-      <div class="p-3 border-b border-gray-200/50">
-        <h3 class="text-xs font-semibold text-gray-800">API Connection Status</h3>
-        <p class="text-xs text-gray-600 mt-0.5">Real-time service availability</p>
+    <div class="absolute right-0 top-full mt-2 w-80 bg-white border-2 border-gray-300 rounded-xl shadow-2xl z-[10000] overflow-hidden">
+      <!-- Header -->
+      <div class="bg-blue-600 text-white px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold">API Connection Status</h3>
+            <p class="text-sm text-blue-100 mt-1">Real-time service availability</p>
+          </div>
+        </div>
       </div>
       
-      <div class="p-2 space-y-2">
+      <!-- Version Info -->
+      <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-600">Platform Version</span>
+          <span class="text-sm font-bold text-gray-900">{APP_VERSION}</span>
+        </div>
+      </div>
+      
+      <div class="p-6 space-y-4">
         <!-- Backend Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
-          <div class="flex items-center space-x-2">
-            <span class="text-base">{getServiceIcon('backend')}</span>
+        <div class="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+          <div class="flex items-center space-x-3">
+            <span class="text-xl">{getServiceIcon('backend')}</span>
             <div>
-              <p class="text-xs font-medium text-white">Backend Server</p>
-              <p class="text-xs text-white/70">
+              <p class="font-bold text-gray-900">Backend Server</p>
+              <p class="text-sm text-gray-700">
                 {#if apiStatus.backend.connected}
                   v{apiStatus.backend.version || 'Unknown'}
                 {:else}
@@ -215,21 +219,21 @@
               </p>
             </div>
           </div>
-          <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.backend.connected ? 'bg-green-400' : 'bg-red-400'}"></div>
-            <span class="text-xs {apiStatus.backend.connected ? 'text-green-400' : 'text-red-400'}">
+          <div class="flex items-center space-x-2">
+            <div class="h-3 w-3 rounded-full {apiStatus.backend.connected ? 'bg-green-500' : 'bg-red-500'}"></div>
+            <span class="text-sm font-bold {apiStatus.backend.connected ? 'text-green-700' : 'text-red-700'}">
               {apiStatus.backend.connected ? 'Online' : 'Offline'}
             </span>
           </div>
         </div>
         
         <!-- OpenAI Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
-          <div class="flex items-center space-x-2">
-            <span class="text-base">{getServiceIcon('openai')}</span>
+        <div class="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+          <div class="flex items-center space-x-3">
+            <span class="text-xl">{getServiceIcon('openai')}</span>
             <div>
-              <p class="text-xs font-medium text-white">OpenAI</p>
-              <p class="text-xs text-white/70">
+              <p class="font-bold text-gray-900">OpenAI</p>
+              <p class="text-sm text-gray-700">
                 {#if apiStatus.openai.connected}
                   {apiStatus.openai.model || 'Connected'}
                 {:else if apiStatus.openai.error}
@@ -240,21 +244,21 @@
               </p>
             </div>
           </div>
-          <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.openai.connected ? 'bg-green-400' : 'bg-white/30'}"></div>
-            <span class="text-xs {apiStatus.openai.connected ? 'text-green-400' : 'text-white/60'}">
+          <div class="flex items-center space-x-2">
+            <div class="h-3 w-3 rounded-full {apiStatus.openai.connected ? 'bg-green-500' : 'bg-gray-400'}"></div>
+            <span class="text-sm font-bold {apiStatus.openai.connected ? 'text-green-700' : 'text-gray-600'}">
               {apiStatus.openai.connected ? 'Active' : 'Inactive'}
             </span>
           </div>
         </div>
         
         <!-- Anthropic Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
-          <div class="flex items-center space-x-2">
-            <span class="text-base">{getServiceIcon('anthropic')}</span>
+        <div class="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+          <div class="flex items-center space-x-3">
+            <span class="text-xl">{getServiceIcon('anthropic')}</span>
             <div>
-              <p class="text-xs font-medium text-white">Anthropic</p>
-              <p class="text-xs text-white/70">
+              <p class="font-bold text-gray-900">Anthropic</p>
+              <p class="text-sm text-gray-700">
                 {#if apiStatus.anthropic.connected}
                   {apiStatus.anthropic.model || 'Connected'}
                 {:else if apiStatus.anthropic.error}
@@ -265,21 +269,21 @@
               </p>
             </div>
           </div>
-          <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.anthropic.connected ? 'bg-green-400' : 'bg-white/30'}"></div>
-            <span class="text-xs {apiStatus.anthropic.connected ? 'text-green-400' : 'text-white/60'}">
+          <div class="flex items-center space-x-2">
+            <div class="h-3 w-3 rounded-full {apiStatus.anthropic.connected ? 'bg-green-500' : 'bg-gray-400'}"></div>
+            <span class="text-sm font-bold {apiStatus.anthropic.connected ? 'text-green-700' : 'text-gray-600'}">
               {apiStatus.anthropic.connected ? 'Active' : 'Inactive'}
             </span>
           </div>
         </div>
         
         <!-- Perplexity Status -->
-        <div class="flex items-center justify-between p-2 rounded hover:bg-white/10 transition-colors">
-          <div class="flex items-center space-x-2">
-            <span class="text-base">{getServiceIcon('perplexity')}</span>
+        <div class="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+          <div class="flex items-center space-x-3">
+            <span class="text-xl">{getServiceIcon('perplexity')}</span>
             <div>
-              <p class="text-xs font-medium text-white">Perplexity</p>
-              <p class="text-xs text-white/70">
+              <p class="font-bold text-gray-900">Perplexity</p>
+              <p class="text-sm text-gray-700">
                 {#if apiStatus.perplexity.connected}
                   {apiStatus.perplexity.model || 'Web Search Ready'}
                 {:else if apiStatus.perplexity.error}
@@ -290,31 +294,42 @@
               </p>
             </div>
           </div>
-          <div class="flex items-center space-x-1">
-            <div class="h-2 w-2 rounded-full {apiStatus.perplexity.connected ? 'bg-green-400' : 'bg-yellow-400'}"></div>
-            <span class="text-xs {apiStatus.perplexity.connected ? 'text-green-400' : 'text-yellow-400'}">
+          <div class="flex items-center space-x-2">
+            <div class="h-3 w-3 rounded-full {apiStatus.perplexity.connected ? 'bg-green-500' : 'bg-yellow-500'}"></div>
+            <span class="text-sm font-bold {apiStatus.perplexity.connected ? 'text-green-700' : 'text-yellow-700'}">
               {apiStatus.perplexity.connected ? 'Active' : 'Optional'}
             </span>
           </div>
         </div>
       </div>
       
-      <div class="p-3 border-t border-white/20 bg-white/5">
-        <div class="flex items-center justify-between">
-          <p class="text-xs text-white/60">
-            Last checked: {new Date().toLocaleTimeString()}
-          </p>
-          <button
-            on:click={checkApiStatus}
-            class="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
-          >
-            Refresh
-          </button>
-        </div>
+      <!-- Footer -->
+      <div class="bg-gray-100 px-6 py-4 flex items-center justify-between text-sm">
+        <p class="text-gray-700 font-medium">
+          Last checked: {new Date().toLocaleTimeString()}
+        </p>
+        <button
+          on:click={checkApiStatus}
+          class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition-colors"
+        >
+          Refresh
+        </button>
       </div>
     </div>
   {/if}
 </div>
+
+<!-- Click outside to close -->
+{#if isOpen}
+  <div 
+    class="fixed inset-0 z-[9999]" 
+    role="button"
+    tabindex="-1"
+    aria-label="Close API status"
+    on:click={() => isOpen = false}
+    on:keydown={(e) => e.key === 'Escape' && (isOpen = false)}
+  ></div>
+{/if}
 
 <style>
   @keyframes pulse {

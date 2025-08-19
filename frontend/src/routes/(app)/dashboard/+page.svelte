@@ -114,7 +114,7 @@
 </svelte:head>
 
 <!-- Comprehensive Dashboard -->
-<div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 space-y-6">
+<div class="min-h-screen bg-gray-50 space-y-6">
   <!-- Dashboard Navigation -->
   <DashboardNavigation bind:activeSection />
 
@@ -123,12 +123,12 @@
     <!-- Executive Brief Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-lg font-medium text-white">Executive Overview</h1>
-        <p class="mt-1 text-sm text-white/70">Real-time business metrics and insights</p>
+        <h1 class="text-lg font-medium text-gray-900">Executive Overview</h1>
+        <p class="mt-1 text-sm text-gray-700">Real-time business metrics and insights</p>
       </div>
       <button
         on:click={requestExecutiveBrief}
-        class="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white text-sm font-medium rounded-lg transition-all duration-300 hover:scale-105"
+        class="btn-secondary inline-flex items-center"
       >
         <img src="/convergio_icons/download.svg" alt="" class="mr-1.5 h-3 w-3" />
         Executive Brief
@@ -203,8 +203,8 @@
     <!-- Performance & Cost Metrics -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Performance Metrics -->
-      <div class="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 shadow-lg">
-        <h3 class="text-lg font-medium text-white mb-6">Performance Metrics</h3>
+      <div class="bg-white border-2 border-gray-300 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Performance Metrics</h3>
         {#if loading}
           <div class="space-y-3 animate-pulse">
             {#each Array(4) as _, i}
@@ -217,32 +217,32 @@
         {:else}
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Agent Interactions</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Agent Interactions</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.performance_metrics?.agent_interactions != null
                   ? formatNumber(dashboardData.performance_metrics.agent_interactions)
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Avg Response Time</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Avg Response Time</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.performance_metrics?.avg_response_time != null
                   ? `${dashboardData.performance_metrics.avg_response_time.toFixed(2)}s`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Success Rate</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Success Rate</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.performance_metrics?.success_rate != null
                   ? `${dashboardData.performance_metrics.success_rate.toFixed(1)}%`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Peak Concurrent Users</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Peak Concurrent Users</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.performance_metrics?.peak_concurrent_users != null
                   ? formatNumber(dashboardData.performance_metrics.peak_concurrent_users)
                   : '-'}
@@ -253,8 +253,8 @@
       </div>
 
       <!-- Cost Summary -->
-      <div class="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 shadow-lg">
-        <h3 class="text-lg font-medium text-white mb-6">Cost Summary</h3>
+      <div class="bg-white border-2 border-gray-300 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Cost Summary</h3>
         {#if loading}
           <div class="space-y-3 animate-pulse">
             {#each Array(4) as _, i}
@@ -267,32 +267,32 @@
         {:else}
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Total Cost</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Total Cost</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.cost_summary?.total_cost_usd != null
                   ? formatCurrency(dashboardData.cost_summary.total_cost_usd)
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Cost per Interaction</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Cost per Interaction</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.cost_summary?.cost_per_interaction != null
                   ? `$${(dashboardData.cost_summary.cost_per_interaction).toFixed(4)}`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Budget Utilization</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Budget Utilization</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.cost_summary?.budget_utilization != null
                   ? `${dashboardData.cost_summary.budget_utilization.toFixed(1)}%`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-white/70">Top Model</span>
-              <span class="text-lg font-medium text-white">
+              <span class="text-sm text-gray-700">Top Model</span>
+              <span class="text-lg font-medium text-gray-900">
                 {dashboardData?.cost_summary?.top_models?.[0]?.model ?? 'N/A'}
               </span>
             </div>
@@ -302,20 +302,20 @@
     </div>
 
     <!-- Recent Activity Preview -->
-    <div class="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl shadow-lg">
-      <div class="px-6 py-4 border-b border-white/20">
+    <div class="bg-white border-2 border-gray-300 rounded-xl shadow-lg">
+      <div class="px-6 py-4 border-b border-gray-200/50">
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-medium text-white">Recent Projects</h3>
+          <h3 class="text-lg font-medium text-gray-900">Recent Projects</h3>
           <div class="flex space-x-2">
             <button 
               on:click={() => createProject('product_launch')}
-              class="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300 border border-white/20"
+              class="px-3 py-1.5 text-sm bg-gray-100/80 hover:bg-gray-200/80 text-gray-900 rounded-lg transition-all duration-300 border border-gray-300/50"
             >
               Launch
             </button>
             <button 
               on:click={() => createProject('market_analysis')}
-              class="px-3 py-1.5 text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-300 border border-white/20"
+              class="px-3 py-1.5 text-sm bg-gray-100/80 hover:bg-gray-200/80 text-gray-900 rounded-lg transition-all duration-300 border border-gray-300/50"
             >
               Analysis
             </button>

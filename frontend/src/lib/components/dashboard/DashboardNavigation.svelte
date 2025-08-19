@@ -31,22 +31,22 @@
   }
 </script>
 
-<div class="bg-white/80 backdrop-blur-lg border border-gray-200/50 rounded-xl mb-6 shadow-lg">
-  <div class="px-4 py-3 border-b border-gray-200/50">
-    <h2 class="text-sm font-medium text-gray-800">Dashboard</h2>
+<div class="bg-white border-2 border-gray-300 rounded-xl mb-6 shadow-lg">
+  <div class="px-6 py-4 border-b-2 border-gray-200">
+    <h2 class="text-lg font-bold text-gray-900">Dashboard</h2>
   </div>
-  <div class="p-4">
-    <nav class="flex flex-wrap gap-1">
+  <div class="p-6">
+    <nav class="flex flex-wrap gap-2">
       {#each sections as section}
         <button
           on:click={() => handleSectionChange(section.id)}
-          class="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 {
+          class="flex items-center space-x-2 px-4 py-3 rounded-lg text-sm font-bold transition-all duration-200 {
             activeSection === section.id
-              ? 'bg-gray-200/60 text-gray-900 border border-gray-300/50 shadow-md'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent'
+              ? 'bg-blue-600 text-white border-2 border-blue-700 shadow-md'
+              : 'text-gray-800 hover:text-blue-600 hover:bg-blue-50 border-2 border-gray-300 bg-white'
           }"
         >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={getSvgPath(section.icon)} />
           </svg>
           <span>{section.label}</span>

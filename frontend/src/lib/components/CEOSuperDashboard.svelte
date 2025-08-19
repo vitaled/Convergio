@@ -563,7 +563,7 @@
 <!-- ===== 🚨 ADVANCED NOTIFICATIONS ===== -->
 {#if notification}
 	<div class="fixed top-4 right-4 z-50 max-w-md animate-slide-in">
-		<div class="rounded-xl shadow-2xl border-l-4 p-4 backdrop-blur-sm"
+		<div class="rounded-xl shadow-2xl border-l-4 p-4 bg-white"
 			 class:bg-green-50={notification.type === 'success'}
 			 class:border-green-500={notification.type === 'success'}
 			 class:text-green-800={notification.type === 'success'}

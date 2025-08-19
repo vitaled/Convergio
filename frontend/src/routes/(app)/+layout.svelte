@@ -6,6 +6,7 @@
   import CostDisplay from '$lib/components/CostDisplay.svelte';
   import ApiStatusDropdown from '$lib/components/ApiStatusDropdown.svelte';
   import '$lib/styles/modern-ui.css';
+  import '$lib/styles/design-system.css';
   
   // MVP navigation items (simplified for initial release)
   const navItems = [
@@ -60,46 +61,46 @@
   }
 </script>
 
-<!-- Modern Light Glassmorphism Layout -->
-<div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 font-mono text-sm">
-  <!-- Light Glassmorphism Top Navigation -->
-  <div class="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 shadow-sm">
+<!-- Clean Professional Layout -->
+<div class="min-h-screen bg-white font-sans text-base">
+  <!-- Clean Professional Top Navigation -->
+  <div class="bg-white border-b-2 border-gray-200 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-14">
+      <div class="flex justify-between items-center h-16">
         <!-- Logo & Title -->
         <div class="flex items-center space-x-4">
           <button on:click={() => goto('/')} class="flex items-center space-x-3 hover:opacity-75 transition-all">
-            <img src="/convergio_logo.png" alt="Platform Convergio" class="h-8 w-auto" />
-            <span class="text-gray-800 font-medium tracking-tight">platform.Convergio.io</span>
+            <div class="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+              C
+            </div>
+            <div class="flex flex-col">
+              <span class="text-lg font-bold text-gray-900 leading-tight">Convergio</span>
+              <span class="text-sm text-gray-600 leading-none">AI Agent Platform</span>
+            </div>
           </button>
         </div>
         
-        <!-- Glassmorphism Navigation -->
-        <nav class="hidden md:flex items-center space-x-4">
+        <!-- Clean Navigation -->
+        <nav class="hidden md:flex items-center space-x-2">
           {#each navItems as item}
             <a
               href={item.href}
               sveltekit:prefetch
               aria-current={isActive(item.href) ? 'page' : undefined}
-              class="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 {isActive(item.href)
-                ? 'bg-gray-200/60 text-gray-900 border border-gray-300/50 shadow-md'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 border border-transparent'}"
+              class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 {isActive(item.href)
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-800 hover:text-blue-600 hover:bg-blue-50'}"
             >
-              <img src={item.iconPath} alt="" class="h-3 w-3" />
+              <img src={item.iconPath} alt="" class="h-4 w-4" />
               <span>{item.label}</span>
             </a>
           {/each}
         </nav>
         
         <!-- Status & Cost Indicators -->
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
           <!-- Cost Display -->
           <CostDisplay />
-          
-          <!-- Version -->
-          <div class="hidden md:block text-xs text-white/60 tracking-wide">
-            v{APP_VERSION}
-          </div>
           
           <!-- API Status Dropdown -->
           <ApiStatusDropdown />

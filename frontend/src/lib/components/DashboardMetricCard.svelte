@@ -20,9 +20,9 @@
                    changeType === 'decrease' ? '/convergio_icons/down.svg' : 
                    '/convergio_icons/minus.svg';
   
-  $: changeTextColor = changeType === 'increase' ? 'text-green-600' : 
-                       changeType === 'decrease' ? 'text-red-600' : 
-                       'text-gray-600';
+  $: changeTextColor = changeType === 'increase' ? 'text-green-700' : 
+                       changeType === 'decrease' ? 'text-red-700' : 
+                       'text-gray-700';
 
   function handleClick() {
     dispatch('click');
@@ -30,26 +30,26 @@
 </script>
 
 <div 
-  class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer {loading ? 'opacity-60' : ''}"
+  class="rounded-xl border-2 border-gray-300 bg-white p-6 shadow-lg hover:shadow-xl hover:border-blue-500 transition-all duration-300 cursor-pointer {loading ? 'opacity-60' : ''}"
   on:click={handleClick}
 >
   <div class="flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="rounded-lg {bgColor} p-2">
-        <img src={icon} alt="" class="h-5 w-5 {iconColor}" />
+    <div class="flex items-center space-x-4">
+      <div class="rounded-lg bg-blue-100 p-3 border-2 border-blue-200">
+        <img src={icon} alt="" class="h-6 w-6 text-blue-600" />
       </div>
       <div>
-        <p class="text-sm font-medium text-gray-600">{title}</p>
-        <p class="text-2xl font-bold {valueColor}">
+        <p class="text-sm font-bold text-gray-700 mb-1">{title}</p>
+        <p class="text-2xl font-bold text-gray-900">
           {loading ? '...' : formatValue(value)}
         </p>
       </div>
     </div>
     
     {#if showChange && !loading}
-      <div class="flex items-center space-x-1">
-        <img src={changeIcon} alt="" class="h-3 w-3" />
-        <span class="text-sm font-medium {changeTextColor}">
+      <div class="flex items-center space-x-2 bg-gray-100 px-3 py-2 rounded-lg">
+        <img src={changeIcon} alt="" class="h-4 w-4" />
+        <span class="text-sm font-bold {changeTextColor}">
           {change > 0 ? '+' : ''}{change}%
         </span>
       </div>

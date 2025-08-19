@@ -682,22 +682,22 @@
 <div class="space-y-6">
   <!-- Header -->
   <div>
-    <h1 class="text-lg font-medium text-gray-900">AI Team</h1>
-    <p class="mt-1 text-xs text-gray-500">Your specialized AI agents powered by Microsoft AutoGen</p>
+    <h1 class="heading-lg">AI Team</h1>
+    <p class="body-sm text-gray-600">Your specialized AI agents powered by Microsoft AutoGen</p>
   </div>
 
   <div class="grid lg:grid-cols-5 gap-8">
     <!-- Agents List with integrated search -->
     <div class="lg:col-span-2">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="bg-white border-2 border-gray-300 rounded-xl shadow-lg overflow-hidden">
         <!-- Search in header -->
-        <div class="p-4 border-b border-gray-100 bg-gray-50">
+        <div class="p-4 border-b border-gray-300 bg-gray-50">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-gray-900">AI Team</h3>
+            <h3 class="heading-md text-gray-900">AI Team</h3>
             <!-- Hire New Agent Button -->
             <button
               on:click={() => showHireForm = true}
-              class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+              class="btn-primary btn-sm flex items-center space-x-1"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -710,11 +710,11 @@
               type="text"
               bind:value={searchQuery}
               placeholder="Search agents by name, role, or skills..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              class="input-field"
             />
             <select
               bind:value={selectedSkill}
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              class="input-field"
             >
               <option value="">All Specialties</option>
               {#each allSkills.slice(0, 12) as skill}
@@ -723,7 +723,7 @@
             </select>
           </div>
           
-          <div class="flex items-center justify-between text-xs mt-3 pt-3 border-t border-gray-200">
+          <div class="flex items-center justify-between text-xs mt-3 pt-3 border-t border-gray-300">
             <div class="flex items-center space-x-2">
               <span class="text-gray-600">{filteredAgents.length} of {allAgents.length} available</span>
               {#if isLoadingAgents}
@@ -747,27 +747,27 @@
         
         <!-- Agents List -->
         <div class="max-h-[500px] overflow-y-auto">
-          <div class="divide-y divide-gray-100">
+          <div class="divide-y divide-gray-200">
             {#each filteredAgents as agent}
               <button
                 on:click={() => selectAgent(agent)}
-                class="w-full p-3 hover:bg-gray-50 transition-colors text-left group {selectedAgent.id === agent.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''}"
+                class="w-full p-3 hover:bg-blue-50 transition-colors text-left group {selectedAgent.id === agent.id ? 'bg-blue-100 border-r-4 border-blue-500' : ''}"
               >
                 <div class="flex items-center space-x-3">
-                  <div class="w-8 h-8 rounded-lg flex items-center justify-center border border-gray-200 bg-white group-hover:border-blue-300 transition-colors">
+                  <div class="w-8 h-8 rounded-lg flex items-center justify-center border-2 border-gray-300 bg-gray-100 group-hover:border-blue-400 transition-colors">
                     <AgentIcons agentName={agent.name} size="w-4 h-4" />
                   </div>
                   <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 text-sm">{agent.name}</div>
-                    <div class="text-xs text-gray-500">{agent.role}</div>
-                    <div class="text-xs text-gray-400 truncate mt-0.5">{capitalizeSpecialty(agent.specialty)}</div>
+                    <div class="body-md font-semibold text-gray-900">{agent.name}</div>
+                    <div class="body-sm text-blue-600">{agent.role}</div>
+                    <div class="caption text-gray-600 truncate mt-0.5">{agent.description}</div>
                   </div>
                   {#if agent.key}
                     <AgentStatus agentId={agent.key} agentName={agent.name} compact={true} />
                   {:else}
-                    <div class="flex items-center space-x-1 px-2 py-1 bg-gray-100 rounded-full">
-                      <div class="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
-                      <span class="text-xs text-gray-500 font-medium">Ready</span>
+                    <div class="flex items-center space-x-1 px-2 py-1 bg-green-100 rounded-full">
+                      <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                      <span class="caption text-green-700 font-medium">Ready</span>
                     </div>
                   {/if}
                 </div>
@@ -775,11 +775,11 @@
             {/each}
             
             {#if filteredAgents.length === 0}
-              <div class="text-center py-8 text-gray-500">
-                <div class="text-sm mb-2">No agents found</div>
+              <div class="text-center py-8 text-gray-600">
+                <div class="body-md mb-2">No agents found</div>
                 <button 
                   on:click={() => { searchQuery = ''; selectedSkill = ''; }}
-                  class="text-blue-600 hover:text-blue-800 underline text-sm font-medium"
+                  class="text-blue-600 hover:text-blue-700 underline body-sm font-medium"
                 >
                   Clear filters
                 </button>
@@ -792,34 +792,34 @@
 
     <!-- Enlarged Chat Interface -->
     <div class="lg:col-span-3">
-      <div class="bg-white border border-gray-200 rounded-xl shadow-sm h-[600px] flex flex-col">
+      <div class="bg-white border-2 border-gray-300 rounded-xl shadow-lg h-[600px] flex flex-col">
         <!-- Chat Header -->
-        <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div class="px-6 py-4 border-b border-gray-300 bg-blue-50">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 rounded-lg flex items-center justify-center border border-blue-200 bg-white">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center border-2 border-blue-300 bg-white">
                 <AgentIcons agentName={selectedAgent?.name || ''} size="w-5 h-5" />
               </div>
               <div class="flex-1">
-                <div class="text-lg font-semibold text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
-                <div class="text-sm text-blue-600">{selectedAgent?.role || ''}</div>
-                <div class="text-xs text-gray-500 mt-1">{selectedAgent ? capitalizeSpecialty(selectedAgent.specialty) : ''}</div>
+                <div class="heading-md text-gray-900">{selectedAgent?.name || 'Loading...'}</div>
+                <div class="body-sm text-blue-600">{selectedAgent?.role || ''}</div>
+                <div class="caption text-gray-600 mt-1">{selectedAgent?.description || ''}</div>
               </div>
             </div>
             
             <!-- Executive/Oversight Mode Toggle (only for Ali) -->
             {#if selectedAgent?.name === 'Ali'}
-              <div class="flex items-center space-x-2 bg-white rounded-lg px-3 py-2 border border-blue-200">
-                <span class="text-xs font-medium text-gray-600">View:</span>
+              <div class="flex items-center space-x-2 bg-white border-2 border-gray-300 rounded-lg px-3 py-2">
+                <span class="caption font-medium text-gray-600">View:</span>
                 <button
                   on:click={() => isOversightMode = false}
-                  class="px-3 py-1 text-xs font-medium rounded transition-colors {!isOversightMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600'}"
+                  class="px-3 py-1 caption font-medium rounded transition-colors {!isOversightMode ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-600 hover:text-blue-600'}"
                 >
                   Executive
                 </button>
                 <button
                   on:click={() => isOversightMode = true}
-                  class="px-3 py-1 text-xs font-medium rounded transition-colors {isOversightMode ? 'bg-purple-600 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600'}"
+                  class="px-3 py-1 caption font-medium rounded transition-colors {isOversightMode ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-600 hover:text-purple-600'}"
                 >
                   Oversight
                 </button>
@@ -975,25 +975,25 @@
         </div>
 
         <!-- Enhanced Input -->
-        <div class="p-6 border-t border-gray-100 bg-gray-50">
+        <div class="p-6 border-t border-gray-300 bg-gray-50">
           <div class="flex space-x-3">
             <textarea
               bind:value={currentMessage}
               on:keydown={handleKeyPress}
               placeholder="Ask {selectedAgent?.name || 'the agent'} about strategy, analysis, or anything in their expertise area..."
-              class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              class="flex-1 input-field resize-none"
               rows="2"
               disabled={isLoading}
             ></textarea>
             <button
               on:click={sendMessage}
               disabled={!currentMessage.trim() || isLoading}
-              class="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors font-medium"
+              class="btn-primary px-6 py-3"
             >
               Send
             </button>
           </div>
-          <div class="text-xs text-gray-500 mt-2">
+          <div class="caption text-gray-600 mt-2">
             Press Shift+Enter for new line, Enter to send
           </div>
         </div>
@@ -1003,15 +1003,15 @@
 
   <!-- Hire New Agent Modal -->
   {#if showHireForm}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-xl shadow-xl max-w-md w-full">
+    <div class="modal-overlay">
+      <div class="modal-content max-w-md">
         <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-gray-200">
+        <div class="modal-header">
           <div class="flex items-center justify-between">
-            <h2 class="text-xl font-semibold text-gray-900">Hire New Agent</h2>
+            <h2 class="heading-lg">Hire New Agent</h2>
             <button
               on:click={() => showHireForm = false}
-              class="text-gray-400 hover:text-gray-600 transition-colors"
+              class="text-gray-600 hover:text-gray-900 transition-colors"
               aria-label="Close modal"
             >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1022,13 +1022,13 @@
         </div>
         
         <!-- Modal Body -->
-        <div class="px-6 py-6">
+        <div class="modal-body">
           {#if !showPreview}
             <!-- Initial Form -->
             <form on:submit|preventDefault={generateAgent} class="space-y-4">
               <!-- Agent Name -->
               <div>
-                <label for="agent-name" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="agent-name" class="form-label">
                   Agent Name *
                 </label>
                 <input
@@ -1036,14 +1036,14 @@
                   type="text"
                   bind:value={newAgentForm.name}
                   placeholder="e.g., Mario, Elena, Giorgio..."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input-field"
                   required
                 />
               </div>
 
               <!-- Role -->
               <div>
-                <label for="agent-role" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="agent-role" class="form-label">
                   Role *
                 </label>
                 <input
@@ -1051,14 +1051,14 @@
                   type="text"
                   bind:value={newAgentForm.role}
                   placeholder="e.g., Marketing Manager, Data Analyst..."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input-field"
                   required
                 />
               </div>
 
               <!-- Description -->
               <div>
-                <label for="agent-description" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="agent-description" class="form-label">
                   Description *
                 </label>
                 <textarea
@@ -1066,14 +1066,14 @@
                   bind:value={newAgentForm.description}
                   placeholder="Brief description of what this agent does..."
                   rows="2"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  class="input-field resize-none"
                   required
                 ></textarea>
               </div>
 
               <!-- Specialty -->
               <div>
-                <label for="agent-specialty" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="agent-specialty" class="form-label">
                   Specialty *
                 </label>
                 <input
@@ -1081,14 +1081,14 @@
                   type="text"
                   bind:value={newAgentForm.specialty}
                   placeholder="e.g., Social media, financial planning..."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input-field"
                   required
                 />
               </div>
 
               <!-- Personality -->
               <div>
-                <label for="agent-personality" class="block text-sm font-medium text-gray-700 mb-1">
+                <label for="agent-personality" class="form-label">
                   Personality
                 </label>
                 <input
@@ -1096,7 +1096,7 @@
                   type="text"
                   bind:value={newAgentForm.personality}
                   placeholder="e.g., Creative, analytical, detail-oriented..."
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  class="input-field"
                 />
               </div>
 
@@ -1112,14 +1112,14 @@
                 <button
                   type="button"
                   on:click={cancelAgentCreation}
-                  class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  class="btn-secondary flex-1"
                   disabled={isGeneratingAgent}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  class="flex-1 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white rounded-lg transition-colors font-medium"
+                  class="btn-primary flex-1"
                   disabled={isGeneratingAgent}
                 >
                   {#if isGeneratingAgent}
@@ -1133,7 +1133,7 @@
                 </button>
               </div>
               
-              <div class="text-xs text-gray-500 text-center pt-2">
+              <div class="caption text-center pt-2">
                 AI will create a complete job description aligned with your team
               </div>
             </form>
@@ -1214,7 +1214,7 @@
                 <button
                   type="button"
                   on:click={backToEdit}
-                  class="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  class="btn-secondary flex-1"
                   disabled={isCreatingAgent}
                 >
                   ← Edit Details
@@ -1222,7 +1222,7 @@
                 <button
                   type="button"
                   on:click={createFinalAgent}
-                  class="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white rounded-lg transition-colors font-medium"
+                  class="btn-primary flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-300"
                   disabled={isCreatingAgent}
                 >
                   {#if isCreatingAgent}

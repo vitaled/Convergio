@@ -85,17 +85,6 @@
     return `$${amount.toFixed(2)}`;
   }
 
-  function getStatusColor(status: string): string {
-    switch (status) {
-      case 'healthy': return 'text-green-600';
-      case 'moderate': return 'text-yellow-600';
-      case 'warning': return 'text-orange-600';
-      case 'exceeded': return 'text-red-600';
-      case 'error': case 'unavailable': return 'text-gray-400';
-      default: return 'text-blue-600';
-    }
-  }
-
   function getStatusIcon(status: string): string {
     switch (status) {
       case 'healthy': return '💚';
@@ -106,73 +95,60 @@
       default: return '🔵';
     }
   }
-
-  function getProviderColor(provider: string): string {
-    switch (provider.toLowerCase()) {
-      case 'openai': return 'text-green-600';
-      case 'anthropic': return 'text-purple-600';
-      case 'perplexity': return 'text-blue-600';
-      default: return 'text-gray-600';
-    }
-  }
 </script>
 
 <!-- Cost Display Component -->
 <div class="relative">
-  <!-- Main Cost Display -->
+  <!-- Main Cost Display Button -->
   <button
     on:click={() => showDetails = !showDetails}
-    class="flex items-center space-x-2 text-xs text-gray-700 hover:bg-gray-100/50 backdrop-blur-sm px-3 py-2 rounded-lg transition-all duration-300 border border-gray-200/50"
+    class="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 shadow-sm"
     title="Click to toggle detailed cost breakdown"
   >
-    <span class="text-xs">{getStatusIcon($costData.status)}</span>
+    <span class="text-lg">{getStatusIcon($costData.status)}</span>
     <div class="flex flex-col items-start">
-      <span class="font-mono text-xs leading-tight">
+      <span class="text-sm font-bold text-gray-900">
         {formatCost($costData.total_cost_usd)}
       </span>
       {#if $costData.today_cost_usd > 0 && $costData.today_cost_usd !== $costData.total_cost_usd}
-        <span class="font-mono text-xs opacity-75 leading-tight">
+        <span class="text-xs text-gray-700 font-medium">
           {formatCost($costData.today_cost_usd)} today
         </span>
       {/if}
     </div>
-    {#if showDetails}
-      <svg class="h-3 w-3 transform rotate-180" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-      </svg>
-    {:else}
-      <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-      </svg>
-    {/if}
+    <svg class="h-4 w-4 text-gray-700 transform transition-transform {showDetails ? 'rotate-180' : ''}" fill="currentColor" viewBox="0 0 20 20">
+      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+    </svg>
   </button>
 
-  <!-- Enhanced Detailed Cost Panel -->
+  <!-- Dropdown Panel -->
   {#if showDetails}
-    <div class="absolute right-0 top-full mt-2 w-80 bg-white/95 backdrop-blur-lg border border-gray-200/50 rounded-xl shadow-2xl z-[100] p-4">
-      <div class="space-y-4">
-        <!-- Header -->
-        <div class="flex items-center justify-between pb-2 border-b border-gray-200/50">
-          <h3 class="text-sm font-medium text-gray-800">💰 Cost Overview</h3>
+    <div class="absolute right-0 top-full mt-2 w-96 bg-white border-2 border-gray-300 rounded-xl shadow-2xl z-[10000] overflow-hidden">
+      <!-- Header -->
+      <div class="bg-blue-600 text-white px-6 py-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">💰 Cost Overview</h3>
           <div class="flex items-center space-x-2">
-            <span class="text-xs px-2 py-1 rounded-full font-mono {$costData.status === 'healthy' ? 'bg-green-100 text-green-700' : $costData.status === 'warning' ? 'bg-yellow-100 text-yellow-700' : $costData.status === 'exceeded' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}">
+            <span class="text-sm px-3 py-1 rounded-full bg-white/20 font-bold">
               {$costData.status}
             </span>
           </div>
         </div>
+      </div>
 
+      <div class="p-6 space-y-6">
         <!-- Cost Metrics -->
-        <div class="grid grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <div class="text-xs text-gray-600">Total Cost</div>
-            <div class="text-sm font-mono font-medium text-gray-800">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-gray-100 p-4 rounded-lg">
+            <div class="text-sm font-bold text-gray-700 mb-1">Total Cost</div>
+            <div class="text-xl font-bold text-gray-900">
               {formatCost($costData.total_cost_usd)}
             </div>
           </div>
           
-          <div class="space-y-1">
-            <div class="text-xs text-gray-600">Today</div>
-            <div class="text-sm font-mono font-medium text-blue-600">
+          <div class="bg-blue-100 p-4 rounded-lg">
+            <div class="text-sm font-bold text-blue-700 mb-1">Today</div>
+            <div class="text-xl font-bold text-blue-900">
               {formatCost($costData.today_cost_usd)}
             </div>
           </div>
@@ -180,13 +156,13 @@
 
         <!-- Budget Utilization -->
         {#if $costData.budget_utilization > 0}
-          <div class="space-y-1">
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-600">Budget Used:</span>
-              <span class="font-mono text-gray-800">{$costData.budget_utilization.toFixed(1)}%</span>
+          <div class="space-y-2">
+            <div class="flex justify-between text-sm">
+              <span class="font-bold text-gray-800">Budget Used:</span>
+              <span class="font-bold text-gray-900">{$costData.budget_utilization.toFixed(1)}%</span>
             </div>
-            <div class="w-full bg-gray-200 rounded-full h-1.5">
-              <div class="h-1.5 rounded-full {$costData.budget_utilization > 80 ? 'bg-red-400' : $costData.budget_utilization > 50 ? 'bg-yellow-400' : 'bg-green-400'}" 
+            <div class="w-full bg-gray-200 rounded-full h-3">
+              <div class="h-3 rounded-full {$costData.budget_utilization > 80 ? 'bg-red-500' : $costData.budget_utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'}" 
                    style="width: {Math.min($costData.budget_utilization, 100)}%"></div>
             </div>
           </div>
@@ -194,17 +170,15 @@
 
         <!-- Provider Breakdown -->
         {#if Object.keys($costData.provider_breakdown).length > 0}
-          <div class="space-y-2">
-            <div class="text-xs font-medium text-gray-800 flex items-center">
-              <span>Provider Costs (Today)</span>
-            </div>
+          <div class="space-y-3">
+            <div class="text-sm font-bold text-gray-900">Provider Costs (Today)</div>
             {#each Object.entries($costData.provider_breakdown) as [provider, cost]}
-              <div class="flex justify-between items-center text-xs">
-                <div class="flex items-center space-x-2">
-                  <div class="w-2 h-2 rounded-full {provider === 'openai' ? 'bg-green-500' : provider === 'anthropic' ? 'bg-purple-500' : provider === 'perplexity' ? 'bg-blue-500' : 'bg-gray-400'}"></div>
-                  <span class="capitalize text-gray-600">{provider}</span>
+              <div class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                <div class="flex items-center space-x-3">
+                  <div class="w-3 h-3 rounded-full {provider === 'openai' ? 'bg-green-500' : provider === 'anthropic' ? 'bg-purple-500' : provider === 'perplexity' ? 'bg-blue-500' : 'bg-gray-500'}"></div>
+                  <span class="capitalize font-bold text-gray-900">{provider}</span>
                 </div>
-                <span class="font-mono text-gray-800">{formatCost(cost)}</span>
+                <span class="font-mono font-bold text-gray-900">{formatCost(cost)}</span>
               </div>
             {/each}
           </div>
@@ -212,12 +186,12 @@
 
         <!-- Top Models -->
         {#if Object.keys($costData.model_breakdown).length > 0}
-          <div class="space-y-2">
-            <div class="text-xs font-medium text-gray-800">Top Models (Today)</div>
+          <div class="space-y-3">
+            <div class="text-sm font-bold text-gray-900">Top Models (Today)</div>
             {#each Object.entries($costData.model_breakdown).slice(0, 3) as [model, cost]}
-              <div class="flex justify-between items-center text-xs">
-                <span class="text-gray-600 truncate">{model}</span>
-                <span class="font-mono text-gray-800">{formatCost(cost)}</span>
+              <div class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                <span class="text-sm font-bold text-gray-800 truncate">{model}</span>
+                <span class="font-mono text-sm font-bold text-gray-900">{formatCost(cost)}</span>
               </div>
             {/each}
           </div>
@@ -225,41 +199,50 @@
 
         <!-- Usage Metrics -->
         {#if $costData.total_interactions > 0}
-          <div class="pt-2 border-t border-gray-200/50 space-y-2">
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-600">Interactions:</span>
-              <span class="font-mono text-gray-800">{$costData.total_interactions.toLocaleString()}</span>
-            </div>
-            
-            <div class="flex justify-between text-xs">
-              <span class="text-gray-600">Tokens:</span>
-              <span class="font-mono text-gray-800">{$costData.total_tokens.toLocaleString()}</span>
-            </div>
-
-            {#if $costData.active_sessions > 0}
-              <div class="flex justify-between text-xs">
-                <span class="text-gray-600">Active Sessions:</span>
-                <span class="font-mono text-gray-800">{$costData.active_sessions}</span>
+          <div class="pt-4 border-t border-gray-200 space-y-3">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div class="bg-gray-50 p-3 rounded">
+                <div class="text-gray-700 font-bold">Interactions</div>
+                <div class="font-bold text-gray-900">{$costData.total_interactions.toLocaleString()}</div>
               </div>
-            {/if}
-          </div>
-        {/if}
+              
+              <div class="bg-gray-50 p-3 rounded">
+                <div class="text-gray-700 font-bold">Tokens</div>
+                <div class="font-bold text-gray-900">{$costData.total_tokens.toLocaleString()}</div>
+              </div>
 
-        <!-- Last Updated -->
-        <div class="pt-2 border-t border-gray-200/50 flex justify-between items-center text-xs text-gray-500">
-          <span>Updated:</span>
-          <span class="font-mono">
-            {$costData.last_updated ? new Date($costData.last_updated + (($costData.last_updated.includes('Z') || $costData.last_updated.includes('+')) ? '' : 'Z')).toLocaleTimeString() : 'N/A'}
-          </span>
-        </div>
-
-        <!-- Status Message -->
-        {#if $costData.status === 'error' || $costData.status === 'unavailable'}
-          <div class="pt-2 text-xs text-gray-500 italic">
-            Cost tracking temporarily unavailable
+              {#if $costData.active_sessions > 0}
+                <div class="col-span-2 bg-gray-50 p-3 rounded">
+                  <div class="text-gray-700 font-bold">Active Sessions</div>
+                  <div class="font-bold text-gray-900">{$costData.active_sessions}</div>
+                </div>
+              {/if}
+            </div>
           </div>
         {/if}
       </div>
+
+      <!-- Footer -->
+      <div class="bg-gray-100 px-6 py-4 flex justify-between items-center text-sm">
+        <span class="text-gray-700 font-medium">
+          Updated: {$costData.last_updated ? new Date($costData.last_updated + (($costData.last_updated.includes('Z') || $costData.last_updated.includes('+')) ? '' : 'Z')).toLocaleTimeString() : 'N/A'}
+        </span>
+        <button 
+          on:click={fetchCostData}
+          class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <!-- Status Message -->
+      {#if $costData.status === 'error' || $costData.status === 'unavailable'}
+        <div class="mx-6 mb-6 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+          <div class="text-sm text-yellow-800 font-medium">
+            Cost tracking temporarily unavailable
+          </div>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -267,7 +250,7 @@
 <!-- Click outside to close -->
 {#if showDetails}
   <div 
-    class="fixed inset-0 z-[90]" 
+    class="fixed inset-0 z-[9999]" 
     role="button"
     tabindex="-1"
     aria-label="Close cost details"
