@@ -10,6 +10,7 @@
 	let selectedView: 'kanban' | 'gantt' | 'analytics' | 'ai_integration' = 'kanban';
 	let projectAnalytics: any = null;
 	let loading = false;
+	let error = '';
 	
 	onMount(async () => {
 		await loadProjects();
@@ -17,399 +18,254 @@
 	
 	async function loadProjects() {
 		loading = true;
+		error = '';
 		try {
-			// Use the correct backend API endpoint for engagements (projects)
-			const response = await fetch('/api/v1/projects/engagements');
-			if (response.ok) {
-				projects = await response.json();
-				if (projects.length > 0) {
-					selectedProjectId = projects[0].id;
-					await loadProjectAnalytics();
-				}
-			} else {
-				console.error('Failed to load projects:', response.status, response.statusText);
+			const response = await fetch('http://localhost:4000/api/v1/projects/engagements');
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
 			}
-		} catch (error) {
-			console.error('Failed to load projects:', error);
+			const data = await response.json();
+			projects = data.engagements || [];
+			
+			if (projects.length > 0 && !selectedProjectId) {
+				selectedProjectId = projects[0].id;
+				await loadProjectAnalytics(selectedProjectId);
+			}
+		} catch (err) {
+			console.error('Error loading projects:', err);
+			error = err instanceof Error ? err.message : 'Failed to load projects';
 		} finally {
 			loading = false;
 		}
 	}
 	
-	async function loadProjectAnalytics() {
-		if (!selectedProjectId) return;
-		
+	async function loadProjectAnalytics(projectId: string) {
 		try {
-			// Get detailed engagement data
-			const response = await fetch(`/api/v1/projects/engagements/${selectedProjectId}/details`);
+			const response = await fetch(`http://localhost:4000/api/v1/projects/engagements/${projectId}/details`);
 			if (response.ok) {
-				projectAnalytics = await response.json();
+				const data = await response.json();
+				projectAnalytics = data;
 			}
-		} catch (error) {
-			console.error('Failed to load project analytics:', error);
+		} catch (err) {
+			console.error('Error loading project analytics:', err);
 		}
 	}
 	
-	async function createNewProject() {
-		const projectName = prompt('Enter project name:');
-		if (!projectName) return;
-		
+	async function createProject(title: string, description: string) {
 		try {
-			const response = await fetch('/api/v1/pm/projects', {
+			const response = await fetch('http://localhost:4000/api/v1/projects/engagements', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: projectName,
-					description: 'Created via PM interface',
-					status: 'PLANNING'
-				})
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ title, description })
 			});
 			
 			if (response.ok) {
 				await loadProjects();
 			}
-		} catch (error) {
-			console.error('Failed to create project:', error);
+		} catch (err) {
+			console.error('Error creating project:', err);
 		}
 	}
 	
-	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'COMPLETED': return 'text-green-600';
-			case 'IN_PROGRESS': return 'text-blue-600';
-			case 'ON_HOLD': return 'text-yellow-600';
-			case 'PLANNING': return 'text-purple-600';
-			default: return 'text-gray-600';
-		}
-	}
-	
-	$: if (selectedProjectId) {
-		loadProjectAnalytics();
+	async function handleProjectSelect(projectId: string) {
+		selectedProjectId = projectId;
+		await loadProjectAnalytics(projectId);
 	}
 </script>
 
-<div class="pm-container">
-	<!-- Header -->
-	<div class="pm-header">
-		<div class="header-left">
-			<h1 class="text-2xl font-bold">Project Management</h1>
-			<p class="text-gray-600">AI-Powered Project Intelligence</p>
-		</div>
-		
-		<div class="header-right">
-			<button
-				on:click={createNewProject}
-				class="btn-primary"
-			>
-				+ New Project
-			</button>
-		</div>
-	</div>
-	
-	<!-- Project Selector and View Toggle -->
-	<div class="controls-bar">
-		<div class="project-selector">
-			<label for="project-select" class="text-sm text-gray-600">Current Project:</label>
-			<select
-				id="project-select"
-				bind:value={selectedProjectId}
-				class="project-dropdown"
-			>
-				{#each projects as project}
-					<option value={project.id}>
-						{project.name} ({project.status})
-					</option>
-				{/each}
-			</select>
-			
-			{#if projectAnalytics}
-				<div class="project-stats">
-					<span class="stat-item">
-						📊 {projectAnalytics.performance_metrics.total_tasks} tasks
-					</span>
-					<span class="stat-item">
-						✅ {projectAnalytics.performance_metrics.completed_tasks} completed
-					</span>
-					<span class="stat-item">
-						📈 {Math.round(projectAnalytics.performance_metrics.avg_progress)}% progress
-					</span>
+<svelte:head>
+	<title>Project Management - Convergio</title>
+	<meta name="description" content="Manage your AI agent projects and workflows" />
+</svelte:head>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-900">
+	<!-- Header Section -->
+	<div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center space-x-4">
+					<div class="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+						<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+						</svg>
+					</div>
+					<div>
+						<h1 class="text-3xl font-bold text-slate-900 dark:text-white">Project Management</h1>
+						<p class="text-slate-600 dark:text-slate-400 mt-1">Manage AI agent projects and coordinate workflows</p>
+					</div>
 				</div>
-			{/if}
-		</div>
-		
-		<div class="view-toggle">
-			<button
-				class:active={selectedView === 'kanban'}
-				on:click={() => selectedView = 'kanban'}
-				class="view-btn"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-				</svg>
-				Kanban
-			</button>
-			
-			<button
-				class:active={selectedView === 'gantt'}
-				on:click={() => selectedView = 'gantt'}
-				class="view-btn"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-				</svg>
-				Gantt
-			</button>
-			
-			<button
-				class:active={selectedView === 'ai_integration'}
-				on:click={() => selectedView = 'ai_integration'}
-				class="view-btn"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-				</svg>
-				AI Team
-			</button>
-			
-			<button
-				class:active={selectedView === 'analytics'}
-				on:click={() => selectedView = 'analytics'}
-				class="view-btn"
-			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-				</svg>
-				Analytics
-			</button>
+				
+				<!-- Quick Actions -->
+				<div class="flex items-center space-x-3">
+					<button 
+						on:click={() => createProject('New Project', 'Project description')}
+						class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-lg shadow-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+					>
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						New Project
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
-	
-	<!-- Main Content Area -->
-	<div class="content-area">
+
+	<!-- Main Content -->
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		{#if loading}
-			<div class="loading-state">
-				<div class="spinner"></div>
-				<p>Loading project data...</p>
+			<div class="flex items-center justify-center py-20">
+				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
 			</div>
-		{:else if selectedProjectId}
-			{#if selectedView === 'kanban'}
-				<ModernKanbanBoard projectId={selectedProjectId} />
-			{:else if selectedView === 'gantt'}
-				<ModernGanttChart projectId={selectedProjectId} />
-			{:else if selectedView === 'ai_integration'}
-				<AIProjectIntegration projectId={selectedProjectId} />
-			{:else if selectedView === 'analytics'}
-				<ModernAnalyticsDashboard projectId={selectedProjectId} />
-			{/if}
-		{:else}
-			<div class="empty-state">
-				<svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-				</svg>
-				<h3 class="text-lg font-semibold mb-2">No Projects Yet</h3>
-				<p class="text-gray-600 mb-4">Create your first project to get started</p>
-				<button on:click={createNewProject} class="btn-primary">
-					Create Project
+		{:else if error}
+			<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+				<div class="text-red-600 dark:text-red-400 text-lg font-medium mb-2">Error Loading Projects</div>
+				<div class="text-red-500 dark:text-red-300">{error}</div>
+				<button 
+					on:click={loadProjects}
+					class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+				>
+					Retry
 				</button>
 			</div>
+		{:else}
+			<!-- Project Selection -->
+			{#if projects.length > 0}
+				<div class="mb-8">
+					<div class="flex items-center space-x-4 mb-4">
+						<h2 class="text-xl font-semibold text-slate-900 dark:text-white">Select Project</h2>
+						<div class="flex-1"></div>
+					</div>
+					
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+						{#each projects as project}
+							<button
+								on:click={() => handleProjectSelect(project.id)}
+								class="text-left p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-md {selectedProjectId === project.id 
+									? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+									: 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}"
+							>
+								<div class="font-medium text-slate-900 dark:text-white mb-1">{project.title}</div>
+								<div class="text-sm text-slate-600 dark:text-slate-400">{project.description || 'No description'}</div>
+								<div class="mt-2">
+									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+										{project.status || 'Active'}
+									</span>
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{:else}
+				<div class="text-center py-20">
+					<div class="w-24 h-24 mx-auto mb-6 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center">
+						<svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+						</svg>
+					</div>
+					<h3 class="text-xl font-medium text-slate-900 dark:text-white mb-2">No Projects Yet</h3>
+					<p class="text-slate-600 dark:text-slate-400 mb-6">Create your first project to get started with project management</p>
+					<button 
+						on:click={() => createProject('My First Project', 'Start managing your AI agent workflows')}
+						class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-lg shadow-lg hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+					>
+						<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						Create First Project
+					</button>
+				</div>
+			{/if}
+
+			<!-- View Selection -->
+			{#if selectedProjectId && projects.length > 0}
+				<div class="mb-8">
+					<div class="flex items-center justify-between mb-6">
+						<h2 class="text-2xl font-bold text-slate-900 dark:text-white">Project Views</h2>
+						
+						<!-- View Tabs -->
+						<div class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+							<button
+								on:click={() => selectedView = 'kanban'}
+								class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 {selectedView === 'kanban' 
+									? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+									: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}"
+							>
+								Kanban Board
+							</button>
+							<button
+								on:click={() => selectedView = 'gantt'}
+								class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 {selectedView === 'gantt' 
+									? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+									: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}"
+							>
+								Gantt Chart
+							</button>
+							<button
+								on:click={() => selectedView = 'analytics'}
+								class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 {selectedView === 'analytics' 
+									? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+									: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}"
+							>
+								Analytics
+							</button>
+							<button
+								on:click={() => selectedView = 'ai_integration'}
+								class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 {selectedView === 'ai_integration' 
+									? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+									: 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}"
+							>
+								AI Integration
+							</button>
+						</div>
+					</div>
+
+					<!-- View Content -->
+					<div class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+						{#if selectedView === 'kanban'}
+							<ModernKanbanBoard />
+						{:else if selectedView === 'gantt'}
+							<ModernGanttChart />
+						{:else if selectedView === 'analytics'}
+							<ModernAnalyticsDashboard />
+						{:else if selectedView === 'ai_integration'}
+							<AIProjectIntegration />
+						{/if}
+					</div>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>
 
 <style>
-	.pm-container {
-		height: 100vh;
-		display: flex;
-		flex-direction: column;
-		background: #f9fafb;
-	}
-	
-	.pm-header {
-		background: white;
-		padding: 1.5rem 2rem;
-		border-bottom: 1px solid #e5e7eb;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-	
-	.header-left h1 {
-		margin: 0;
-	}
-	
-	.header-left p {
-		margin: 0.25rem 0 0 0;
-		font-size: 0.875rem;
-	}
-	
-	.btn-primary {
-		background: #3b82f6;
-		color: white;
-		padding: 0.5rem 1rem;
-		border-radius: 6px;
-		border: none;
-		cursor: pointer;
-		font-weight: 500;
-		transition: background 0.2s;
-	}
-	
-	.btn-primary:hover {
-		background: #2563eb;
-	}
-	
-	.controls-bar {
-		background: white;
-		padding: 1rem 2rem;
-		border-bottom: 1px solid #e5e7eb;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-	}
-	
-	.project-selector {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-	}
-	
-	.project-dropdown {
-		padding: 0.5rem 1rem;
-		border: 1px solid #e5e7eb;
-		border-radius: 6px;
-		background: white;
-		font-size: 0.875rem;
-		min-width: 200px;
-	}
-	
-	.project-stats {
-		display: flex;
-		gap: 1rem;
-		font-size: 0.875rem;
-		color: #6b7280;
-	}
-	
-	.stat-item {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-	
-	.view-toggle {
-		display: flex;
-		gap: 0.5rem;
-	}
-	
-	.view-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem 1rem;
-		border: 1px solid #e5e7eb;
-		background: white;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: all 0.2s;
-		font-size: 0.875rem;
-		color: #6b7280;
-	}
-	
-	.view-btn:hover {
-		background: #f3f4f6;
-	}
-	
-	.view-btn.active {
-		background: #3b82f6;
-		color: white;
-		border-color: #3b82f6;
-	}
-	
-	.content-area {
-		flex: 1;
-		padding: 2rem;
-		overflow: auto;
-	}
-	
-	.loading-state, .empty-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		height: 100%;
-		text-align: center;
-	}
-	
-	.spinner {
-		width: 40px;
-		height: 40px;
-		border: 4px solid #e5e7eb;
-		border-top-color: #3b82f6;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin-bottom: 1rem;
-	}
-	
-	@keyframes spin {
-		to { transform: rotate(360deg); }
-	}
-	
-	.analytics-view {
-		background: white;
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-	
-	.analytics-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-		gap: 1.5rem;
-	}
-	
-	.metric-card {
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-	
-	.metric-card h3 {
-		font-size: 1rem;
-		font-weight: 600;
-		margin-bottom: 1rem;
-		color: #374151;
-	}
-	
-	.metric-value {
-		font-size: 2rem;
-		font-weight: bold;
-		color: #111827;
-		margin-bottom: 0.25rem;
-	}
-	
-	.metric-label {
-		font-size: 0.875rem;
-		color: #6b7280;
-		margin-bottom: 1rem;
-	}
-	
-	.progress-bar {
-		width: 100%;
+	/* Custom scrollbar for better UX */
+	::-webkit-scrollbar {
+		width: 8px;
 		height: 8px;
-		background: #e5e7eb;
+	}
+	
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	
+	::-webkit-scrollbar-thumb {
+		background: #cbd5e1;
 		border-radius: 4px;
-		overflow: hidden;
-		margin: 1rem 0 0.5rem 0;
 	}
 	
-	.progress-fill {
-		height: 100%;
-		background: #3b82f6;
-		transition: width 0.3s ease;
+	::-webkit-scrollbar-thumb:hover {
+		background: #94a3b8;
 	}
 	
-	.agent-list {
-		padding: 1rem;
-		background: white;
-		border-radius: 6px;
+	/* Dark mode scrollbar */
+	:global(.dark) ::-webkit-scrollbar-thumb {
+		background: #475569;
+	}
+	
+	:global(.dark) ::-webkit-scrollbar-thumb:hover {
+		background: #64748b;
 	}
 </style>

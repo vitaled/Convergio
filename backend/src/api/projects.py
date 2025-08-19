@@ -1,209 +1,121 @@
 """
-📋 Convergio - Projects & Clients API
-Real project management with clients and engagements from database
+🏗️ Convergio Projects API
+
+RESTful API endpoints for managing projects and engagements.
+Provides comprehensive project management capabilities including
+CRUD operations, analytics, and workflow management.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-
-import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import func
 
 from core.database import get_db_session
-from models.client import Client
 from models.engagement import Engagement
 from models.activity import Activity
 
-logger = structlog.get_logger()
-router = APIRouter(tags=["Projects & Clients"])
+router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 
-# Response models
-class ClientResponse(BaseModel):
-    id: int
-    name: str
-    email: str
-    created_at: Optional[str]
-    updated_at: Optional[str]
-
-
-class ActivityResponse(BaseModel):
-    id: int
+# Request/Response Models
+class EngagementCreate(BaseModel):
+    """Request model for creating a new engagement."""
     title: str
-    description: Optional[str]
-    status: str
-    progress: float
-    created_at: Optional[str]
-    updated_at: Optional[str]
+    description: Optional[str] = None
+    status: Optional[str] = "planning"
+
+
+class EngagementUpdate(BaseModel):
+    """Request model for updating an engagement."""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    progress: Optional[float] = None
 
 
 class EngagementResponse(BaseModel):
+    """Response model for engagement data."""
     id: int
     title: str
     description: Optional[str]
     status: str
     progress: float
-    created_at: Optional[str]
+    created_at: str
     updated_at: Optional[str]
+    activities_count: int
+
+    class Config:
+        from_attributes = True
 
 
 class EngagementDetailResponse(BaseModel):
-    id: int
-    title: str
-    description: Optional[str]
-    status: str
-    progress: float
-    created_at: Optional[str]
-    updated_at: Optional[str]
-    activities: List[ActivityResponse]
+    """Response model for detailed engagement information."""
+    engagement: EngagementResponse
+    activities: List[dict]
+    analytics: dict
+
+    class Config:
+        from_attributes = True
 
 
-class ProjectOverviewResponse(BaseModel):
-    total_clients: int
-    total_engagements: int
-    active_engagements: int
-    completed_engagements: int
-    clients: List[ClientResponse]
-    recent_engagements: List[EngagementResponse]
-
-
-@router.get("/clients", response_model=List[ClientResponse])
-async def get_clients(
-    skip: int = Query(0, ge=0, description="Number of clients to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of clients to return"),
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    🏢 Get all clients from database
-    """
-    try:
-        clients = await Client.get_all(db, skip=skip, limit=limit)
-        
-        return [
-            ClientResponse(
-                id=client.id,
-                name=client.name,
-                email=client.email,
-                created_at=client.created_at.isoformat() if client.created_at else None,
-                updated_at=client.updated_at.isoformat() if client.updated_at else None
-            )
-            for client in clients
-        ]
-    except Exception as e:
-        logger.error(f"❌ Failed to get clients: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get clients: {str(e)}")
-
-
-@router.get("/engagements", response_model=List[EngagementResponse]) 
+# API Endpoints
+@router.get("/engagements", response_model=dict)
 async def get_engagements(
-    skip: int = Query(0, ge=0, description="Number of engagements to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of engagements to return"),
+    skip: int = 0,
+    limit: int = 100,
+    status_filter: Optional[str] = None,
+    search: Optional[str] = None,
     db: AsyncSession = Depends(get_db_session)
 ):
     """
-    📋 Get all engagements/projects from database
+    📋 Get all engagements/projects
+    
+    Retrieves a paginated list of engagements with optional filtering
+    by status and search terms.
     """
     try:
-        engagements = await Engagement.get_all(db, skip=skip, limit=limit)
+        # Build query based on filters
+        query = select(Engagement)
         
-        return [
-            EngagementResponse(
-                id=engagement.id,
-                title=engagement.title,
-                description=engagement.description,
-                status=engagement.get_status(),
-                progress=engagement.calculate_progress(),
-                created_at=engagement.created_at.isoformat() if engagement.created_at else None,
-                updated_at=engagement.updated_at.isoformat() if engagement.updated_at else None
-            )
-            for engagement in engagements
-        ]
+        if status_filter:
+            query = query.where(Engagement.status == status_filter)
+        
+        if search:
+            query = query.where(Engagement.title.ilike(f"%{search}%"))
+        
+        # Add pagination and ordering
+        query = query.offset(skip).limit(limit).order_by(Engagement.created_at.desc())
+        
+        result = await db.execute(query)
+        engagements = result.scalars().all()
+        
+        # Get total count for pagination
+        count_query = select(func.count(Engagement.id))
+        if status_filter:
+            count_query = count_query.where(Engagement.status == status_filter)
+        if search:
+            count_query = count_query.where(Engagement.title.ilike(f"%{search}%"))
+        
+        total_result = await db.execute(count_query)
+        total_count = total_result.scalar() or 0
+        
+        return {
+            "engagements": [engagement.to_dict() for engagement in engagements],
+            "total": total_count,
+            "skip": skip,
+            "limit": limit,
+            "has_more": skip + limit < total_count
+        }
+        
     except Exception as e:
-        logger.error(f"❌ Failed to get engagements: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get engagements: {str(e)}")
-
-
-@router.get("/overview", response_model=ProjectOverviewResponse)
-async def get_project_overview(
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    📊 Get complete project management overview with real data
-    """
-    try:
-        # Get counts
-        total_clients = await Client.get_total_count(db)
-        total_engagements = await Engagement.get_total_count(db)
-        
-        # Get recent data
-        clients = await Client.get_all(db, limit=10)
-        recent_engagements = await Engagement.get_recent(db, limit=10)
-        
-        # Calculate status counts
-        all_engagements = await Engagement.get_all(db, limit=1000)  # Get more for accurate counts
-        active_count = len([e for e in all_engagements if e.get_status() in ['planning', 'in-progress', 'review']])
-        completed_count = len([e for e in all_engagements if e.get_status() == 'completed'])
-        
-        return ProjectOverviewResponse(
-            total_clients=total_clients,
-            total_engagements=total_engagements,
-            active_engagements=active_count,
-            completed_engagements=completed_count,
-            clients=[
-                ClientResponse(
-                    id=client.id,
-                    name=client.name,
-                    email=client.email,
-                    created_at=client.created_at.isoformat() if client.created_at else None,
-                    updated_at=client.updated_at.isoformat() if client.updated_at else None
-                )
-                for client in clients
-            ],
-            recent_engagements=[
-                EngagementResponse(
-                    id=engagement.id,
-                    title=engagement.title,
-                    description=engagement.description,
-                    status=engagement.get_status(),
-                    progress=engagement.calculate_progress(),
-                    created_at=engagement.created_at.isoformat() if engagement.created_at else None,
-                    updated_at=engagement.updated_at.isoformat() if engagement.updated_at else None
-                )
-                for engagement in recent_engagements
-            ]
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve engagements: {str(e)}"
         )
-    except Exception as e:
-        logger.error(f"❌ Failed to get project overview: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get project overview: {str(e)}")
-
-
-@router.get("/clients/{client_id}", response_model=ClientResponse)
-async def get_client(
-    client_id: int,
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    🏢 Get specific client by ID
-    """
-    try:
-        client = await Client.get_by_id(db, client_id)
-        if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
-        
-        return ClientResponse(
-            id=client.id,
-            name=client.name,
-            email=client.email,
-            created_at=client.created_at.isoformat() if client.created_at else None,
-            updated_at=client.updated_at.isoformat() if client.updated_at else None
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Failed to get client {client_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get client: {str(e)}")
 
 
 @router.get("/engagements/{engagement_id}", response_model=EngagementResponse)
@@ -212,27 +124,27 @@ async def get_engagement(
     db: AsyncSession = Depends(get_db_session)
 ):
     """
-    📋 Get specific engagement/project by ID
+    📋 Get engagement by ID
+    
+    Retrieves detailed information about a specific engagement.
     """
     try:
         engagement = await Engagement.get_by_id(db, engagement_id)
         if not engagement:
-            raise HTTPException(status_code=404, detail="Engagement not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Engagement with ID {engagement_id} not found"
+            )
         
-        return EngagementResponse(
-            id=engagement.id,
-            title=engagement.title,
-            description=engagement.description,
-            status=engagement.get_status(),
-            progress=engagement.calculate_progress(),
-            created_at=engagement.created_at.isoformat() if engagement.created_at else None,
-            updated_at=engagement.updated_at.isoformat() if engagement.updated_at else None
-        )
+        return engagement.to_dict()
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get engagement {engagement_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get engagement: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve engagement: {str(e)}"
+        )
 
 
 @router.get("/engagements/{engagement_id}/details", response_model=EngagementDetailResponse)
@@ -241,68 +153,193 @@ async def get_engagement_details(
     db: AsyncSession = Depends(get_db_session)
 ):
     """
-    📋 Get detailed engagement/project with activities
+    📊 Get comprehensive engagement details
+    
+    Retrieves engagement information along with associated activities
+    and analytics data.
+    """
+    try:
+        # Get engagement
+        engagement = await Engagement.get_by_id(db, engagement_id)
+        if not engagement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Engagement with ID {engagement_id} not found"
+            )
+        
+        # Get activities
+        activities_query = select(Activity).where(Activity.engagement_id == engagement_id)
+        activities_result = await db.execute(activities_query)
+        activities = activities_result.scalars().all()
+        
+        # Calculate analytics
+        total_activities = len(activities)
+        completed_activities = len([a for a in activities if a.status == "completed"])
+        in_progress_activities = len([a for a in activities if a.status == "in_progress"])
+        pending_activities = len([a for a in activities if a.status == "pending"])
+        
+        analytics = {
+            "total_activities": total_activities,
+            "completed_activities": completed_activities,
+            "in_progress_activities": in_progress_activities,
+            "pending_activities": pending_activities,
+            "completion_rate": (completed_activities / total_activities * 100) if total_activities > 0 else 0,
+            "progress_percentage": engagement.get_progress()
+        }
+        
+        return EngagementDetailResponse(
+            engagement=engagement.to_dict(),
+            activities=[activity.to_dict() for activity in activities],
+            analytics=analytics
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve engagement details: {str(e)}"
+        )
+
+
+@router.post("/engagements", response_model=EngagementResponse)
+async def create_engagement(
+    engagement: EngagementCreate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    📋 Create a new engagement/project
+    
+    Creates a new project with the specified title and description.
+    """
+    try:
+        new_engagement = Engagement(
+            title=engagement.title,
+            description=engagement.description,
+            status=engagement.status
+        )
+        
+        db.add(new_engagement)
+        await db.commit()
+        await db.refresh(new_engagement)
+        
+        return new_engagement.to_dict()
+        
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create engagement: {str(e)}"
+        )
+
+
+@router.put("/engagements/{engagement_id}", response_model=EngagementResponse)
+async def update_engagement(
+    engagement_id: int,
+    engagement_update: EngagementUpdate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    📝 Update an existing engagement
+    
+    Updates engagement information with the provided data.
     """
     try:
         engagement = await Engagement.get_by_id(db, engagement_id)
         if not engagement:
-            raise HTTPException(status_code=404, detail="Engagement not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Engagement with ID {engagement_id} not found"
+            )
         
-        # Get activities for this engagement
-        activities = await Activity.get_for_engagement(db, engagement_id, limit=10)
+        # Update fields if provided
+        if engagement_update.title is not None:
+            engagement.title = engagement_update.title
+        if engagement_update.description is not None:
+            engagement.description = engagement_update.description
+        if engagement_update.status is not None:
+            engagement.status = engagement_update.status
+        if engagement_update.progress is not None:
+            engagement.progress = engagement_update.progress
         
-        return EngagementDetailResponse(
-            id=engagement.id,
-            title=engagement.title,
-            description=engagement.description,
-            status=engagement.get_status(),
-            progress=engagement.calculate_progress(),
-            created_at=engagement.created_at.isoformat() if engagement.created_at else None,
-            updated_at=engagement.updated_at.isoformat() if engagement.updated_at else None,
-            activities=[
-                ActivityResponse(
-                    id=activity.id,
-                    title=activity.title,
-                    description=activity.description,
-                    status=activity.get_status(),
-                    progress=activity.calculate_progress(),
-                    created_at=activity.created_at.isoformat() if activity.created_at else None,
-                    updated_at=activity.updated_at.isoformat() if activity.updated_at else None
-                )
-                for activity in activities
-            ]
-        )
+        await db.commit()
+        await db.refresh(engagement)
+        
+        return engagement.to_dict()
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Failed to get engagement details {engagement_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get engagement details: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update engagement: {str(e)}"
+        )
 
 
-@router.get("/activities", response_model=List[ActivityResponse])
-async def get_activities(
-    skip: int = Query(0, ge=0, description="Number of activities to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of activities to return"),
+@router.delete("/engagements/{engagement_id}")
+async def delete_engagement(
+    engagement_id: int,
     db: AsyncSession = Depends(get_db_session)
 ):
     """
-    📋 Get all activities from database
+    🗑️ Delete an engagement
+    
+    Permanently removes an engagement and all associated activities.
     """
     try:
-        activities = await Activity.get_all(db, skip=skip, limit=limit)
-        
-        return [
-            ActivityResponse(
-                id=activity.id,
-                title=activity.title,
-                description=activity.description,
-                status=activity.get_status(),
-                progress=activity.calculate_progress(),
-                created_at=activity.created_at.isoformat() if activity.created_at else None,
-                updated_at=activity.updated_at.isoformat() if activity.updated_at else None
+        engagement = await Engagement.get_by_id(db, engagement_id)
+        if not engagement:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Engagement with ID {engagement_id} not found"
             )
-            for activity in activities
-        ]
+        
+        await db.delete(engagement)
+        await db.commit()
+        
+        return {"message": f"Engagement {engagement_id} deleted successfully"}
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"❌ Failed to get activities: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get activities: {str(e)}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete engagement: {str(e)}"
+        )
+
+
+@router.get("/engagements/status/summary")
+async def get_engagement_status_summary(
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    📊 Get engagement status summary
+    
+    Returns a summary of engagements grouped by status for dashboard analytics.
+    """
+    try:
+        # Get counts by status
+        status_counts = {}
+        for status in ["planning", "in_progress", "completed", "on_hold"]:
+            result = await db.execute(
+                select(func.count(Engagement.id)).where(Engagement.status == status)
+            )
+            status_counts[status] = result.scalar() or 0
+        
+        # Get total count
+        total_result = await db.execute(select(func.count(Engagement.id)))
+        total_count = total_result.scalar() or 0
+        
+        return {
+            "total_engagements": total_count,
+            "status_breakdown": status_counts,
+            "active_engagements": status_counts.get("planning", 0) + status_counts.get("in_progress", 0)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve status summary: {str(e)}"
+        )

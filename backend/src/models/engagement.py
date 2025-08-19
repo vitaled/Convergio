@@ -1,6 +1,8 @@
 """
-📋 Convergio - Engagement/Project Model  
-SQLAlchemy 2.0 Engagement model matching existing database schema
+📋 Convergio - Engagement/Project Model
+
+SQLAlchemy 2.0 Engagement model matching existing database schema.
+This model represents projects/engagements in the Convergio system.
 """
 
 from datetime import datetime
@@ -15,106 +17,110 @@ from core.database import Base
 
 
 class Engagement(Base):
-    """Engagement/Project model matching the existing Convergio database schema"""
+    """
+    Engagement/Project model matching the existing Convergio database schema.
+    
+    Represents a project or engagement that can contain multiple activities
+    and be managed through the project management interface.
+    """
     
     __tablename__ = "engagements"
     
     # Primary key
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     
-    # Engagement info
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Engagement information
+    title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
-    # Vector embeddings - existing in DB
-    content_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)  # vector type
-    objectives_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)  # vector type
+    # Status and progress tracking
+    status: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="planning")
+    progress: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=0.0)
     
     # Timestamps
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=False),
-        server_default=func.now(),
-        nullable=True
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        server_default=func.now(), 
+        nullable=False
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=False),
-        server_default=func.now(),
-        onupdate=func.now(),
+        DateTime(timezone=True), 
+        onupdate=func.now(), 
         nullable=True
     )
     
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert engagement to dictionary"""
-        return {
-            "id": self.id,
-            "title": self.title,
-            "description": self.description,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "status": self.get_status(),
-            "progress": self.calculate_progress()
-        }
+    # Relationships
+    activities: Mapped[List["Activity"]] = relationship(
+        "Activity", 
+        back_populates="engagement",
+        cascade="all, delete-orphan"
+    )
+    
+    def __repr__(self) -> str:
+        """String representation of the engagement."""
+        return f"<Engagement(id={self.id}, title='{self.title}', status='{self.status}')>"
     
     def get_status(self) -> str:
-        """Calculate engagement status based on dates"""
-        now = datetime.utcnow()
-        if self.created_at:
-            days_old = (now - self.created_at.replace(tzinfo=None)).days
-            if days_old < 7:
-                return "planning"
-            elif days_old < 30:
-                return "in-progress"
-            elif days_old < 60:
-                return "review"
-            else:
-                return "completed"
-        return "planning"
+        """Get the current status of the engagement."""
+        return self.status or "planning"
     
-    def calculate_progress(self) -> float:
-        """Calculate progress percentage based on age"""
-        now = datetime.utcnow()
-        if self.created_at:
-            days_old = (now - self.created_at.replace(tzinfo=None)).days
-            # Simple progress calculation: newer projects have lower progress
-            if days_old < 30:
-                return min(days_old * 3.33, 100.0)  # 3.33% per day for first 30 days
-            else:
-                return 100.0
-        return 0.0
+    def get_progress(self) -> float:
+        """Get the current progress percentage."""
+        return self.progress or 0.0
     
-    @classmethod
-    async def get_all(cls, db: AsyncSession, skip: int = 0, limit: int = 100) -> List["Engagement"]:
-        """Get all engagements"""
-        result = await db.execute(
-            select(cls)
-            .offset(skip)
-            .limit(limit)
-            .order_by(cls.created_at.desc())
-        )
-        return list(result.scalars().all())
+    def is_active(self) -> bool:
+        """Check if the engagement is currently active."""
+        return self.status in ["planning", "in_progress"]
+    
+    def is_completed(self) -> bool:
+        """Check if the engagement is completed."""
+        return self.status == "completed"
+    
+    def is_on_hold(self) -> bool:
+        """Check if the engagement is on hold."""
+        return self.status == "on_hold"
     
     @classmethod
     async def get_by_id(cls, db: AsyncSession, engagement_id: int) -> Optional["Engagement"]:
-        """Get engagement by ID"""
+        """Get an engagement by its ID."""
         result = await db.execute(
             select(cls).where(cls.id == engagement_id)
         )
         return result.scalar_one_or_none()
     
     @classmethod
-    async def get_total_count(cls, db: AsyncSession) -> int:
-        """Get total count of engagements"""
+    async def get_all_active(cls, db: AsyncSession) -> List["Engagement"]:
+        """Get all active engagements."""
         result = await db.execute(
-            select(func.count(cls.id))
+            select(cls).where(cls.status.in_(["planning", "in_progress"]))
         )
-        return result.scalar() or 0
+        return result.scalars().all()
     
     @classmethod
-    async def get_recent(cls, db: AsyncSession, limit: int = 10) -> List["Engagement"]:
-        """Get recent engagements"""
+    async def get_by_status(cls, db: AsyncSession, status: str) -> List["Engagement"]:
+        """Get engagements by status."""
         result = await db.execute(
-            select(cls)
-            .order_by(cls.created_at.desc())
-            .limit(limit)
+            select(cls).where(cls.status == status)
         )
-        return list(result.scalars().all())
+        return result.scalars().all()
+    
+    @classmethod
+    async def search_by_title(cls, db: AsyncSession, search_term: str) -> List["Engagement"]:
+        """Search engagements by title."""
+        result = await db.execute(
+            select(cls).where(cls.title.ilike(f"%{search_term}%"))
+        )
+        return result.scalars().all()
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert engagement to dictionary representation."""
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "status": self.get_status(),
+            "progress": self.get_progress(),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "activities_count": len(self.activities) if self.activities else 0
+        }
