@@ -25,6 +25,27 @@ from models.document import Document, DocumentEmbedding
 logger = structlog.get_logger()
 
 
+def safe_run_async(coro):
+    """Safely run async coroutine from sync context"""
+    try:
+        # Try to get the current loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is already running, we need to create a new thread
+            import concurrent.futures
+            import threading
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, coro)
+                return future.result(timeout=30)
+        else:
+            # Loop exists but not running, safe to run
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        # No loop exists, safe to use asyncio.run
+        return asyncio.run(coro)
+
+
 class DatabaseTools:
     """Direct database access tools for AI agents"""
 
@@ -368,7 +389,7 @@ class DatabaseTools:
 def query_talents_count() -> str:
     """Get the total number of talents and basic statistics"""
     try:
-        result = asyncio.run(DatabaseTools.get_talents_summary())
+        result = safe_run_async(DatabaseTools.get_talents_summary())
         
         if result["status"] == "success":
             return f"""✅ TALENT OVERVIEW FROM DATABASE:
@@ -386,7 +407,7 @@ def query_talents_count() -> str:
 def query_talent_details(username: str) -> str:
     """Get detailed information about a specific talent"""
     try:
-        result = asyncio.run(DatabaseTools.get_talent_by_username(username))
+        result = safe_run_async(DatabaseTools.get_talent_by_username(username))
         
         if result["status"] == "success":
             talent = result["talent"]
@@ -413,7 +434,7 @@ def query_talent_details(username: str) -> str:
 def query_department_structure(department: str = None) -> str:
     """Get department overview and team structure"""
     try:
-        result = asyncio.run(DatabaseTools.get_department_overview(department))
+        result = safe_run_async(DatabaseTools.get_department_overview(department))
         
         if result["status"] == "success":
             structure = result["team_structure"]
@@ -439,7 +460,7 @@ def query_department_structure(department: str = None) -> str:
 def query_knowledge_base() -> str:
     """Get knowledge base and documents overview"""
     try:
-        result = asyncio.run(DatabaseTools.get_documents_summary())
+        result = safe_run_async(DatabaseTools.get_documents_summary())
         
         if result["status"] == "success":
             docs = result["documents"]
@@ -465,7 +486,7 @@ RECENT DOCUMENTS:
 def search_knowledge(query: str) -> str:
     """Search for information in the knowledge base"""
     try:
-        result = asyncio.run(DatabaseTools.search_documents(query))
+        result = safe_run_async(DatabaseTools.search_documents(query))
         
         if result["status"] == "success":
             if result["results_count"] == 0:
@@ -528,7 +549,7 @@ def get_database_tools() -> List[FunctionTool]:
 def query_projects() -> str:
     """Get project overview from database"""
     try:
-        result = asyncio.run(DatabaseTools.get_projects_overview())
+        result = safe_run_async(DatabaseTools.get_projects_overview())
         
         if "error" not in result:
             return f"""✅ PROJECT OVERVIEW FROM DATABASE:
@@ -557,7 +578,7 @@ def query_projects() -> str:
 def query_system_status() -> str:
     """Get comprehensive system health status"""
     try:
-        result = asyncio.run(DatabaseTools.get_system_health())
+        result = safe_run_async(DatabaseTools.get_system_health())
         
         if result["status"] == "healthy":
             db = result["database"]
