@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
-  import { scale, scaleTime, scaleLinear } from 'd3-scale';
+  import { scaleTime, scaleLinear } from 'd3-scale';
   import { extent, max } from 'd3-array';
   import { timeFormat, timeParse } from 'd3-time-format';
   

@@ -27,8 +27,6 @@ logger = structlog.get_logger()
 
 class DatabaseTools:
     """Direct database access tools for AI agents"""
-    
-    # Removed problematic get_database_session method
 
     @classmethod
     async def get_talents_summary(cls) -> Dict[str, Any]:
@@ -73,37 +71,35 @@ class DatabaseTools:
     async def get_talent_by_username(cls, username: str) -> Dict[str, Any]:
         """Get specific talent details by username"""
         try:
-            db = await cls.get_database_session()
+            from core.database import get_async_session
             
-            talent = await Talent.get_by_username(db, username)
-            
-            if not talent:
-                await db.close()
+            async with get_async_session() as db:
+                talent = await Talent.get_by_username(db, username)
+                
+                if not talent:
+                    return {
+                        "error": f"Talent '{username}' not found",
+                        "status": "not_found"
+                    }
+                
+                # Get hierarchy info
+                hierarchy = await Talent.get_hierarchy(db, talent.id)
+                
                 return {
-                    "error": f"Talent '{username}' not found",
-                    "status": "not_found"
+                    "talent": {
+                        "id": talent.id,
+                        "username": talent.username,
+                        "full_name": talent.full_name,
+                        "email": talent.email,
+                        "position": talent.position,
+                        "department": talent.department,
+                        "is_active": talent.is_active,
+                        "created_at": talent.created_at.isoformat()
+                    },
+                    "hierarchy": hierarchy,
+                    "status": "success"
                 }
-            
-            # Get hierarchy info
-            hierarchy = await Talent.get_hierarchy(db, talent.id)
-            
-            await db.close()
-            
-            return {
-                "talent": {
-                    "id": talent.id,
-                    "username": talent.username,
-                    "full_name": talent.full_name,
-                    "email": talent.email,
-                    "position": talent.position,
-                    "department": talent.department,
-                    "is_active": talent.is_active,
-                    "created_at": talent.created_at.isoformat()
-                },
-                "hierarchy": hierarchy,
-                "status": "success"
-            }
-            
+                
         except Exception as e:
             logger.error("❌ Talent query failed", error=str(e), username=username)
             return {
@@ -115,46 +111,44 @@ class DatabaseTools:
     async def get_department_overview(cls, department: str = None) -> Dict[str, Any]:
         """Get department overview and team structure"""
         try:
-            db = await cls.get_database_session()
+            from core.database import get_async_session
             
-            # Get talents filtered by department if specified
-            if department:
-                talents = await Talent.get_all(db, limit=1000, department=department, is_active=True)
-                title = f"Department: {department}"
-            else:
-                talents = await Talent.get_all(db, limit=1000, is_active=True)
-                title = "All Departments Overview"
-            
-            if not talents:
-                await db.close()
+            async with get_async_session() as db:
+                # Get talents filtered by department if specified
+                if department:
+                    talents = await Talent.get_all(db, limit=1000, department=department, is_active=True)
+                    title = f"Department: {department}"
+                else:
+                    talents = await Talent.get_all(db, limit=1000, is_active=True)
+                    title = "All Departments Overview"
+                
+                if not talents:
+                    return {
+                        "message": f"No talents found{' in department ' + department if department else ''}",
+                        "status": "empty"
+                    }
+                
+                # Build team structure
+                team_structure = []
+                for talent in talents:
+                    subordinates = await Talent.get_subordinates(db, talent.id)
+                    team_structure.append({
+                        "name": talent.full_name,
+                        "username": talent.username,
+                        "position": talent.position,
+                        "department": talent.department,
+                        "subordinates_count": len(subordinates),
+                        "subordinates": [sub.full_name for sub in subordinates[:3]]  # Top 3
+                    })
+                
                 return {
-                    "message": f"No talents found{' in department ' + department if department else ''}",
-                    "status": "empty"
+                    "title": title,
+                    "total_people": len(talents),
+                    "team_structure": team_structure,
+                    "status": "success",
+                    "timestamp": datetime.utcnow().isoformat()
                 }
-            
-            # Build team structure
-            team_structure = []
-            for talent in talents:
-                subordinates = await Talent.get_subordinates(db, talent.id)
-                team_structure.append({
-                    "name": talent.full_name,
-                    "username": talent.username,
-                    "position": talent.position,
-                    "department": talent.department,
-                    "subordinates_count": len(subordinates),
-                    "subordinates": [sub.full_name for sub in subordinates[:3]]  # Top 3
-                })
-            
-            await db.close()
-            
-            return {
-                "title": title,
-                "total_people": len(talents),
-                "team_structure": team_structure,
-                "status": "success",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
+                
         except Exception as e:
             logger.error("❌ Department query failed", error=str(e), department=department)
             return {
@@ -166,47 +160,46 @@ class DatabaseTools:
     async def get_documents_summary(cls) -> Dict[str, Any]:
         """Get comprehensive documents and knowledge base summary"""
         try:
-            db = await cls.get_database_session()
+            from core.database import get_async_session
             
-            # Get document statistics using the model method
-            stats = await Document.get_stats(db)
-            
-            # Get recent documents
-            recent_docs = await Document.get_all(db, limit=10)
-            
-            # Get embedding statistics
-            embedding_query = select(
-                func.count(DocumentEmbedding.id).label("total_embeddings"),
-                func.avg(func.length(DocumentEmbedding.chunk_text)).label("avg_chunk_size")
-            )
-            embedding_result = await db.execute(embedding_query)
-            embedding_stats = embedding_result.first()
-            
-            await db.close()
-            
-            return {
-                "documents": {
-                    "total_documents": stats["total_documents"],
-                    "total_content_length": stats["total_content_length"],
-                    "last_indexed": stats["last_indexed"],
-                },
-                "embeddings": {
-                    "total_embeddings": embedding_stats.total_embeddings or 0,
-                    "average_chunk_size": int(embedding_stats.avg_chunk_size or 0),
-                },
-                "recent_documents": [
-                    {
-                        "id": doc.id,
-                        "title": doc.title,
-                        "is_indexed": doc.is_indexed,
-                        "created_at": doc.created_at.isoformat()
-                    }
-                    for doc in recent_docs
-                ],
-                "status": "success",
-                "timestamp": datetime.utcnow().isoformat()
-            }
-            
+            async with get_async_session() as db:
+                # Get document statistics using the model method
+                stats = await Document.get_stats(db)
+                
+                # Get recent documents
+                recent_docs = await Document.get_all(db, limit=10)
+                
+                # Get embedding statistics
+                embedding_query = select(
+                    func.count(DocumentEmbedding.id).label("total_embeddings"),
+                    func.avg(func.length(DocumentEmbedding.chunk_text)).label("avg_chunk_size")
+                )
+                embedding_result = await db.execute(embedding_query)
+                embedding_stats = embedding_result.first()
+                
+                return {
+                    "documents": {
+                        "total_documents": stats["total_documents"],
+                        "total_content_length": stats["total_content_length"],
+                        "last_indexed": stats["last_indexed"],
+                    },
+                    "embeddings": {
+                        "total_embeddings": embedding_stats.total_embeddings or 0,
+                        "average_chunk_size": int(embedding_stats.avg_chunk_size or 0),
+                    },
+                    "recent_documents": [
+                        {
+                            "id": doc.id,
+                            "title": doc.title,
+                            "is_indexed": doc.is_indexed,
+                            "created_at": doc.created_at.isoformat()
+                        }
+                        for doc in recent_docs
+                    ],
+                    "status": "success",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                
         except Exception as e:
             logger.error("❌ Documents query failed", error=str(e))
             return {
@@ -217,64 +210,102 @@ class DatabaseTools:
     @classmethod
     async def get_projects_overview(cls) -> Dict[str, Any]:
         """Get overview of projects from database"""
-        # Temporary mock data to fix asyncio issues
-        return {
-            "total_projects": 24,
-            "active_projects": 18,
-            "in_progress": 6,
-            "completed": 15,
-            "total_clients": 8,
-            "latest_project": "Modern UI Redesign Project",
-            "status": "success",
-            "note": "Mock data - database access temporarily simplified"
-        }
+        try:
+            from core.database import get_async_session
+            from models.project import Project
+            
+            async with get_async_session() as db:
+                # Get all projects with basic stats
+                projects = await Project.get_all(db, limit=1000) if hasattr(Project, 'get_all') else []
+                
+                # Calculate stats
+                total_projects = len(projects)
+                active_projects = sum(1 for p in projects if getattr(p, 'status', None) == 'active')
+                in_progress = sum(1 for p in projects if getattr(p, 'status', None) == 'in_progress') 
+                completed = sum(1 for p in projects if getattr(p, 'status', None) == 'completed')
+                
+                # Get clients count (assuming projects have client_id)
+                clients = set()
+                for p in projects:
+                    if hasattr(p, 'client_id') and p.client_id:
+                        clients.add(p.client_id)
+                
+                return {
+                    "total_projects": total_projects,
+                    "active_projects": active_projects, 
+                    "in_progress": in_progress,
+                    "completed": completed,
+                    "total_clients": len(clients),
+                    "latest_project": projects[0].name if projects and hasattr(projects[0], 'name') else "No projects found",
+                    "status": "success",
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+                
+        except ImportError:
+            # Fallback if Project model doesn't exist
+            logger.warning("Project model not found, using fallback data")
+            return {
+                "total_projects": 0,
+                "active_projects": 0,
+                "in_progress": 0,
+                "completed": 0,
+                "total_clients": 0,
+                "latest_project": "No projects configured",
+                "status": "success",
+                "note": "Project model not implemented yet"
+            }
+        except Exception as e:
+            logger.error("❌ Projects query failed", error=str(e))
+            return {
+                "error": f"Projects query failed: {str(e)}",
+                "status": "error"
+            }
 
     @classmethod
     async def search_documents(cls, query: str, limit: int = 5) -> Dict[str, Any]:
         """Search documents by content or title"""
         try:
-            db = await cls.get_database_session()
+            from core.database import get_async_session
             
-            # Simple text search in title and content
-            search_query = select(Document).where(
-                (Document.title.ilike(f"%{query}%")) |
-                (Document.content.ilike(f"%{query}%"))
-            ).limit(limit)
-            
-            result = await db.execute(search_query)
-            documents = result.scalars().all()
-            
-            await db.close()
-            
-            search_results = []
-            for doc in documents:
-                # Find matching snippet
-                content_lower = doc.content.lower()
-                query_lower = query.lower()
+            async with get_async_session() as db:
+                # Simple text search in title and content
+                search_query = select(Document).where(
+                    (Document.title.ilike(f"%{query}%")) |
+                    (Document.content.ilike(f"%{query}%"))
+                ).limit(limit)
                 
-                if query_lower in content_lower:
-                    start_idx = content_lower.find(query_lower)
-                    snippet_start = max(0, start_idx - 50)
-                    snippet_end = min(len(doc.content), start_idx + len(query) + 50)
-                    snippet = doc.content[snippet_start:snippet_end]
-                else:
-                    snippet = doc.content[:100]
+                result = await db.execute(search_query)
+                documents = result.scalars().all()
                 
-                search_results.append({
-                    "id": doc.id,
-                    "title": doc.title,
-                    "snippet": snippet,
-                    "is_indexed": doc.is_indexed,
-                    "created_at": doc.created_at.isoformat()
-                })
-            
-            return {
-                "query": query,
-                "results_count": len(search_results),
-                "results": search_results,
-                "status": "success"
-            }
-            
+                search_results = []
+                for doc in documents:
+                    # Find matching snippet
+                    content_lower = doc.content.lower()
+                    query_lower = query.lower()
+                    
+                    if query_lower in content_lower:
+                        start_idx = content_lower.find(query_lower)
+                        snippet_start = max(0, start_idx - 50)
+                        snippet_end = min(len(doc.content), start_idx + len(query) + 50)
+                        snippet = doc.content[snippet_start:snippet_end]
+                    else:
+                        snippet = doc.content[:100]
+                    
+                    search_results.append({
+                        "id": doc.id,
+                        "title": doc.title,
+                        "snippet": snippet,
+                        "is_indexed": doc.is_indexed,
+                        "created_at": doc.created_at.isoformat()
+                    })
+                
+                return {
+                    "query": query,
+                    "results_count": len(search_results),
+                    "results": search_results,
+                    "status": "success"
+                }
+                
         except Exception as e:
             logger.error("❌ Document search failed", error=str(e), query=query)
             return {
@@ -286,42 +317,41 @@ class DatabaseTools:
     async def get_system_health(cls) -> Dict[str, Any]:
         """Get comprehensive system health and statistics"""
         try:
-            db = await cls.get_database_session()
+            from core.database import get_async_session
             
-            # Test database connectivity with a simple query
-            test_query = select(func.now())
-            db_result = await db.execute(test_query)
-            db_timestamp = db_result.scalar()
-            
-            # Get table counts
-            talent_count_query = select(func.count(Talent.id))
-            talent_result = await db.execute(talent_count_query)
-            talent_count = talent_result.scalar()
-            
-            document_count_query = select(func.count(Document.id))
-            doc_result = await db.execute(document_count_query)
-            document_count = doc_result.scalar()
-            
-            embedding_count_query = select(func.count(DocumentEmbedding.id))
-            embedding_result = await db.execute(embedding_count_query)
-            embedding_count = embedding_result.scalar()
-            
-            await db.close()
-            
-            return {
-                "database": {
-                    "status": "connected",
-                    "timestamp": db_timestamp.isoformat(),
-                    "tables": {
-                        "talents": talent_count,
-                        "documents": document_count,
-                        "embeddings": embedding_count
-                    }
-                },
-                "system_timestamp": datetime.utcnow().isoformat(),
-                "status": "healthy"
-            }
-            
+            async with get_async_session() as db:
+                # Test database connectivity with a simple query
+                test_query = select(func.now())
+                db_result = await db.execute(test_query)
+                db_timestamp = db_result.scalar()
+                
+                # Get table counts
+                talent_count_query = select(func.count(Talent.id))
+                talent_result = await db.execute(talent_count_query)
+                talent_count = talent_result.scalar()
+                
+                document_count_query = select(func.count(Document.id))
+                doc_result = await db.execute(document_count_query)
+                document_count = doc_result.scalar()
+                
+                embedding_count_query = select(func.count(DocumentEmbedding.id))
+                embedding_result = await db.execute(embedding_count_query)
+                embedding_count = embedding_result.scalar()
+                
+                return {
+                    "database": {
+                        "status": "connected",
+                        "timestamp": db_timestamp.isoformat(),
+                        "tables": {
+                            "talents": talent_count,
+                            "documents": document_count,
+                            "embeddings": embedding_count
+                        }
+                    },
+                    "system_timestamp": datetime.utcnow().isoformat(),
+                    "status": "healthy"
+                }
+                
         except Exception as e:
             logger.error("❌ System health check failed", error=str(e))
             return {
