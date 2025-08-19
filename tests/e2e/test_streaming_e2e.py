@@ -14,8 +14,8 @@ import websockets
 from websockets.client import WebSocketClientProtocol
 import structlog
 
-from backend.src.agents.services.streaming.response_types import StreamingResponse
-from backend.src.agents.services.streaming.protocol import (
+from agents.services.streaming.response_types import StreamingResponse
+from agents.services.streaming.protocol import (
     StreamingProtocol,
     StreamingEventType
 )

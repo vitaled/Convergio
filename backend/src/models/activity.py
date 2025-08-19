@@ -30,9 +30,10 @@ class Activity(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     # Vector embeddings - existing in DB
-    description_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)  # vector type
-    context_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)  # vector type
-    requirements_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)  # vector type
+    # NOTE: In dev environments vector column may not be available; use nullable with server_default NULL
+    description_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)
+    context_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)
+    requirements_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)
     
     # Timestamps
     created_at: Mapped[Optional[datetime]] = mapped_column(
@@ -67,14 +68,16 @@ class Activity(Base):
         now = datetime.utcnow()
         if self.created_at:
             days_old = (now - self.created_at.replace(tzinfo=None)).days
-            if days_old < 2:
+            if days_old < 1:
+                return "backlog"
+            elif days_old < 3:
                 return "planning"
             elif days_old < 10:
-                return "in-progress"
+                return "in_progress"
             elif days_old < 20:
                 return "review"
             else:
-                return "completed"
+                return "done"
         return "planning"
     
     def calculate_progress(self) -> float:

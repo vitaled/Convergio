@@ -9,10 +9,10 @@ CRUD operations, analytics, and workflow management.
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, insert, select as sa_select
 
 from core.database import get_db_session
 from models.engagement import Engagement
@@ -466,3 +466,106 @@ async def get_activities(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve activities: {str(e)}"
         )
+
+
+# ====== Activity CRUD for Kanban/Gantt (minimal) ======
+
+class ActivityCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    status: Optional[str] = Field(default=None, description="planning|in_progress|review|completed")
+
+
+@router.post("/engagements/{engagement_id}/activities")
+async def create_activity(
+    engagement_id: int,
+    payload: ActivityCreate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    try:
+        engagement = await Engagement.get_by_id(db, engagement_id)
+        if not engagement:
+            raise HTTPException(status_code=404, detail="Engagement not found")
+        # Insert only known safe columns to avoid vector type casting issues
+        stmt = (
+            insert(Activity)
+            .values(
+                engagement_id=engagement_id,
+                title=payload.title,
+                description=payload.description,
+            )
+            .returning(Activity.id)
+        )
+        res = await db.execute(stmt)
+        new_id = res.scalar_one()
+        await db.commit()
+        row = await db.execute(sa_select(Activity).where(Activity.id == new_id))
+        created = row.scalar_one_or_none()
+        return created.to_dict() if created else {"id": new_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create activity: {e}")
+
+
+@router.put("/activities/{activity_id}")
+async def update_activity(activity_id: int, payload: ActivityCreate, db: AsyncSession = Depends(get_db_session)):
+    try:
+        result = await db.execute(sa_select(Activity).where(Activity.id == activity_id))
+        activity = result.scalar_one_or_none()
+        if not activity:
+            raise HTTPException(status_code=404, detail="Activity not found")
+        if payload.title is not None:
+            activity.title = payload.title
+        if payload.description is not None:
+            activity.description = payload.description
+        # status is derived but we accept semantic hints; no DB column to set
+        await db.commit()
+        row = await db.execute(sa_select(Activity).where(Activity.id == activity_id))
+        refreshed = row.scalar_one_or_none()
+        return refreshed.to_dict() if refreshed else {"id": activity_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update activity: {e}")
+
+
+from datetime import timedelta
+
+@router.post("/engagements/{engagement_id}/activities/seed")
+async def seed_activities(
+    engagement_id: int,
+    count: int = 5,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Quickly seed sample activities for an engagement (development only)."""
+    try:
+        engagement = await Engagement.get_by_id(db, engagement_id)
+        if not engagement:
+            raise HTTPException(status_code=404, detail="Engagement not found")
+        values = []
+        now = datetime.utcnow()
+        for i in range(count):
+            values.append(
+                {
+                    "engagement_id": engagement_id,
+                    "title": f"Task {i+1}",
+                    "description": f"Auto-seeded task {i+1} for engagement {engagement_id}",
+                    "created_at": now - timedelta(days=i * 3),
+                }
+            )
+        await db.execute(insert(Activity), values)
+        await db.commit()
+        # Return fresh details
+        result = await db.execute(
+            sa_select(Activity).where(Activity.engagement_id == engagement_id).order_by(Activity.created_at)
+        )
+        acts = result.scalars().all()
+        return {"created": len(values), "activities": [a.to_dict() for a in acts]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update activity: {e}")

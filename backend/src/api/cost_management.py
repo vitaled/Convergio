@@ -364,7 +364,9 @@ async def record_interaction_cost(
         from services.cost_tracking_service import EnhancedCostTracker
         from agents.services.redis_state_manager import RedisStateManager
         
-        state_manager = RedisStateManager()
+        from core.config import get_settings
+        settings = get_settings()
+        state_manager = RedisStateManager(settings.REDIS_URL)
         tracker = EnhancedCostTracker(state_manager)
         
         # Track the API call
@@ -390,6 +392,7 @@ async def record_interaction_cost(
                        model=interaction_data.get("model"))
             
             return {
+                "success": True,
                 "message": "Cost recorded successfully",
                 "cost_breakdown": result["cost_breakdown"],
                 "session_total": result["session_total"],

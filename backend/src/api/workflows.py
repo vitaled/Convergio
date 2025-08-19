@@ -17,6 +17,7 @@ from agents.services.graphflow.generator import (
     BusinessWorkflow,
     generate_workflow_from_prompt,
 )
+from agents.services.graphflow.registry import get_workflow_catalog
 from agents.services.observability.telemetry_api import TelemetryAPIService
 from agents.utils.config import get_settings
 from core.logging import get_logger

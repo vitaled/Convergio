@@ -622,7 +622,8 @@ async def main():
     )
     
     # Initialize orchestrator
-    state_manager = RedisStateManager()
+    settings = get_settings()
+    state_manager = RedisStateManager(settings.REDIS_URL)
     cost_tracker = CostTracker()
     
     orchestrator = ModernGroupChatOrchestrator(

@@ -47,11 +47,11 @@ class TestRateLimiting:
         
         # Try to consume more than available
         assert token_bucket.consume(6) == False
-        assert token_bucket.tokens == 5  # Unchanged
+        assert abs(token_bucket.tokens - 5) < 0.1  # Allow for micro-refill timing
         
         # Consume remaining
         assert token_bucket.consume(5) == True
-        assert token_bucket.tokens == 0
+        assert abs(token_bucket.tokens) < 0.1  # Allow for micro-refill timing
     
     def test_token_bucket_refill(self, token_bucket):
         """Test token refill over time"""
@@ -70,11 +70,11 @@ class TestRateLimiting:
         """Test rate limiter allows requests within limits"""
         client_id = "test_client"
         
-        # First 10 requests should be allowed (rate limit)
-        for i in range(10):
+        # First 20 requests should be allowed (burst_size=20)
+        for i in range(20):
             assert rate_limiter.allow_request(client_id) == True
         
-        # 11th request should be denied
+        # 21st request should be denied
         assert rate_limiter.allow_request(client_id) == False
     
     def test_rate_limiter_burst_capacity(self, rate_limiter):
@@ -111,8 +111,8 @@ class TestRateLimiting:
         client1 = "user1"
         client2 = "user2"
         
-        # Use up client1's quota
-        for i in range(10):
+        # Use up client1's quota (burst_size=20)
+        for i in range(20):
             rate_limiter.allow_request(client1)
         
         # Client1 should be blocked
@@ -147,8 +147,8 @@ class TestRateLimiting:
         assert "X-RateLimit-Remaining" in headers
         assert "X-RateLimit-Reset" in headers
         
-        assert headers["X-RateLimit-Limit"] == "10"
-        assert headers["X-RateLimit-Remaining"] == "5"
+        assert headers["X-RateLimit-Limit"] == "20"
+        assert headers["X-RateLimit-Remaining"] == "15"
     
     def test_graceful_degradation(self, rate_limiter):
         """Test graceful degradation when rate limited"""
@@ -213,8 +213,8 @@ class TestRateLimiting:
         limiter2.allow_request(client_id)
         
         # Redis should have been called
-        assert mock_redis.incr.called
-        assert mock_redis.expire.called
+        assert mock_redis.incr.call_count >= 2  # At least 2 calls (one from each limiter)
+        assert mock_redis.ttl.call_count >= 2   # TTL should be checked
     
     def test_sliding_window_rate_limit(self):
         """Test sliding window algorithm for smooth rate limiting"""

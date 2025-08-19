@@ -429,11 +429,72 @@ class AIClientManager:
         response.raise_for_status()
         data = response.json()
         
-        # Track cost
-        self._cost_tracker["api_calls"] += 1
-        self._cost_tracker["completions"] += 0.001  # Rough estimate
+        # Extract response content and usage data
+        response_content = data["choices"][0]["message"]["content"]
+        usage = data.get("usage", {})
         
-        return data["choices"][0]["message"]["content"]
+        # LOG FULL CONVERSATION FLOW
+        logger.info(
+            "🤖 AI API CONVERSATION LOG",
+            provider=provider,
+            model=model,
+            message_count=len(messages),
+            response_length=len(response_content),
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        
+        # Log conversation messages (input)
+        for i, msg in enumerate(messages):
+            logger.info(
+                f"📝 INPUT MSG [{i+1}]",
+                role=msg.get("role", "unknown"),
+                content=msg.get("content", "")[:500] + "..." if len(msg.get("content", "")) > 500 else msg.get("content", ""),
+                provider=provider,
+                model=model
+            )
+        
+        # Log AI response (output)
+        logger.info(
+            "🎯 AI RESPONSE",
+            response=response_content[:500] + "..." if len(response_content) > 500 else response_content,
+            provider=provider,
+            model=model,
+            character_count=len(response_content)
+        )
+        
+        # Track cost with detailed usage
+        self._cost_tracker["api_calls"] += 1
+        
+        # Estimate cost based on tokens and provider
+        estimated_cost = 0.001  # Default fallback
+        prompt_tokens = usage.get("prompt_tokens", 0)
+        completion_tokens = usage.get("completion_tokens", 0)
+        
+        if provider == "openai" and "gpt-4" in model:
+            estimated_cost = (prompt_tokens * 0.03 + completion_tokens * 0.06) / 1000
+        elif provider == "openai" and "gpt-3.5" in model:
+            estimated_cost = (prompt_tokens * 0.001 + completion_tokens * 0.002) / 1000
+        elif provider == "perplexity":
+            estimated_cost = (prompt_tokens * 0.005 + completion_tokens * 0.015) / 1000
+        
+        self._cost_tracker["completions"] += estimated_cost
+        
+        # Log cost information
+        logger.info(
+            "💰 API COST",
+            provider=provider,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            estimated_cost_usd=f"${estimated_cost:.6f}",
+            total_calls=self._cost_tracker["api_calls"]
+        )
+        
+        return response_content
     
     def get_cost_summary(self) -> Dict[str, Any]:
         """Get cost tracking summary"""

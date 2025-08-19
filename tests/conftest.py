@@ -325,11 +325,19 @@ async def redis_client():
 @pytest.fixture
 async def database_connectivity_test():
     """Test real database connectivity."""
-    from core.database import get_db_session
+    from core.database import get_async_session, init_db
     from sqlalchemy import text
     
     try:
-        async with get_db_session() as session:
+        # Initialize database if not already done
+        try:
+            async with get_async_session() as session:
+                # Test if we can get a session
+                pass
+        except RuntimeError:
+            await init_db()
+        
+        async with get_async_session() as session:
             result = await session.execute(text("SELECT 1 as test_value"))
             row = result.fetchone()
             assert row[0] == 1
@@ -341,11 +349,16 @@ async def database_connectivity_test():
 @pytest.fixture  
 async def redis_connectivity_test():
     """Test real Redis connectivity with actual operations."""
-    from core.redis import get_redis_client
+    from core.redis import get_redis_client, init_redis
     import uuid
     
     try:
-        client = await get_redis_client()
+        # Initialize Redis if not already done
+        try:
+            client = get_redis_client()
+        except RuntimeError:
+            await init_redis()
+            client = get_redis_client()
         
         # Test basic operations
         test_key = f"test:connectivity:{uuid.uuid4()}"
@@ -356,7 +369,7 @@ async def redis_connectivity_test():
         
         # Get operation
         retrieved = await client.get(test_key)
-        assert retrieved.decode() == test_value
+        assert retrieved == test_value  # decode_responses=True in init
         
         # Delete operation
         await client.delete(test_key)
