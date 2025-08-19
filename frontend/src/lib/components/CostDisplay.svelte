@@ -22,7 +22,8 @@
 
   async function fetchCostData() {
     try {
-      const response = await fetch('http://localhost:4000/api/v1/cost-management/realtime/current', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${apiUrl}/api/v1/cost-management/realtime/current`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -148,7 +149,7 @@
 
   <!-- Enhanced Detailed Cost Panel -->
   {#if showDetails}
-    <div class="absolute right-0 top-full mt-2 w-80 bg-slate-900/95 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl z-50 p-4">
+    <div class="absolute right-0 top-full mt-2 w-80 bg-slate-900/95 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl z-[60] p-4">
       <div class="space-y-4">
         <!-- Header -->
         <div class="flex items-center justify-between pb-2 border-b border-white/20">
@@ -266,7 +267,7 @@
 <!-- Click outside to close -->
 {#if showDetails}
   <div 
-    class="fixed inset-0 z-40" 
+    class="fixed inset-0 z-[55]" 
     role="button"
     tabindex="-1"
     aria-label="Close cost details"

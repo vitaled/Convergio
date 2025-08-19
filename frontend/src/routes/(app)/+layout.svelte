@@ -29,7 +29,8 @@
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const response = await fetch('http://localhost:9000/health', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${apiUrl}/health`, {
         signal: controller.signal
       });
       
@@ -59,30 +60,30 @@
   }
 </script>
 
-<!-- Clean Layout inspired by Reflex Dashboard -->
-<div class="min-h-screen bg-gray-50 font-mono text-sm">
-  <!-- Simple Top Navigation -->
-  <div class="bg-white border-b border-gray-200">
+<!-- Modern Glassmorphism Layout -->
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 font-mono text-sm">
+  <!-- Glassmorphism Top Navigation -->
+  <div class="bg-white/10 backdrop-blur-lg border-b border-white/20">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-14">
         <!-- Logo & Title -->
         <div class="flex items-center space-x-4">
-          <button on:click={() => goto('/')} class="flex items-center space-x-3 hover:opacity-75">
+          <button on:click={() => goto('/')} class="flex items-center space-x-3 hover:opacity-75 transition-all">
             <img src="/convergio_logo.png" alt="Platform Convergio" class="h-8 w-auto" />
-            <span class="text-gray-900 font-medium tracking-tight">platform.Convergio.io</span>
+            <span class="text-white font-medium tracking-tight">platform.Convergio.io</span>
           </button>
         </div>
         
-        <!-- Simple Navigation -->
-        <nav class="hidden md:flex items-center space-x-6">
+        <!-- Glassmorphism Navigation -->
+        <nav class="hidden md:flex items-center space-x-4">
           {#each navItems as item}
             <a
               href={item.href}
               sveltekit:prefetch
               aria-current={isActive(item.href) ? 'page' : undefined}
-              class="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors {isActive(item.href)
-                ? 'bg-orange-100 text-orange-900 font-semibold'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}"
+              class="flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 {isActive(item.href)
+                ? 'bg-white/20 text-white border border-white/30 shadow-lg'
+                : 'text-white/80 hover:text-white hover:bg-white/10 border border-transparent'}"
             >
               <img src={item.iconPath} alt="" class="h-3 w-3" />
               <span>{item.label}</span>
@@ -96,7 +97,7 @@
           <CostDisplay />
           
           <!-- Version -->
-          <div class="hidden md:block text-xs text-gray-500 tracking-wide">
+          <div class="hidden md:block text-xs text-white/60 tracking-wide">
             v{APP_VERSION}
           </div>
           
