@@ -5,10 +5,12 @@
   import AliAssistant from '$lib/components/AliAssistant.svelte';
   import CostDisplay from '$lib/components/CostDisplay.svelte';
   import ApiStatusDropdown from '$lib/components/ApiStatusDropdown.svelte';
+  import '$lib/styles/modern-ui.css';
   
   // MVP navigation items (simplified for initial release)
   const navItems = [
     { href: '/agents', label: 'AI Team', iconPath: '/convergio_icons/users.svg' },
+    { href: '/pm', label: 'Projects', iconPath: '/convergio_icons/projects.svg' },
     { href: '/dashboard', label: 'Analytics', iconPath: '/convergio_icons/analytics.svg' },
     { href: '/settings', label: 'Settings', iconPath: '/convergio_icons/settings.svg' }
   ];

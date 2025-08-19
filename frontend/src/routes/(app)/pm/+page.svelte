@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
-	import GanttChart from '$lib/components/GanttChart.svelte';
-	import CalendarView from '$lib/components/CalendarView.svelte';
+	import ModernKanbanBoard from '$lib/components/modern/ModernKanbanBoard.svelte';
+	import ModernGanttChart from '$lib/components/modern/ModernGanttChart.svelte';
+	import ModernAnalyticsDashboard from '$lib/components/modern/ModernAnalyticsDashboard.svelte';
+	import AIProjectIntegration from '$lib/components/modern/AIProjectIntegration.svelte';
 	
 	let selectedProjectId = '';
 	let projects: any[] = [];
-	let selectedView: 'kanban' | 'gantt' | 'calendar' | 'analytics' = 'kanban';
+	let selectedView: 'kanban' | 'gantt' | 'analytics' | 'ai_integration' = 'kanban';
 	let projectAnalytics: any = null;
 	let loading = false;
 	
@@ -156,14 +157,14 @@
 			</button>
 			
 			<button
-				class:active={selectedView === 'calendar'}
-				on:click={() => selectedView = 'calendar'}
+				class:active={selectedView === 'ai_integration'}
+				on:click={() => selectedView = 'ai_integration'}
 				class="view-btn"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
 				</svg>
-				Calendar
+				AI Team
 			</button>
 			
 			<button
@@ -189,57 +190,13 @@
 			</div>
 		{:else if selectedProjectId}
 			{#if selectedView === 'kanban'}
-				<KanbanBoard projectId={selectedProjectId} />
+				<ModernKanbanBoard projectId={selectedProjectId} />
 			{:else if selectedView === 'gantt'}
-				<GanttChart projectId={selectedProjectId} />
-			{:else if selectedView === 'calendar'}
-				<CalendarView projectId={selectedProjectId} />
+				<ModernGanttChart projectId={selectedProjectId} />
+			{:else if selectedView === 'ai_integration'}
+				<AIProjectIntegration projectId={selectedProjectId} />
 			{:else if selectedView === 'analytics'}
-				<div class="analytics-view">
-					<h2 class="text-xl font-semibold mb-4">Project Analytics</h2>
-					
-					{#if projectAnalytics}
-						<div class="analytics-grid">
-							<div class="metric-card">
-								<h3>Performance Metrics</h3>
-								<div class="metric-value">{projectAnalytics.performance_metrics.total_tasks}</div>
-								<div class="metric-label">Total Tasks</div>
-								
-								<div class="metric-value">{projectAnalytics.performance_metrics.completed_tasks}</div>
-								<div class="metric-label">Completed</div>
-								
-								<div class="progress-bar">
-									<div 
-										class="progress-fill"
-										style="width: {projectAnalytics.performance_metrics.avg_progress}%"
-									></div>
-								</div>
-								<div class="metric-label">Average Progress</div>
-							</div>
-							
-							<div class="metric-card">
-								<h3>Cost Metrics</h3>
-								<div class="metric-value">${projectAnalytics.cost_metrics.budget.toFixed(2)}</div>
-								<div class="metric-label">Budget</div>
-								
-								<div class="metric-value">${projectAnalytics.cost_metrics.actual_cost.toFixed(2)}</div>
-								<div class="metric-label">Actual Cost</div>
-								
-								<div class="metric-value">${projectAnalytics.cost_metrics.ai_cost.toFixed(2)}</div>
-								<div class="metric-label">AI Cost</div>
-							</div>
-							
-							<div class="metric-card">
-								<h3>AI Agent Usage</h3>
-								<div class="agent-list">
-									<p class="text-sm text-gray-600">
-										AI agents are actively working on project tasks, providing automated execution and intelligent assistance.
-									</p>
-								</div>
-							</div>
-						</div>
-					{/if}
-				</div>
+				<ModernAnalyticsDashboard projectId={selectedProjectId} />
 			{/if}
 		{:else}
 			<div class="empty-state">

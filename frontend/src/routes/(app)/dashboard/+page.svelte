@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { dashboardService, type DashboardMetrics } from '$lib/services/dashboardService';
   import { aliService } from '$lib/services/aliService';
+  import ModernAnalyticsDashboard from '$lib/components/modern/ModernAnalyticsDashboard.svelte';
+  import AIProjectIntegration from '$lib/components/modern/AIProjectIntegration.svelte';
   import DashboardMetricCard from '$lib/components/DashboardMetricCard.svelte';
   import ProjectCard from '$lib/components/ProjectCard.svelte';
   import DashboardNavigation from '$lib/components/dashboard/DashboardNavigation.svelte';
@@ -375,42 +377,6 @@
     <FeedbackOverview />
   
   {:else if activeSection === 'analytics'}
-    <!-- Advanced Analytics Section -->
-    <div class="bg-white border border-gray-200 rounded p-4">
-      <h3 class="text-sm font-medium text-gray-900 mb-4">Advanced Analytics</h3>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Time Range Selector -->
-        <div class="space-y-4">
-          <h4 class="text-xs font-medium text-gray-700">Time Range Analysis</h4>
-          <div class="flex space-x-2">
-            {#each ['1d', '7d', '30d'] as range}
-              <button
-                on:click={() => { timeRange = range; loadDashboardData(); }}
-                class="px-3 py-1 text-xs rounded {timeRange === range ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
-              >
-                {range === '1d' ? '24 Hours' : range === '7d' ? '7 Days' : '30 Days'}
-              </button>
-            {/each}
-          </div>
-        </div>
-        
-        <!-- Performance Trends -->
-        <div class="space-y-4">
-          <h4 class="text-xs font-medium text-gray-700">Performance Trends</h4>
-          {#if dashboardData?.recent_activities}
-            <div class="space-y-2">
-              {#each dashboardData.recent_activities.slice(0, 5) as activity}
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-gray-600">{activity.description}</span>
-                  <span class="text-xs text-gray-500">{new Date(activity.timestamp).toLocaleDateString()}</span>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <p class="text-xs text-gray-500">No recent activities</p>
-          {/if}
-        </div>
-      </div>
-    </div>
+    <ModernAnalyticsDashboard timeRange={timeRange} />
   {/if}
 </div>
