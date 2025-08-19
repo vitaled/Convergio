@@ -349,8 +349,18 @@
           };
         });
         
+        // Sort agents so Ali is first
+        transformedAgents.sort((a, b) => {
+          // Ali Chief of Staff should be first
+          if (a.key && a.key.includes('ali-chief-of-staff')) return -1;
+          if (b.key && b.key.includes('ali-chief-of-staff')) return 1;
+          
+          // Then by alphabetical order of display name
+          return a.name.localeCompare(b.name);
+        });
+        
         allAgents = transformedAgents;
-        console.log(`✅ Loaded ${allAgents.length} agents from API`);
+        console.log(`✅ Loaded ${allAgents.length} agents from API (Ali first)`);
       } else {
         throw new Error(`API returned ${response.status}: ${response.statusText}`);
       }
