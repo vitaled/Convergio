@@ -15,7 +15,7 @@ from core.redis import get_redis_client
 from core.config import get_settings
 
 logger = structlog.get_logger()
-router = APIRouter(prefix="/approvals", tags=["approvals"])
+router = APIRouter(tags=["approvals"])
 
 # Global store instance
 _approval_store: Optional[RedisApprovalStore] = None

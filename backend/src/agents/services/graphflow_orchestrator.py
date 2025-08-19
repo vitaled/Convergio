@@ -16,7 +16,7 @@ from autogen_agentchat.agents import AssistantAgent, UserProxyAgent
 from autogen_agentchat.messages import TextMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from core.config import settings
+from core.config import get_settings
 from agents.services.agent_loader import agent_loader
 from agents.services.graphflow.definitions import WorkflowStep, BusinessWorkflow, WorkflowExecution
 from agents.services.graphflow.registry import load_predefined_workflows
@@ -58,6 +58,7 @@ class GraphFlowOrchestrator:
         """Create AutoGen GraphFlow execution graph from workflow definition"""
         
         builder = DiGraphBuilder()
+        s = get_settings()
         
         # Create agents for each step
         step_agents = {}
@@ -68,13 +69,13 @@ class GraphFlowOrchestrator:
                 agent_config = {
                     "name": step.agent_name,
                     "description": f"Agent for {step.step_type}",
-                    "model": settings.OPENAI_MODEL
+                    "model": s.OPENAI_MODEL
                 }
             
             # Create AutoGen agent
             client = OpenAIChatCompletionClient(
-                model=agent_config.get("model", settings.OPENAI_MODEL),
-                api_key=settings.OPENAI_API_KEY
+                model=agent_config.get("model", s.OPENAI_MODEL),
+                api_key=s.OPENAI_API_KEY
             )
             
             agent = AssistantAgent(

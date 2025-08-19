@@ -16,7 +16,7 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import TextMessage, HandoffMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from core.config import settings, get_settings
+from core.config import get_settings
 from agents.memory.autogen_memory_system import AutoGenMemorySystem
 from core.redis import get_redis_client
 from agents.services.streaming.response_types import StreamingResponse
@@ -142,7 +142,7 @@ class StreamingOrchestrator:
             # Create OpenAI client with streaming - using most economical available model
             client = OpenAIChatCompletionClient(
                 model=self.settings.default_ai_model,  # Use configured default model
-                api_key=settings.OPENAI_API_KEY,
+                api_key=self.settings.OPENAI_API_KEY,
             )
             
             # Create agent using the loader's method to build system message

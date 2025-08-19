@@ -20,13 +20,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-	// Set CORS headers for API requests
-	if (event.url.pathname.startsWith('/api')) {
-		response.headers.set('Access-Control-Allow-Origin', 'http://localhost:4000');
-		response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-		response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-		response.headers.set('Access-Control-Allow-Credentials', 'true');
-	}
+	// CORS is handled by the backend, not the frontend
 
 	return response;
 };

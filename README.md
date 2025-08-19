@@ -229,8 +229,14 @@ pytest tests/integration/test_scenarios/ -v
 
 Minimal set to get running locally:
 
-```
+```bash
+# Environment
 ENVIRONMENT=development
+DEBUG=true
+
+# Security (generate strong JWT secret for production)
+JWT_SECRET=your_super_secure_jwt_secret_that_should_be_very_long_and_random_at_least_64_chars
+JWT_ALGORITHM=RS256
 
 # Database
 POSTGRES_HOST=localhost
@@ -244,10 +250,34 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=1
 
+# Network Configuration
+DEFAULT_HOST=localhost
+FRONTEND_PORT=4000
+BACKEND_PORT=9000
+API_PORT=9000
+ADMIN_PORT=9001
+
+# User Configuration
+DEFAULT_USER_ID=system_user
+DEFAULT_ANONYMOUS_USER=system_anonymous
+DEFAULT_TEST_USER=system_test_user
+
+# Feature Configuration
+REFERENCE_AGENT_TRUNCATE_LENGTH=3000
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_PER_MINUTE_API=100
+
 # AI providers
 OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=...
+ANTHROPIC_API_KEY=sk-ant-...
+GRAPHFLOW=true
+
+# Health Monitoring
+HEALTH_CHECK_ENABLED=true
+LOG_LEVEL=INFO
 ```
+
+> 📝 **Note**: For a complete list of all available environment variables with detailed explanations, see `.env.example` in the project root.
 
 ---
 

@@ -32,7 +32,7 @@ class AgentIntelligence:
             import os
             values_path = os.path.join(
                 os.path.dirname(__file__), 
-                '../../definitions/CommonValuesAndPrinciples.md'
+                '../definitions/CommonValuesAndPrinciples.md'
             )
             with open(values_path, 'r') as f:
                 return f.read()

@@ -16,7 +16,7 @@ from cryptography.hazmat.backends import default_backend
 import jwt
 from pathlib import Path
 
-from core.config import settings
+from core.config import get_settings
 from core.redis import get_redis_client
 
 logger = structlog.get_logger()
@@ -200,7 +200,7 @@ class DigitalSignatureManager:
                 metadata={
                     "signed_by": "convergio_signature_manager",
                     "version": "1.0",
-                    "environment": settings.environment
+                    "environment": get_settings().environment
                 }
             )
             

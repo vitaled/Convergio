@@ -595,8 +595,8 @@ async def _get_cost_data_from_agents(start_date: datetime, end_date: datetime) -
                 "cost_per_interaction": cost_per_interaction,
                 "model_breakdown": model_breakdown,
                 "agent_breakdown": agent_breakdown,
-                "daily_costs": [],  # TODO: Implement daily breakdown
-                "growth_rate": 0.0,  # TODO: Calculate real growth
+                "daily_costs": await _get_daily_cost_breakdown(cost_tracker, days=7),
+                "growth_rate": await _calculate_cost_growth_rate(cost_tracker, days=30),
                 "efficiency_trend": "stable",
                 "top_consumers": sorted(top_consumers, key=lambda x: x.get('cost_usd', 0), reverse=True)
             }
@@ -1326,3 +1326,59 @@ async def get_comprehensive_health_status():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Comprehensive health check failed: {str(e)}"
         )
+
+
+async def _get_daily_cost_breakdown(cost_tracker, days: int = 7) -> List[Dict[str, Any]]:
+    """Get daily cost breakdown for the last N days."""
+    try:
+        from datetime import datetime, timedelta
+        
+        daily_costs = []
+        end_date = datetime.utcnow().date()
+        
+        for i in range(days):
+            date = end_date - timedelta(days=i)
+            
+            # Get cost data for this specific date
+            daily_cost = await cost_tracker.get_daily_cost(date)
+            
+            daily_costs.append({
+                "date": date.isoformat(),
+                "total_cost_usd": daily_cost.get("total_cost_usd", 0.0),
+                "interactions": daily_cost.get("interactions", 0),
+                "models_used": daily_cost.get("models_used", [])
+            })
+        
+        return sorted(daily_costs, key=lambda x: x["date"])
+        
+    except Exception as e:
+        logger.warning(f"Failed to get daily cost breakdown: {e}")
+        return []
+
+
+async def _calculate_cost_growth_rate(cost_tracker, days: int = 30) -> float:
+    """Calculate cost growth rate over the last N days."""
+    try:
+        from datetime import datetime, timedelta
+        
+        end_date = datetime.utcnow().date()
+        start_date = end_date - timedelta(days=days)
+        mid_date = end_date - timedelta(days=days//2)
+        
+        # Get costs for two halves of the period
+        first_half_cost = await cost_tracker.get_period_cost(start_date, mid_date)
+        second_half_cost = await cost_tracker.get_period_cost(mid_date, end_date)
+        
+        first_half_total = first_half_cost.get("total_cost_usd", 0.0)
+        second_half_total = second_half_cost.get("total_cost_usd", 0.0)
+        
+        # Calculate growth rate
+        if first_half_total > 0:
+            growth_rate = ((second_half_total - first_half_total) / first_half_total) * 100
+            return round(growth_rate, 2)
+        else:
+            return 0.0
+            
+    except Exception as e:
+        logger.warning(f"Failed to calculate growth rate: {e}")
+        return 0.0

@@ -29,6 +29,24 @@ from typing import List, Optional
 from pydantic import Field, validator, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+def _get_default_cors_origins() -> str:
+    """Get default CORS origins with configurable host and ports"""
+    host = os.getenv("DEFAULT_HOST", "localhost")
+    frontend_port = os.getenv("FRONTEND_PORT", "4000")
+    backend_port = os.getenv("BACKEND_PORT", "9000")
+    admin_port = os.getenv("ADMIN_PORT", "9001")
+    
+    # Support both localhost and 127.0.0.1 for compatibility
+    origins = [
+        f"http://{host}:{frontend_port}",
+        f"http://{host}:{backend_port}", 
+        f"http://{host}:{admin_port}",
+        f"http://127.0.0.1:{frontend_port}",
+        f"http://127.0.0.1:{backend_port}",
+        f"http://127.0.0.1:{admin_port}"
+    ]
+    return ",".join(origins)
+
 
 class Settings(BaseSettings):
     """Application settings with environment variable loading"""
@@ -206,9 +224,9 @@ class Settings(BaseSettings):
     # Password hashing
     BCRYPT_ROUNDS: int = Field(default=12, description="Bcrypt rounds for password hashing")
     
-    # CORS settings
+    # CORS settings - configurable via environment
     CORS_ALLOWED_ORIGINS: str = Field(
-        default="http://localhost:4000,http://localhost:4001,http://localhost:3000,http://localhost:9001,http://127.0.0.1:4000,http://127.0.0.1:4001,http://127.0.0.1:3000,http://127.0.0.1:9001",
+        default_factory=lambda: _get_default_cors_origins(),
         description="CORS allowed origins (comma-separated)"
     )
     

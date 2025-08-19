@@ -72,7 +72,7 @@ async def handle_conversation(
             context.setdefault("agent_name", request.agent)
         
         # Check if a specific agent is requested in the context
-    target_agent = context.get("agent_name")
+        target_agent = context.get("agent_name")
         if target_agent:
             # Route to specific agent if requested
             logger.info(f"🎯 Routing to specific agent: {target_agent}")

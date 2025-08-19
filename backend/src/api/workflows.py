@@ -501,7 +501,7 @@ async def test_workflow_execution():
         execution_id = await orchestrator.execute_workflow(
             workflow_id="strategic-analysis-001",
             user_request="Analyze our Q4 2024 expansion strategy into the European market. Consider financial implications, technical requirements, and potential risks.",
-            user_id="test-user",
+            user_id=os.getenv("DEFAULT_TEST_USER", "system_test_user"),
             context={
                 "current_markets": ["North America", "Asia-Pacific"],
                 "budget_range": "$2M-$5M",

@@ -166,7 +166,7 @@ class AIAgentGenerator:
 I need you to create a new agent definition based on a senior-level job description. The agent should be professional, competent, and aligned with Convergio's standards.
 
 REFERENCE AGENT FORMAT (amy-cfo.md):
-{reference_agent[:3000]}...
+{reference_agent[:int(os.getenv("REFERENCE_AGENT_TRUNCATE_LENGTH", "3000"))]}...
 
 JOB DESCRIPTION TO CONVERT:
 {job_content}

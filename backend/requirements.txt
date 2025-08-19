@@ -1,85 +1,87 @@
 # ================================
 # 🌐 WEB FRAMEWORK & API
 # ================================
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.5
-pydantic-settings==2.7.0
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+pydantic==2.11.7
+pydantic-settings==2.10.1
 
 # ================================  
 # 🗄️ DATABASE & ORM (ASYNC)
 # ================================
-sqlalchemy[asyncio]==2.0.36
+sqlalchemy[asyncio]==2.0.43
 asyncpg==0.30.0
-alembic==1.14.0
+alembic==1.16.4
 psycopg2-binary==2.9.10
 
 # ================================
 # 🚀 CACHE & SESSION STORE
 # ================================
-redis==5.2.1
-aioredis==2.0.1
+redis==6.4.0
 
 # ================================
 # 🔐 AUTHENTICATION & SECURITY  
 # ================================
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-bcrypt==4.2.1
-cryptography>=45.0.5
+bcrypt==4.3.0
+cryptography>=45.0.6
+
+# Rate limiting
+slowapi==0.1.9
 
 # ================================
 # 🤖 AI & AGENTS
 # ================================
-autogen-agentchat==0.7.2
-autogen-core==0.7.2
-autogen-ext==0.7.2
-openai>=1.66.2
-anthropic==0.40.0
-tiktoken>=0.9.0
+autogen-agentchat==0.7.3
+autogen-core==0.7.3
+autogen-ext==0.7.3
+openai>=1.100.1
+anthropic==0.64.0
+tiktoken>=0.11.0
 
 # ================================
 # 🔍 VECTOR SEARCH
 # ================================
-pgvector==0.2.5
-numpy==1.26.4
-sentence-transformers==3.3.1
+pgvector==0.4.1
+numpy==2.3.2
+sentence-transformers==5.1.0
 
 # ================================
 # ⏰ SCHEDULING & BACKGROUND TASKS
 # ================================
-apscheduler==3.10.4
+apscheduler==3.11.0
 
 # ================================
 # 🌐 HTTP & NETWORKING
 # ================================
 httpx>=0.27.0,<1.0.0
 aiofiles==24.1.0
-websockets==13.1
+websockets==15.0.1
 
 # ================================
 # 🛠️ UTILITIES & HELPERS
 # ================================
-python-dotenv==1.0.1
-python-multipart==0.0.19
+python-dotenv==1.1.1
+python-multipart==0.0.20
 email-validator==2.2.0
-pytz==2024.2
-tenacity==8.2.3
-watchdog==3.0.0
-pyyaml==6.0.1
+pytz==2025.2
+tenacity==9.1.2
+watchdog==6.0.0
+pyyaml==6.0.2
 
 # ================================
 # 🧪 DEVELOPMENT & TESTING
 # ================================
-pytest==8.3.4
-pytest-asyncio==0.24.0
-pytest-cov==6.0.0
-playwright==1.45.0
+pytest==8.4.1
+pytest-asyncio==1.1.0
+pytest-cov==6.2.1
+playwright==1.54.0
 
 # ================================
 # 🚀 PERFORMANCE
 # ================================
-orjson==3.10.12
+orjson==3.11.2
 psutil==7.0.0
 
 # ================================
@@ -90,8 +92,8 @@ slowapi==0.1.9
 # ================================
 # 📊 OBSERVABILITY & MONITORING
 # ================================
-prometheus-client>=0.21.0
-structlog>=24.4.0
+prometheus-client>=0.22.1
+structlog>=25.4.0
 opentelemetry-api>=1.34.1
 opentelemetry-sdk>=1.34.1
 opentelemetry-exporter-otlp-proto-grpc>=1.34.1

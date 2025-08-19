@@ -129,7 +129,7 @@ async def generate_embeddings(
         logger.info("✅ Real embeddings generated", 
                    model=request.model, 
                    tokens=usage['total_tokens'],
-                   user_id="anonymous")
+                   user_id=getattr(request, 'user_id', os.getenv("DEFAULT_ANONYMOUS_USER", "system_anonymous")))
         
         return EmbeddingResponse(
             embedding=embedding,

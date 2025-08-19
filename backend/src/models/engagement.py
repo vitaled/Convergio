@@ -122,5 +122,5 @@ class Engagement(Base):
             "progress": self.get_progress(),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "activities_count": len(self.activities) if self.activities else 0
+            "activities_count": 0  # Will be populated separately when needed
         }

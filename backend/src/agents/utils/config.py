@@ -13,6 +13,20 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator, model_validator
 
+def _get_agent_default_cors_origins() -> str:
+    """Get default CORS origins for agent configuration with configurable host and ports"""
+    host = os.getenv("DEFAULT_HOST", "localhost")
+    frontend_port = os.getenv("FRONTEND_PORT", "4000")
+    api_port = os.getenv("API_PORT", "3000")
+    admin_port = os.getenv("ADMIN_PORT", "9001")
+    
+    origins = [
+        f"http://{host}:{frontend_port}",
+        f"http://{host}:{api_port}",
+        f"http://{host}:{admin_port}"
+    ]
+    return ",".join(origins)
+
 
 def get_version_info():
     """Get version information from VERSION file and git."""
@@ -145,7 +159,7 @@ class Settings(BaseSettings):
     
     # CORS and Security (environment-aware)
     cors_origins: str = Field(
-        default="http://localhost:4000,http://localhost:3000,http://localhost:9001",
+        default_factory=lambda: _get_agent_default_cors_origins(),
         env="CORS_ALLOWED_ORIGINS"
     )
     trusted_hosts: str = Field(

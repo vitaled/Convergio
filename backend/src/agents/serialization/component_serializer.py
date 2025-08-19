@@ -14,7 +14,6 @@ import structlog
 from uuid import uuid4
 import asyncio
 
-from core.config import settings
 from core.redis import get_redis_client
 from agents.services.agent_loader import agent_loader
 
@@ -511,7 +510,7 @@ class ComponentSerializer:
                     if message.get("role") == "user":
                         await memory_system.store_conversation(
                             agent_name=agent_name,
-                            user_id=message.get("user_id", "restored_user"),
+                            user_id=message.get("user_id", os.getenv("DEFAULT_USER_ID", "system_restored")),
                             user_message=message.get("content", ""),
                             agent_response="",
                             context=message.get("context", {})

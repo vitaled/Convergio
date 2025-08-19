@@ -315,8 +315,8 @@ Generated from: {agent_def['source_file']}
 Created: {agent_def['created_at']}
 """
 
-# NOTE: This template targets legacy AutoGen ConversableAgent; update to 0.7.x wrappers if needed.
-from autogen import ConversableAgent  # TODO: migrate to autogen_agentchat adapters
+# Using modern AutoGen 0.7.x agent classes
+from autogen_agentchat.agents import AssistantAgent
 from typing import Dict, Any
 
 class {agent_def['name']}:
@@ -333,7 +333,7 @@ class {agent_def['name']}:
         self.tier = {agent_def['tier']}
         self.expertise = {agent_def['expertise']}
         
-        self.agent = ConversableAgent(
+        self.agent = AssistantAgent(
             name=self.name,
             system_message="""{agent_def['system_prompt']}""",
             llm_config=llm_config,
@@ -342,7 +342,7 @@ class {agent_def['name']}:
         )
     
     def get_agent(self):
-        """Return the ConversableAgent instance."""
+        """Return the AssistantAgent instance."""
         return self.agent
 
 # Agent metadata for dynamic loading
