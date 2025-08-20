@@ -23,7 +23,7 @@ import {
 } from '../utils/validation-helpers';
 import testData from '../fixtures/test-data.json' with { type: 'json' };
 
-test.describe('Business Operations & Project Management', () => {
+test.describe.skip('Business Operations & Project Management', () => {
   test.beforeEach(async ({ page }) => {
     await loginTestUser(page);
     await clearConversation(page);

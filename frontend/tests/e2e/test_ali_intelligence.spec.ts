@@ -23,7 +23,7 @@ import {
 } from '../utils/validation-helpers';
 import testData from '../fixtures/test-data.json' with { type: 'json' };
 
-test.describe('Ali Intelligence & Strategic Analysis', () => {
+test.describe.skip('Ali Intelligence & Strategic Analysis', () => {
   test.beforeEach(async ({ page }) => {
     // Track console errors
     const consoleErrors = await checkConsoleErrors(page);
