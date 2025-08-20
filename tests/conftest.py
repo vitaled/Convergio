@@ -116,6 +116,19 @@ def ensure_backend_server():
 
     already_running = _is_port_open(host, port)
     proc = None
+    
+    # If server is already running on the configured port, use it
+    if already_running:
+        # Verify it's actually our backend by checking health endpoint
+        if _wait_for_http(base_url, timeout=5.0):
+            print(f"✅ Using existing backend server on {base_url}")
+            # Yield immediately - server is ready
+            try:
+                yield
+            finally:
+                pass  # Don't kill existing server
+            return
+    
     if not already_running:
         # Start uvicorn server in a subprocess
         # Use the backend directory as cwd so imports resolve (src.main:app)
