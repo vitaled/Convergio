@@ -1,16 +1,42 @@
 # Convergio Database Schema Documentation
 
 ## Overview
-- **Database**: PostgreSQL 15+
+- **Database**: PostgreSQL 17.6 (Homebrew)
 - **Database Name**: convergio_db
-- **Total Tables**: 77
-- **Extension**: pgvector (for embeddings)
+- **Total Tables**: 92 (90 user tables + 2 system)
+- **Extension**: pgvector (for embeddings), uuid-ossp, pgcrypto
 
 ## Database Statistics (Updated)
-- **Populated Tables**: 74 (96%)
-- **Empty Tables**: 3 (4%)
-- **Total Rows**: 639 sample records
-- **Last Updated**: 2025-08-13
+- **Populated Tables**: 85+ (90%+)
+- **Core Data Present**: Yes
+- **Total Sample Records**: 800+ across all tables
+- **Last Restored**: 2025-08-20
+- **Status**: ✅ Fully Operational
+
+## Recovery Information
+**Note**: This database was successfully recovered from a previous PostgreSQL instance (postgresql17) on 2025-08-20 after a system reboot caused a version/path mismatch. All original data was preserved and restored.
+
+## Current Data Summary (2025-08-20)
+| Table | Records | Status |
+|-------|---------|--------|
+| talents | 17 | ✅ Active users and profiles |
+| clients | 23 | ✅ Client organizations |
+| engagements | 28 | ✅ Active and completed engagements |
+| organizations | 5 | ✅ Organization hierarchy |
+| provider_pricing | 16+ | ✅ AI model pricing data |
+| cost_tracking | Available | ✅ Cost tracking system operational |
+| documents | 105+ | ✅ Document management |
+| skills | 29+ | ✅ Skills and competencies |
+| areas | 12+ | ✅ Business areas and regions |
+
+**Total Tables**: 92 (vs 77 originally documented)
+**Database Health**: ✅ Excellent - All core systems operational
+
+## PostgreSQL Configuration
+- **Data Directory**: `/opt/homebrew/var/postgresql17` (symlinked to `/opt/homebrew/var/postgresql@17`)
+- **Service**: `homebrew.mxcl.postgresql@17` 
+- **Port**: 5432 (default)
+- **Authentication**: Local trust for postgres user
 
 ## Core Tables
 
@@ -1338,8 +1364,59 @@ WHERE schemaname = 'public'
 ORDER BY tablename, indexname;
 ```
 
+## Database Recovery & Maintenance Guide
+
+### Recovery Process (2025-08-20)
+In case of similar PostgreSQL path issues:
+
+1. **Check PostgreSQL instances:**
+   ```bash
+   ls -la /opt/homebrew/var/ | grep postgres
+   brew services list | grep postgres
+   ```
+
+2. **If data is in different directory:**
+   ```bash
+   # Stop service
+   brew services stop postgresql@17
+   
+   # Create symbolic link to correct data directory
+   mv /opt/homebrew/var/postgresql@17 /opt/homebrew/var/postgresql@17_backup
+   ln -s /opt/homebrew/var/postgresql17 /opt/homebrew/var/postgresql@17
+   
+   # Restart service
+   brew services start postgresql@17
+   ```
+
+3. **Verify data recovery:**
+   ```bash
+   psql -U postgres -l
+   psql -U postgres -d convergio_db -c "SELECT count(*) FROM talents;"
+   ```
+
+### Backup Strategy
+- **Automated Daily Backups**: Add to crontab:
+  ```bash
+  0 2 * * * pg_dump -U postgres convergio_db > ~/backups/convergio_$(date +%Y%m%d).sql
+  ```
+
+- **Pre-Homebrew Update Backup**:
+  ```bash
+  pg_dump -U postgres convergio_db > ~/backups/pre_update_$(date +%Y%m%d_%H%M).sql
+  ```
+
+### Monitoring Commands
+```bash
+# Check database status
+alias pgstatus='psql -U postgres -c "SELECT count(*) as total_tables FROM pg_tables WHERE schemaname = '\''public'\'';"'
+
+# Check key tables
+alias pgcheck='psql -U postgres -d convergio_db -c "SELECT '\''talents'\'' as table_name, count(*) FROM talents UNION SELECT '\''clients'\'', count(*) FROM clients UNION SELECT '\''engagements'\'', count(*) FROM engagements;"'
+```
+
 ---
 
-*Document generated: 2025-08-13*
-*Database version: PostgreSQL 15+*
-*Total tables documented: 77*
+*Document updated: 2025-08-20*
+*Database version: PostgreSQL 17.6 (Homebrew)*
+*Total tables operational: 92*
+*Recovery status: ✅ Complete - All data preserved*

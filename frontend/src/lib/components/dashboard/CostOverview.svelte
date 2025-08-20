@@ -1,201 +1,294 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { costService, type CostOverview, type BudgetStatus } from '$lib/services/costService';
+  import { onMount, onDestroy } from 'svelte';
+  import { writable } from 'svelte/store';
 
-  let costData: CostOverview | null = null;
-  let budgetData: BudgetStatus | null = null;
-  let loading = true;
-  let error: string | null = null;
+  // Cost data store with provider breakdown
+  const costData = writable({
+    total_cost_usd: 0.0,
+    today_cost_usd: 0.0,
+    total_interactions: 0,
+    total_tokens: 0,
+    active_sessions: 0,
+    budget_utilization: 0.0,
+    status: 'loading',
+    provider_breakdown: {},
+    model_breakdown: {},
+    hourly_breakdown: {},
+    last_updated: ''
+  });
 
-  function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  }
+  let updateInterval: ReturnType<typeof setInterval> | null = null;
 
-  function formatNumber(num: number): string {
-    return new Intl.NumberFormat('en-US').format(num);
-  }
-
-  function getBudgetHealthColor(health?: string): string {
-    switch (health) {
-      case 'healthy': return 'text-green-600 bg-green-50';
-      case 'warning': return 'text-yellow-600 bg-yellow-50';
-      case 'critical': return 'text-red-600 bg-red-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  }
-
-  async function loadCostData() {
+  async function fetchCostData() {
     try {
-      loading = true;
-      error = null;
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000';
+      const response = await fetch(`${apiUrl}/api/v1/cost-management/realtime/current`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
       
-      const [cost, budget] = await Promise.all([
-        costService.getCostOverview(),
-        costService.getBudgetStatus()
-      ]);
-      
-      costData = cost;
-      budgetData = budget;
-    } catch (err) {
-      console.error('Failed to load cost data:', err);
-      error = 'Failed to load cost data';
-    } finally {
-      loading = false;
+      if (response.ok) {
+        const data = await response.json();
+        costData.set(data);
+      } else {
+        console.warn('Cost API unavailable, using fallback');
+        costData.set({
+          total_cost_usd: 0.0,
+          today_cost_usd: 0.0,
+          total_interactions: 0,
+          total_tokens: 0,
+          active_sessions: 0,
+          budget_utilization: 0.0,
+          status: 'unavailable',
+          provider_breakdown: {},
+          model_breakdown: {},
+          hourly_breakdown: {},
+          last_updated: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.warn('Cost tracking unavailable:', error);
+      costData.set({
+        total_cost_usd: 0.0,
+        today_cost_usd: 0.0,
+        total_interactions: 0,
+        total_tokens: 0,
+        active_sessions: 0,
+        budget_utilization: 0.0,
+        status: 'error',
+        provider_breakdown: {},
+        model_breakdown: {},
+        hourly_breakdown: {},
+        last_updated: new Date().toISOString()
+      });
     }
   }
 
-  onMount(loadCostData);
+  onMount(() => {
+    // Initial fetch
+    fetchCostData();
+    
+    // Update every 30 seconds
+    updateInterval = setInterval(fetchCostData, 30000);
+  });
+
+  onDestroy(() => {
+    if (updateInterval) {
+      clearInterval(updateInterval);
+    }
+  });
+
+  function formatCost(amount: number): string {
+    if (amount === 0) return '$0.00';
+    if (amount < 0.01) return '<$0.01';
+    return `$${amount.toFixed(2)}`;
+  }
+
+  function getStatusIcon(status: string): string {
+    switch (status) {
+      case 'healthy': return '💚';
+      case 'moderate': return '💛';
+      case 'warning': return '🟠';
+      case 'exceeded': return '🔴';
+      case 'error': case 'unavailable': return '⚪';
+      default: return '🔵';
+    }
+  }
 </script>
 
-<div class="bg-white border border-gray-200 rounded">
-  <div class="px-4 py-3 border-b border-gray-200">
+<!-- Cost Dashboard Component -->
+<div class="bg-white border border-gray-200 rounded-lg shadow-sm">
+  <!-- Header -->
+  <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-lg">
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-medium text-gray-900">Cost Management</h3>
-      <button 
-        on:click={loadCostData}
-        class="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
-      >
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span>Refresh</span>
-      </button>
+      <div class="flex items-center space-x-2">
+        <span class="text-xl">{getStatusIcon($costData.status)}</span>
+        <h3 class="text-lg font-bold">💰 Cost Overview</h3>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="text-sm px-3 py-1 rounded-full bg-white/20 font-bold">
+          {$costData.status}
+        </span>
+        <button 
+          on:click={fetchCostData}
+          class="px-3 py-1 bg-white/20 hover:bg-white/30 text-white font-bold rounded transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
     </div>
   </div>
 
-  <div class="p-4">
-    {#if loading}
-      <div class="animate-pulse space-y-4">
-        <div class="grid grid-cols-2 gap-4 mb-6">
-          {#each Array(4) as _}
-            <div class="bg-gray-100 p-4 rounded">
-              <div class="w-16 h-6 bg-gray-200 rounded mb-1"></div>
-              <div class="w-12 h-4 bg-gray-200 rounded"></div>
+  <div class="p-6 space-y-6">
+    <!-- Cost Metrics -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-lg border">
+        <div class="text-sm font-bold text-gray-700 mb-1">Total Cost</div>
+        <div class="text-2xl font-bold text-gray-900">
+          {formatCost($costData.total_cost_usd)}
+        </div>
+      </div>
+      
+      <div class="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border">
+        <div class="text-sm font-bold text-blue-700 mb-1">Today</div>
+        <div class="text-2xl font-bold text-blue-900">
+          {formatCost($costData.today_cost_usd)}
+        </div>
+      </div>
+    </div>
+
+    <!-- Budget Utilization -->
+    {#if $costData.budget_utilization > 0}
+      <div class="space-y-3 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border">
+        <div class="flex justify-between items-center">
+          <h4 class="text-sm font-bold text-gray-800">Budget Utilization</h4>
+          <span class="text-lg font-bold text-gray-900">{$costData.budget_utilization.toFixed(1)}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-4">
+          <div class="h-4 rounded-full transition-all duration-300 {$costData.budget_utilization > 80 ? 'bg-gradient-to-r from-red-500 to-red-600' : $costData.budget_utilization > 50 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' : 'bg-gradient-to-r from-green-500 to-green-600'}" 
+               style="width: {Math.min($costData.budget_utilization, 100)}%"></div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Service Breakdown (DETAILED) -->
+    {#if $costData.service_details && Object.keys($costData.service_details).length > 0}
+      <div class="space-y-3">
+        <h4 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+          <span>🔥</span>
+          <span>Service Details (Today)</span>
+        </h4>
+        {#each Object.entries($costData.service_details) as [provider, details]}
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-5 border space-y-3">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center space-x-3">
+                <div class="w-5 h-5 rounded-full {provider === 'openai' ? 'bg-gradient-to-r from-green-500 to-green-600' : provider === 'anthropic' ? 'bg-gradient-to-r from-purple-500 to-purple-600' : provider === 'perplexity' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gradient-to-r from-gray-500 to-gray-600'}"></div>
+                <span class="text-lg font-bold text-gray-900 capitalize">{provider}</span>
+              </div>
+              <span class="text-xl font-mono font-bold text-gray-900">{formatCost(details.cost_usd)}</span>
+            </div>
+            
+            <!-- Service Detail Stats -->
+            <div class="grid grid-cols-3 gap-4 text-sm">
+              <div class="bg-white p-3 rounded-lg border text-center">
+                <div class="text-gray-600 font-bold mb-1">Calls</div>
+                <div class="text-lg font-bold text-gray-900">{details.calls}</div>
+              </div>
+              <div class="bg-white p-3 rounded-lg border text-center">
+                <div class="text-gray-600 font-bold mb-1">Tokens</div>
+                <div class="text-lg font-bold text-gray-900">{details.tokens.toLocaleString()}</div>
+              </div>
+              <div class="bg-white p-3 rounded-lg border text-center">
+                <div class="text-gray-600 font-bold mb-1">Avg/Call</div>
+                <div class="text-lg font-bold text-gray-900">{formatCost(details.avg_cost_per_call)}</div>
+              </div>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- Top Models -->
+    {#if Object.keys($costData.model_breakdown).length > 0}
+      <div class="space-y-3">
+        <h4 class="text-lg font-bold text-gray-900">📊 Top Models (Today)</h4>
+        <div class="space-y-2">
+          {#each Object.entries($costData.model_breakdown).slice(0, 5) as [model, cost]}
+            <div class="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border">
+              <span class="text-sm font-bold text-gray-800 truncate">{model}</span>
+              <span class="text-lg font-mono font-bold text-gray-900">{formatCost(cost)}</span>
             </div>
           {/each}
         </div>
-        <div class="space-y-3">
-          {#each Array(4) as _}
-            <div class="flex justify-between items-center p-3 border border-gray-100 rounded">
-              <div class="w-24 h-4 bg-gray-200 rounded"></div>
-              <div class="w-16 h-4 bg-gray-200 rounded"></div>
-            </div>
-          {/each}
-        </div>
       </div>
-    {:else if error}
-      <div class="text-center text-red-600">
-        <p>{error}</p>
-        <button 
-          on:click={loadCostData}
-          class="mt-2 text-sm text-blue-600 hover:text-blue-800"
-        >
-          Try again
-        </button>
-      </div>
-    {:else}
-      <!-- Cost Overview -->
-      <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="bg-blue-50 p-4 rounded">
-          <p class="text-2xl font-bold text-blue-600">
-            {costData?.total_cost_usd ? formatCurrency(costData.total_cost_usd) : '-'}
-          </p>
-          <p class="text-sm text-blue-600">Total Cost</p>
-        </div>
-        <div class="bg-green-50 p-4 rounded">
-          <p class="text-2xl font-bold text-green-600">
-            {costData?.period_cost_usd ? formatCurrency(costData.period_cost_usd) : '-'}
-          </p>
-          <p class="text-sm text-green-600">Period Cost</p>
-        </div>
-        <div class="bg-purple-50 p-4 rounded">
-          <p class="text-2xl font-bold text-purple-600">
-            {costData?.cost_breakdown?.total_requests ? formatNumber(costData.cost_breakdown.total_requests) : '-'}
-          </p>
-          <p class="text-sm text-purple-600">Total Requests</p>
-        </div>
-        <div class="bg-orange-50 p-4 rounded">
-          <p class="text-2xl font-bold text-orange-600">
-            {budgetData?.utilization_percentage ? `${budgetData.utilization_percentage.toFixed(1)}%` : '-'}
-          </p>
-          <p class="text-sm text-orange-600">Budget Used</p>
-        </div>
-      </div>
+    {/if}
 
-      <!-- Budget Status -->
-      {#if budgetData}
-        <div class="mb-6 p-4 border border-gray-200 rounded">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="text-xs font-medium text-gray-700">Budget Status</h4>
-            <span class="text-xs px-2 py-1 rounded-full {getBudgetHealthColor(budgetData.budget_health)}">
-              {budgetData.budget_health || 'unknown'}
-            </span>
+    <!-- Current Session Info -->
+    {#if $costData.session_summary && $costData.session_summary.total_calls > 0}
+      <div class="space-y-4 p-5 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border">
+        <h4 class="text-lg font-bold text-blue-900 flex items-center space-x-2">
+          <span>🚀</span>
+          <span>Current Session</span>
+        </h4>
+        <div class="grid grid-cols-3 gap-4 text-sm">
+          <div class="bg-white p-3 rounded-lg border text-center">
+            <div class="text-blue-700 font-bold mb-1">Cost</div>
+            <div class="text-lg font-bold text-blue-900">{formatCost($costData.session_summary.total_cost_usd)}</div>
           </div>
-          <div class="space-y-2">
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">Total Budget</span>
-              <span class="font-medium">{formatCurrency(budgetData.total_budget_usd)}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">Used</span>
-              <span class="font-medium">{formatCurrency(budgetData.used_budget_usd)}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">Remaining</span>
-              <span class="font-medium text-green-600">{formatCurrency(budgetData.remaining_budget_usd)}</span>
-            </div>
-            <div class="flex justify-between text-sm">
-              <span class="text-gray-600">Projected Monthly</span>
-              <span class="font-medium">{formatCurrency(budgetData.projected_monthly_cost)}</span>
-            </div>
+          <div class="bg-white p-3 rounded-lg border text-center">
+            <div class="text-blue-700 font-bold mb-1">Calls</div>
+            <div class="text-lg font-bold text-blue-900">{$costData.session_summary.total_calls}</div>
+          </div>
+          <div class="bg-white p-3 rounded-lg border text-center">
+            <div class="text-blue-700 font-bold mb-1">Tokens</div>
+            <div class="text-lg font-bold text-blue-900">{$costData.session_summary.total_tokens.toLocaleString()}</div>
           </div>
         </div>
-      {/if}
-
-      <!-- Top Models -->
-      {#if costData?.top_models && costData.top_models.length > 0}
-        <div class="mb-6">
-          <h4 class="text-xs font-medium text-gray-700 mb-3">Top Models by Cost</h4>
+        
+        <!-- Session Provider Breakdown -->
+        {#if $costData.session_summary.by_provider && Object.keys($costData.session_summary.by_provider).length > 0}
           <div class="space-y-2">
-            {#each costData.top_models.slice(0, 5) as model}
-              <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                <div>
-                  <p class="text-sm font-medium text-gray-900">{model.model}</p>
-                  <p class="text-xs text-gray-500">{formatNumber(model.usage_count)} requests</p>
-                </div>
-                <p class="text-sm font-medium">{formatCurrency(model.cost_usd)}</p>
+            <div class="text-sm font-bold text-blue-800">Session Providers:</div>
+            {#each Object.entries($costData.session_summary.by_provider) as [provider, stats]}
+              <div class="flex justify-between text-sm bg-white p-3 rounded-lg border">
+                <span class="capitalize font-bold text-gray-700">{provider}</span>
+                <span class="font-mono font-bold text-gray-900">{formatCost(stats.cost)} ({stats.calls} calls)</span>
               </div>
             {/each}
           </div>
-        </div>
-      {/if}
+        {/if}
+      </div>
+    {/if}
 
-      <!-- Top Agents -->
-      {#if costData?.top_agents && costData.top_agents.length > 0}
-        <div>
-          <h4 class="text-xs font-medium text-gray-700 mb-3">Top Agents by Cost</h4>
-          <div class="space-y-2">
-            {#each costData.top_agents.slice(0, 5) as agent}
-              <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                <div>
-                  <p class="text-sm font-medium text-gray-900">{agent.agent_id}</p>
-                  <p class="text-xs text-gray-500">{agent.percentage.toFixed(1)}% of total</p>
-                </div>
-                <p class="text-sm font-medium">{formatCurrency(agent.cost_usd)}</p>
-              </div>
-            {/each}
+    <!-- Usage Metrics -->
+    {#if $costData.total_interactions > 0}
+      <div class="pt-4 border-t border-gray-200 space-y-4">
+        <h4 class="text-lg font-bold text-gray-900 flex items-center space-x-2">
+          <span>📈</span>
+          <span>Overall Statistics</span>
+        </h4>
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-lg border">
+            <div class="text-gray-700 font-bold mb-1">Total Interactions</div>
+            <div class="text-xl font-bold text-gray-900">{$costData.total_interactions.toLocaleString()}</div>
           </div>
+          
+          <div class="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-lg border">
+            <div class="text-gray-700 font-bold mb-1">Total Tokens</div>
+            <div class="text-xl font-bold text-gray-900">{$costData.total_tokens.toLocaleString()}</div>
+          </div>
+
+          {#if $costData.today_interactions}
+            <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border">
+              <div class="text-green-700 font-bold mb-1">Today Interactions</div>
+              <div class="text-xl font-bold text-green-900">{$costData.today_interactions.toLocaleString()}</div>
+            </div>
+          {/if}
+          
+          {#if $costData.today_tokens}
+            <div class="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border">
+              <div class="text-green-700 font-bold mb-1">Today Tokens</div>
+              <div class="text-xl font-bold text-green-900">{$costData.today_tokens.toLocaleString()}</div>
+            </div>
+          {/if}
         </div>
-      {:else if costData}
-        <div class="text-center text-gray-500">
-          <p class="text-xs">No cost breakdown available</p>
-        </div>
-      {/if}
+      </div>
     {/if}
   </div>
+
+  <!-- Footer -->
+  <div class="bg-gradient-to-r from-gray-100 to-gray-200 px-6 py-4 rounded-b-lg flex justify-between items-center text-sm border-t">
+    <span class="text-gray-700 font-medium">
+      Updated: {$costData.last_updated ? new Date($costData.last_updated + (($costData.last_updated.includes('Z') || $costData.last_updated.includes('+')) ? '' : 'Z')).toLocaleTimeString() : 'N/A'}
+    </span>
+  </div>
+
+  <!-- Status Message -->
+  {#if $costData.status === 'error' || $costData.status === 'unavailable'}
+    <div class="mx-6 mb-6 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+      <div class="text-sm text-yellow-800 font-medium text-center">
+        Cost tracking temporarily unavailable
+      </div>
+    </div>
+  {/if}
 </div>
