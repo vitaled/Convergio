@@ -39,6 +39,7 @@ No Docker/Kubernetes manifests are provided in this repo. Local developer setup 
 - GraphFlow for generating workflows from natural language
 - Cost tracking, analytics endpoints, and observability hooks
 - Vector search utilities for RAG‑style enrichment
+- **Dynamic Theme System**: Light/dark/system mode with persistent preferences
 
 ---
 
@@ -247,6 +248,32 @@ npm run test:e2e    # E2E tests
 - `./03_test_backend_e2e.sh` - Backend E2E tests
 - `./04_test_security.sh` - Security validation tests
 - `./05_test_performance.sh` - Performance and load tests
+
+---
+
+## 🎨 UI/UX Features (August 2025)
+
+### Dynamic Theme System
+- **Light/Dark/System Mode**: Automatic OS theme detection with manual override
+- **Persistent Preferences**: Theme choice saved in localStorage
+- **Surface Color System**: `surface-0` to `surface-950` with dark mode variants
+- **Component Theming**: 800+ hardcoded colors replaced with dynamic theme classes
+
+### User Interface
+- **Ali Assistant**: Floating chat interface with real-time AI coordination
+- **Project Management**: Gantt charts and Kanban boards with dynamic theming
+- **Analytics Dashboard**: Real-time metrics and cost tracking
+- **Agent Management**: Visual agent orchestration and status monitoring
+
+### Theme Toggle
+Access theme controls via the toggle in the top-right header (next to cost display):
+- 🌞 Light mode
+- 🌙 Dark mode  
+- 🖥️ System (follows OS preference)
+
+---
+
+### Additional Test Categories
 - `./06_test_frontend_unit.sh` - Frontend unit tests (Vitest)
 - `./07_test_frontend_storybook.sh` - Storybook component tests
 

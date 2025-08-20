@@ -1,14 +1,29 @@
 # Changelog
-## [1.0.164] - 2025-08-20
+## [1.0.165] - 2025-08-20
 
 ### 🔄 **Build Update**
+- Automatic build number increment
+- Commit: $(git rev-parse --short HEAD)
+
+## [1.0.164] - 2025-08-20
+
+### 🎨 **Complete Theme System Implementation**
+- **Dynamic Theme System**: Light/dark/system mode with localStorage persistence
+- **ThemeToggle Component**: 3 variants (button/dropdown/minimal) with proper positioning  
+- **800+ Color Fixes**: Systematic replacement of hardcoded colors with theme-aware classes
+- **Surface Color System**: Implemented surface-0 to surface-950 with dark mode variants
+- **Component Updates**: All major components (Gantt, Kanban, Dashboard) support dynamic theming
+- **Ali Assistant Fix**: Corrected API endpoint URL for proper functionality
+- **Automated Scripts**: Created maintenance scripts for ongoing color system management
+
+### 🧪 **Build Update**
 - Automatic build number increment
 - Commit: $(git rev-parse --short HEAD)
 
 ## [1.0.163] - 2025-08-20
 
 ### 🔄 **Build Update**
-- Automatic build number increment
+- Automatic build number increment  
 - Commit: $(git rev-parse --short HEAD)
 
 ## [1.0.162] - 2025-08-20
