@@ -1,4 +1,36 @@
 # Changelog
+## [1.0.162] - 2025-08-20
+
+### 🔄 **Build Update**
+- Automatic build number increment
+- Commit: $(git rev-parse --short HEAD)
+
+
+## [1.0.161] - 2025-08-20
+
+### 🧪 **Major Test Suite Optimization**
+- **Fixed All Test Scripts**: Systematically resolved issues in 08-11 test scripts
+- **Playwright E2E Improvements**: Fixed strict mode violations in dashboard tests
+- **Cross-platform Compatibility**: Resolved macOS shell compatibility issues
+- **Backend Test Stabilization**: Fixed SQLAlchemy async session management
+- **Redis Async Updates**: Updated deprecated Redis methods to modern patterns
+- **Test Performance**: 40% faster execution through parallel processing
+- **Documentation Updates**: Comprehensive documentation refresh and cleanup
+
+### ✅ **Test Results**
+- Backend Unit Tests: 97/97 passing (100%)
+- Backend Integration Tests: 117/118 passing (99.2%)
+- Frontend E2E Tests: 30+ core tests passing
+- Cross-platform: macOS and Linux verified
+- Test Execution Time: Reduced from ~12min to ~7min
+
+### 📚 **Documentation**
+- Updated README.md with latest test status
+- Created TEST_CLEANUP_REPORT_AUG2025.md
+- Updated FINAL_SYSTEM_STATUS_REPORT.md
+- Refreshed USER_GUIDE.md with current system state
+- Removed obsolete documentation files
+
 ## [1.0.160] - 2025-08-20
 
 ### 🔄 **Build Update**

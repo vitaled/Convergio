@@ -197,7 +197,7 @@ class MasterTestRunner:
             import redis.asyncio as redis
             r = redis.Redis(host='localhost', port=6379, decode_responses=True)
             await r.ping()
-            await r.close()
+            await r.aclose()
             return True
         except Exception:
             return False
