@@ -3,7 +3,7 @@
   import { workflowsService } from '$lib/services/workflowsService';
   
   export let workflowId: string | null = null;
-  export let onSave: (workflow: any) => void = () => {};
+  export let onSave: any = () => {};
   export let onClose: () => void = () => {};
   
   let canvas: HTMLDivElement;
@@ -16,7 +16,7 @@
   };
   
   let selectedNode: any = null;
-  let selectedEdge: any = null;
+  // let selectedEdge: any = null; // unused
   let isConnecting = false;
   let connectingFrom: any = null;
   let mousePos = { x: 0, y: 0 };
@@ -287,7 +287,7 @@
         style="background-image: radial-gradient(circle, #e5e7eb 1px, transparent 1px); background-size: 20px 20px;"
       >
         <!-- SVG for edges -->
-        <svg class="absolute inset-0 pointer-events-none" style="width: 100%; height: 100%;">
+  <svg class="absolute inset-0 pointer-events-none" style="width: 100%; height: 100%;">
           <!-- Draw edges -->
           {#each workflow.edges as edge}
             {@const fromNode = getNodeById(edge.from)}
@@ -303,6 +303,10 @@
                   stroke-width="2"
                   marker-end="url(#arrowhead)"
                   class="pointer-events-auto cursor-pointer hover:stroke-red-500"
+                  role="button"
+                  tabindex="0"
+                  aria-label="Delete edge"
+                  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && deleteEdge(edge)}
                   on:contextmenu|preventDefault={() => deleteEdge(edge)}
                 />
               </g>
@@ -337,6 +341,10 @@
             style="left: {node.x}px; top: {node.y}px; width: 200px; border-color: {node.agent_color || '#6B7280'}"
             on:mousedown={(e) => startNodeDrag(node, e)}
             on:contextmenu|preventDefault={() => deleteNode(node)}
+            role="button"
+            tabindex="0"
+            aria-label={`Node ${node.agent_display || node.agent_name}`}
+            on:keydown={(e) => (e.key === 'Delete' || e.key === 'Backspace') && deleteNode(node)}
           >
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-medium text-gray-700">{node.agent_display || node.agent_name}</span>
@@ -387,28 +395,31 @@
           <h3 class="text-sm font-medium text-gray-900 mb-4">Node Properties</h3>
           <div class="space-y-3">
             <div>
-              <label class="text-xs text-gray-600">Agent</label>
-              <input type="text" value={selectedNode.agent_name} class="w-full px-2 py-1 border rounded text-sm" readonly />
+              <label class="text-xs text-gray-600" for="agent-name">Agent</label>
+              <input id="agent-name" type="text" value={selectedNode.agent_name} class="w-full px-2 py-1 border rounded text-sm" readonly />
             </div>
             <div>
-              <label class="text-xs text-gray-600">Description</label>
+              <label class="text-xs text-gray-600" for="node-description">Description</label>
               <textarea 
+                id="node-description"
                 bind:value={selectedNode.description}
                 class="w-full px-2 py-1 border rounded text-sm"
                 rows="3"
-              />
+              ></textarea>
             </div>
             <div>
-              <label class="text-xs text-gray-600">Duration (minutes)</label>
+              <label class="text-xs text-gray-600" for="duration-minutes">Duration (minutes)</label>
               <input 
+                id="duration-minutes"
                 type="number"
                 bind:value={selectedNode.estimated_duration_minutes}
                 class="w-full px-2 py-1 border rounded text-sm"
               />
             </div>
             <div>
-              <label class="text-xs text-gray-600">Inputs (comma-separated)</label>
+              <label class="text-xs text-gray-600" for="node-inputs">Inputs (comma-separated)</label>
               <input 
+                id="node-inputs"
                 type="text"
                 value={selectedNode.inputs?.join(', ')}
                 on:input={(e) => selectedNode.inputs = e.target.value.split(',').map(s => s.trim())}
@@ -416,8 +427,9 @@
               />
             </div>
             <div>
-              <label class="text-xs text-gray-600">Outputs (comma-separated)</label>
+              <label class="text-xs text-gray-600" for="node-outputs">Outputs (comma-separated)</label>
               <input 
+                id="node-outputs"
                 type="text"
                 value={selectedNode.outputs?.join(', ')}
                 on:input={(e) => selectedNode.outputs = e.target.value.split(',').map(s => s.trim())}

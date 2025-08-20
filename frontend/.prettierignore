@@ -1,0 +1,12 @@
+# Ignore build artifacts and generated files
+build/
+node_modules/
+dist/
+.vite/
+.svelte-kit/
+coverage/
+playwright-report/
+test-results/
+frontend/build/
+frontend/dist/
+frontend/.svelte-kit/

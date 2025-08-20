@@ -296,8 +296,8 @@
   </div>
   
   <div class="timeline-filters">
-    <div class="filter-group">
-      <label>Event Types:</label>
+    <fieldset class="filter-group">
+      <legend>Event Types:</legend>
       <div class="filter-chips">
         {#each Object.entries(eventIcons) as [type, icon]}
           <button
@@ -310,7 +310,7 @@
           </button>
         {/each}
       </div>
-    </div>
+    </fieldset>
     
     <div class="filter-search">
       <input
@@ -499,7 +499,7 @@
     margin-bottom: 1rem;
   }
   
-  .filter-group label {
+  .filter-group legend {
     display: block;
     margin-bottom: 0.5rem;
     font-size: 0.875rem;

@@ -220,9 +220,26 @@ pytest tests/integration/test_scenarios/ -v
 ```
 
 ### Notes
-- End‑to‑end tests use Playwright. Install browsers once with `npx playwright install`.
-- Some tests integrate with the running dev servers; ensure backend and frontend are up or use fixtures.
 
+## 🧪 Test scripts by category
+
+To run targeted test categories without the full `test.sh`, use these scripts from the repo root:
+
+- Backend unit: `./01_test_backend_unit.sh`
+- Backend integration: `./02_test_backend_integration.sh`
+- Backend E2E: `./03_test_backend_e2e.sh`
+- Security: `./04_test_security.sh`
+- Performance: `./05_test_performance.sh`
+- Frontend unit (Vitest): `./06_test_frontend_unit.sh`
+- Frontend Storybook: `./07_test_frontend_storybook.sh`
+- Frontend E2E (Playwright): `./08_test_frontend_e2e.sh`
+- Master test runner: `./09_test_master_runner.sh`
+- Go tests (backend): `./10_test_go_backend.sh`
+- Top-level Python tests: `./11_test_backend_top_level.sh`
+
+Tips:
+- Continue-on-error: `FAIL_FAST=false ./01_test_backend_unit.sh`
+- Verbose logs (where supported): `VERBOSE=true ...`
 ---
 
 ## ⚙️ Environment variables (backend/.env)

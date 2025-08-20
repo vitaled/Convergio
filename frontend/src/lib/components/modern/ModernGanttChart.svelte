@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
   import { scaleTime, scaleLinear } from 'd3-scale';
-  import { extent, max } from 'd3-array';
-  import { timeFormat, timeParse } from 'd3-time-format';
+  import { extent } from 'd3-array';
+  import { timeFormat } from 'd3-time-format';
   
   export let projectId: string;
   export let tasks: any[] = [];
@@ -107,7 +107,7 @@
     dispatch('taskSelected', task);
   }
   
-  function handleTaskDrag(task: any, event: MouseEvent) {
+  function handleTaskDrag(task: any) {
     // Implement drag functionality for task scheduling
     console.log('Dragging task:', task.name);
   }
@@ -261,6 +261,10 @@
             transform="translate(0, {yScale(i)})"
             on:click={() => handleTaskClick(task)}
             on:mousedown={(e) => handleTaskDrag(task, e)}
+            role="button"
+            tabindex="0"
+            aria-label={`Select task ${task.name}`}
+            on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleTaskClick(task)}
           >
             <!-- Task Background Bar -->
             <rect

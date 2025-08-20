@@ -65,59 +65,60 @@
 		
 		// Type-specific validation
 		switch (field.field_type) {
-			case 'text':
-			case 'rich_text':
-				if (rules.min_length && value.length < rules.min_length) {
-					return `Minimum length is ${rules.min_length}`;
-				}
-				if (rules.max_length && value.length > rules.max_length) {
-					return `Maximum length is ${rules.max_length}`;
-				}
-				if (rules.pattern) {
-					const regex = new RegExp(rules.pattern);
-					if (!regex.test(value)) {
-						return rules.pattern_message || 'Invalid format';
+				case 'text':
+				case 'rich_text': {
+					if (rules.min_length && value.length < rules.min_length) {
+						return `Minimum length is ${rules.min_length}`;
 					}
+					if (rules.max_length && value.length > rules.max_length) {
+						return `Maximum length is ${rules.max_length}`;
+					}
+					if (rules.pattern) {
+						const regex = new RegExp(rules.pattern);
+						if (!regex.test(value)) {
+							return rules.pattern_message || 'Invalid format';
+						}
+					}
+					break;
 				}
-				break;
-				
-			case 'number':
-			case 'currency':
-			case 'percentage':
-				const numValue = parseFloat(value);
-				if (isNaN(numValue)) {
-					return 'Must be a number';
+				case 'number':
+				case 'currency':
+				case 'percentage': {
+					const numValue = parseFloat(value);
+					if (isNaN(numValue)) {
+						return 'Must be a number';
+					}
+					if (rules.min !== undefined && numValue < rules.min) {
+						return `Minimum value is ${rules.min}`;
+					}
+					if (rules.max !== undefined && numValue > rules.max) {
+						return `Maximum value is ${rules.max}`;
+					}
+					break;
 				}
-				if (rules.min !== undefined && numValue < rules.min) {
-					return `Minimum value is ${rules.min}`;
+				case 'email': {
+					const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+					if (!emailRegex.test(value)) {
+						return 'Invalid email address';
+					}
+					break;
 				}
-				if (rules.max !== undefined && numValue > rules.max) {
-					return `Maximum value is ${rules.max}`;
+				case 'url': {
+					try {
+						new URL(value);
+					} catch {
+						return 'Invalid URL';
+					}
+					break;
 				}
-				break;
-				
-			case 'email':
-				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-				if (!emailRegex.test(value)) {
-					return 'Invalid email address';
+				case 'phone': {
+					const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
+					if (!phoneRegex.test(value)) {
+						return 'Invalid phone number';
+					}
+					break;
 				}
-				break;
-				
-			case 'url':
-				try {
-					new URL(value);
-				} catch {
-					return 'Invalid URL';
-				}
-				break;
-				
-			case 'phone':
-				const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
-				if (!phoneRegex.test(value)) {
-					return 'Invalid phone number';
-				}
-				break;
-		}
+			}
 		
 		return null;
 	}
@@ -169,12 +170,7 @@
 		}
 	}
 	
-	function formatCurrency(value: number): string {
-		return new Intl.NumberFormat('en-US', {
-			style: 'currency',
-			currency: 'USD'
-		}).format(value);
-	}
+	// removed unused helper
 </script>
 
 <div class="dynamic-form" style="--columns: {columns}">
@@ -340,7 +336,7 @@
 								
 							{:else if getFieldComponent(field) === 'rating'}
 								<div class="rating-input">
-									{#each Array(field.validation_rules?.max || 5) as _, i}
+									{#each [...Array(field.validation_rules?.max || 5).keys()] as i}
 										<button
 											type="button"
 											class="rating-star"

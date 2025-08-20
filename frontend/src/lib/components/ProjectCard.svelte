@@ -51,6 +51,10 @@
 <div 
   class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer {loading ? 'opacity-60' : ''}"
   on:click={handleClick}
+  role="button"
+  tabindex="0"
+  aria-label={loading ? 'Loading project card' : `Open project ${project.project_name || project.name}`}
+  on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClick()}
 >
   <div class="flex items-start justify-between mb-4">
     <div class="flex-1">
@@ -118,7 +122,7 @@
       <div class="flex items-center space-x-2">
         <span class="text-xs text-gray-600">Agents:</span>
         <div class="flex -space-x-1">
-          {#each project.assigned_agents.slice(0, 3) as agent, i}
+          {#each project.assigned_agents.slice(0, 3) as agent}
             <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-xs text-white font-medium">
               {agent.charAt(0).toUpperCase()}
             </div>

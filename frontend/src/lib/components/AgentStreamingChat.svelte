@@ -4,7 +4,7 @@
   import AgentHealthIndicator from './AgentHealthIndicator.svelte';
   
   export let agentName: string = 'ali_chief_of_staff';
-  export let endpoint: string = '/api/v1/ali/intelligence';
+  export const endpoint: string = '/api/v1/ali/intelligence';
   
   // Connection states
   type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';

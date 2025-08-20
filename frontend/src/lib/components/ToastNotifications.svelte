@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { fly, fade, scale } from 'svelte/transition';
+  import { fly, scale } from 'svelte/transition';
   import { flip } from 'svelte/animate';
   import { 
     activeNotifications, 
@@ -103,7 +103,7 @@
             <div 
               class="toast-progress-fill"
               style="width: {notification.progress}%"
-            />
+            ></div>
           </div>
         {/if}
         
@@ -124,7 +124,7 @@
           <div 
             class="toast-timer"
             style="animation-duration: {notification.duration}ms"
-          />
+          ></div>
         {/if}
       </div>
     {/each}

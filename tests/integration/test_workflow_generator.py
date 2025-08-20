@@ -11,8 +11,7 @@ import json
 
 from agents.services.graphflow.generator import (
     GraphFlowGenerator,
-    WorkflowGenerationRequest,
-    generate_workflow_from_prompt
+    WorkflowGenerationRequest
 )
 from agents.services.graphflow.definitions import (
     BusinessWorkflow,
@@ -255,7 +254,7 @@ class TestWorkflowAPI:
     async def test_generate_endpoint(self):
         """Test /generate endpoint"""
         
-        with patch('backend.src.agents.services.graphflow.generator.generate_workflow_from_prompt') as mock_generate:
+        with patch('agents.services.graphflow.generator.generate_workflow_from_prompt') as mock_generate:
             
             # Mock successful generation
             mock_workflow = BusinessWorkflow(
@@ -281,7 +280,10 @@ class TestWorkflowAPI:
             )
             
             # Test would normally make HTTP request to API
-            # For unit test, just verify the function can be called
+            # For unit test, just verify the mock function can be called
+            # Import the function inside the patch context
+            from agents.services.graphflow.generator import generate_workflow_from_prompt
+            
             result = await generate_workflow_from_prompt(
                 prompt="Create a customer onboarding process workflow",
                 business_domain="operations",

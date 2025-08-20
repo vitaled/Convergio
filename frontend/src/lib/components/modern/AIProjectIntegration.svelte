@@ -8,10 +8,10 @@
   let availableAgents: any[] = [];
   let activeAssignments: any[] = [];
   let aiRecommendations: any[] = [];
-  let selectedAgent = '';
+  // removed unused selectedAgent
   let agentChat = writable([]);
   let newMessage = '';
-  let loading = true;
+  // removed unused loading flag (kept internal state via onMount end)
   let showAgentSelector = false;
   let realTimeCollaboration = true;
   
@@ -191,7 +191,7 @@
     await loadAIRecommendations();
     agentChat.set(mockChatHistory);
     setupRealTimeUpdates();
-    loading = false;
+  // finished initial load
   });
   
   async function loadProjectAgents() {
@@ -656,17 +656,17 @@
   
   <!-- Agent Selector Modal -->
   {#if showAgentSelector}
-    <div class="modal-overlay" on:click={() => showAgentSelector = false}>
+    <div class="modal-overlay" on:click={() => showAgentSelector = false} role="dialog" aria-modal="true">
       <div class="agent-selector-modal" on:click|stopPropagation>
         <div class="modal-header">
           <h3>Select AI Agent</h3>
-          <button class="close-btn" on:click={() => showAgentSelector = false}>×</button>
+          <button class="close-btn" on:click={() => showAgentSelector = false} aria-label="Close">×</button>
         </div>
         
         <div class="available-agents">
           {#each availableAgents as agent}
             {@const isAssigned = activeAssignments.some(a => a.agentId === agent.id)}
-            <div class="agent-option" class:disabled={isAssigned}>
+            <div class="agent-option" class:disabled={isAssigned} role="group" aria-label={`Agent ${agent.name}`}>
               <div class="agent-info">
                 <div class="agent-avatar-medium" style="background: {agent.color}">
                   {agent.avatar}
@@ -695,12 +695,14 @@
                   <button 
                     class="assign-btn primary"
                     on:click={() => assignAgent(agent.id, 'lead')}
+                    aria-label={`Assign ${agent.name} as Lead`}
                   >
                     Assign as Lead
                   </button>
                   <button 
                     class="assign-btn secondary"
                     on:click={() => assignAgent(agent.id, 'contributor')}
+                    aria-label={`Assign ${agent.name} as Contributor`}
                   >
                     Assign as Contributor
                   </button>

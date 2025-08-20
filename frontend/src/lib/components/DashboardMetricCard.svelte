@@ -2,17 +2,20 @@
   import { createEventDispatcher } from 'svelte';
   
   export let title: string;
+  // eslint-disable-next-line no-unused-vars
   export let value: string | number;
   export let change: number;
   export let changeType: 'increase' | 'decrease' | 'neutral' = 'neutral';
   export let icon: string;
-  export let iconColor: string = 'text-blue-600';
-  export let bgColor: string = 'bg-blue-50';
-  export let valueColor: string = 'text-gray-900';
-  export let changeColor: string = 'text-green-600';
-  export let formatValue: (value: string | number) => string = (val) => String(val);
+  export const iconColor: string = 'text-blue-600';
+  export const bgColor: string = 'bg-blue-50';
+  export const valueColor: string = 'text-gray-900';
+  export const changeColor: string = 'text-green-600';
+  export let formatValue = (val: string | number) => String(val);
   export let showChange: boolean = true;
   export let loading: boolean = false;
+  
+  $: void value;
 
   const dispatch = createEventDispatcher();
 
@@ -35,7 +38,7 @@
   on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleClick() : null}
   role="button"
   tabindex="0"
-  aria-label="Dashboard metric card for {title}"
+  aria-label={`Dashboard metric card for ${title}`}
 >
   <div class="flex items-center justify-between">
     <div class="flex items-center space-x-4">

@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 import httpx
 import structlog
+from agents.utils.config import get_settings
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -458,7 +459,11 @@ class UnifiedCostTracker:
             # 5. GET CURRENT SESSION SUMMARY
             session_summary = self.get_session_summary()
             
-            # 6. COMBINE ALL DATA FOR COMPREHENSIVE OVERVIEW
+            # 6. CALCULATE BUDGET UTILIZATION
+            daily_budget = getattr(get_settings(), 'DAILY_BUDGET_USD', 50.0)  # Default $50/day
+            budget_utilization = (today_historic_cost / daily_budget) * 100 if daily_budget > 0 else 0.0
+            
+            # 7. COMBINE ALL DATA FOR COMPREHENSIVE OVERVIEW
             return {
                 # TOTALS FROM DATABASE (ALL TIME)
                 "total_cost_usd": total_historic_cost,
@@ -469,6 +474,10 @@ class UnifiedCostTracker:
                 "today_cost_usd": today_historic_cost,
                 "today_tokens": today_historic_tokens,
                 "today_interactions": today_historic_calls,
+                
+                # BUDGET INFORMATION
+                "budget_utilization": budget_utilization,
+                "daily_budget_usd": daily_budget,
                 
                 # SERVICE BREAKDOWN (TODAY FROM DATABASE)
                 "service_breakdown": service_breakdown,
@@ -493,6 +502,8 @@ class UnifiedCostTracker:
                 "today_cost_usd": 0.0,
                 "total_interactions": 0,
                 "total_tokens": 0,
+                "budget_utilization": 0.0,
+                "daily_budget_usd": 50.0,
                 "status": "error",
                 "error": str(e),
                 "service_breakdown": {},

@@ -176,12 +176,7 @@
 		return 'bg-red-500';
 	}
 
-	function formatDuration(minutes) {
-		if (minutes < 60) return `${minutes}min`;
-		const hours = Math.floor(minutes / 60);
-		const mins = minutes % 60;
-		return `${hours}h ${mins}min`;
-	}
+	// (removed) unused formatDuration
 </script>
 
 <svelte:head>
@@ -220,7 +215,7 @@
 			<div class="px-6 py-4 border-b">
 				<div class="flex justify-between items-center">
 					<h2 class="text-xl font-semibold">Create Swarm Task</h2>
-					<button on:click={() => showCreateTaskModal = false} class="text-gray-400 hover:text-gray-600">
+					<button on:click={() => showCreateTaskModal = false} class="text-gray-400 hover:text-gray-600" aria-label="Close modal">
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
 						</svg>
@@ -229,8 +224,9 @@
 			</div>
 			<div class="px-6 py-4 space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Task Description</label>
+					<label class="block text-sm font-medium text-gray-700 mb-1" for="swarm-task-description">Task Description</label>
 					<textarea 
+						id="swarm-task-description"
 						bind:value={newTaskForm.description}
 						rows="4"
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -239,8 +235,9 @@
 				</div>
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Priority (1-10)</label>
+						<label class="block text-sm font-medium text-gray-700 mb-1" for="swarm-priority">Priority (1-10)</label>
 						<input 
+							id="swarm-priority"
 							type="number"
 							bind:value={newTaskForm.priority}
 							min="1"
@@ -249,8 +246,9 @@
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+						<label class="block text-sm font-medium text-gray-700 mb-1" for="swarm-duration">Duration (minutes)</label>
 						<input 
+							id="swarm-duration"
 							type="number"
 							bind:value={newTaskForm.estimated_duration}
 							min="1"
@@ -435,18 +433,21 @@
 							<button
 								on:click={loadSwarmData}
 								class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-left"
+								aria-label="Refresh status"
 							>
 								🔄 Refresh Status
 							</button>
 							<button
 								on:click={() => showCreateTaskModal = true}
 								class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-left"
+								aria-label="Create swarm task"
 							>
 								➕ Create Swarm Task
 							</button>
 							<button
 								on:click={initializeSwarm}
 								class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-left"
+								aria-label="Re-initialize swarm"
 							>
 								⚡ Re-initialize Swarm
 							</button>

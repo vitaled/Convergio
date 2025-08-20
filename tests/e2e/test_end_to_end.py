@@ -24,6 +24,8 @@ import json
 import logging
 import time
 import websockets
+import socket
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -59,6 +61,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def is_frontend_available() -> bool:
+    """Check if frontend is running on configured port"""
+    try:
+        import os
+        frontend_port = int(os.getenv("FRONTEND_PORT", "4000"))
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+            sock.settimeout(1.0)
+            return sock.connect_ex(("localhost", frontend_port)) == 0
+    except:
+        return False
+
+
 class TestEndToEnd:
     """
     Complete end-to-end test scenarios simulating real user interactions.
@@ -75,11 +89,14 @@ class TestEndToEnd:
         
         cls.settings = get_settings()
         import os
-        cls.backend_url = f"http://localhost:{os.getenv('BACKEND_PORT', '9000')}"
-        cls.frontend_url = "http://localhost:5173"
-        cls.ws_url = "ws://localhost:9000/ws"
+        backend_port = os.getenv('BACKEND_PORT', '9000')
+        frontend_port = os.getenv('FRONTEND_PORT', '4000')
+        cls.backend_url = f"http://localhost:{backend_port}"
+        cls.frontend_url = f"http://localhost:{frontend_port}"
+        cls.ws_url = f"ws://localhost:{backend_port}/ws"
     
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not is_frontend_available(), reason="Frontend not running on configured port")
     async def test_complete_user_journey(self):
         """
         Test a complete user journey from landing to conversation.
@@ -235,6 +252,7 @@ class TestEndToEnd:
             logger.warning(f"  ⚠ WebSocket test skipped: {e}")
     
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not is_frontend_available(), reason="Frontend not running on configured port")
     async def test_multi_step_conversation_context(self):
         """
         Test multi-step conversation with context preservation.

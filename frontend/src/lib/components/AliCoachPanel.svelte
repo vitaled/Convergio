@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { writable } from 'svelte/store';
-  import { fade, slide } from 'svelte/transition';
+  import { slide } from 'svelte/transition';
   
   interface Suggestion {
     id: string;
@@ -31,8 +31,8 @@
     trend: 'up' | 'down' | 'stable';
   }
   
-  export let projectId: string = '';
-  export let userId: string = '';
+  export const projectId: string = '';
+  export const userId: string = '';
   export let position: 'right' | 'left' = 'right';
   export let expanded: boolean = true;
   

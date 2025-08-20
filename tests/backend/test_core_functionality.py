@@ -159,32 +159,25 @@ class TestCoreBackendFunctionality:
         """
         logger.info("Testing orchestrator coordination...")
         
-        with patch('agents.orchestrator.ConversableAgent') as mock_agent:
-            # Setup mock
-            mock_instance = AsyncMock()
-            mock_instance.initiate_chat = AsyncMock(return_value={
-                "messages": [{"content": "Test response", "role": "assistant"}],
-                "cost": {"total": 0.01},
-                "agent": "TestAgent"
-            })
-            mock_agent.return_value = mock_instance
-            
-            # Initialize orchestrator
-            orchestrator = RealAgentOrchestrator()
-            await orchestrator.initialize()
-            assert orchestrator is not None
-            logger.info("✓ Orchestrator initialized")
-            
-            # Test coordination
-            response = await orchestrator.orchestrate_conversation(
-                message="Test message",
-                user_id="test_user",
-                context={"test": True}
-            )
-            
-            assert response is not None
-            assert "messages" in response or "content" in response or "response" in response
-            logger.info("✓ Orchestrator coordination successful")
+        # Test real orchestrator coordination (no mocking needed)
+        orchestrator = RealAgentOrchestrator()
+        await orchestrator.initialize()
+        assert orchestrator is not None
+        logger.info("✓ Orchestrator initialized")
+        
+        # Test coordination with real UnifiedOrchestrator
+        response = await orchestrator.orchestrate_conversation(
+            message="Test message",
+            user_id="test_user",
+            context={"test": True}
+        )
+        
+        # Verify we get a proper response from the unified orchestrator
+        assert response is not None
+        assert "response" in response or "content" in response or "message" in response
+        assert "agents_used" in response
+        assert len(response["agents_used"]) > 0  # At least one agent was used
+        logger.info("✓ Orchestrator coordination successful with UnifiedOrchestrator")
     
     @pytest.mark.asyncio
     async def test_conversation_api(self, test_client):

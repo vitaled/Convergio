@@ -336,7 +336,7 @@
           <div 
             class="metric-bar-fill"
             style="width: {$systemMetrics.cpu}%; background: {$systemMetrics.cpu > 80 ? '#ef4444' : $systemMetrics.cpu > 60 ? '#f59e0b' : '#10b981'}"
-          />
+          ></div>
         </div>
       </div>
       
@@ -359,7 +359,7 @@
           <div 
             class="metric-bar-fill"
             style="width: {$systemMetrics.memory}%; background: {$systemMetrics.memory > 85 ? '#ef4444' : $systemMetrics.memory > 70 ? '#f59e0b' : '#10b981'}"
-          />
+          ></div>
         </div>
       </div>
       

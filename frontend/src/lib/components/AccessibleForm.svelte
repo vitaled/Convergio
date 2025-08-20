@@ -6,7 +6,7 @@
 
   let formElement: HTMLFormElement;
   
-  function handleSubmit(event: SubmitEvent) {
+  function handleSubmit() {
     // Announce form submission to screen readers
     const liveRegion = document.getElementById('form-status');
     if (liveRegion) {
@@ -34,8 +34,7 @@
     class="accessible-form"
     aria-labelledby={ariaLabelledBy || "form-title"}
     aria-describedby={ariaDescribedBy || (description ? "form-description" : undefined)}
-    on:submit={handleSubmit}
-    on:submit
+  on:submit={handleSubmit}
   >
     <slot />
   </form>

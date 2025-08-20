@@ -31,11 +31,7 @@
 	let aiAssistantActive = false;
 
 	// === 📊 CHART INSTANCES ===
-	let performanceChart;
-	let costTrendChart;
-	let predictiveChart;
-	let agentEfficiencyChart;
-	let businessIntelligenceChart;
+	// Charts are instantiated on mount; we don't need references later
 
 	// === 🎯 DASHBOARD METRICS ===
 	$: totalAgents = $agentMetrics.total_agents || 0;
@@ -66,7 +62,7 @@
 	// === 🚀 SUPREME DASHBOARD DATA LOADING ===
 	async function loadSupremeDashboardData() {
 		try {
-			const [healthRes, swarmRes, costRes, aiInsightsRes] = await Promise.all([
+			const [healthRes, , costRes, ] = await Promise.all([
 				fetch('/api/v1/health/detailed'),
 				fetch('/api/v1/swarm/analytics/advanced'),
 				fetch('/api/v1/cost-management/predictive'),
@@ -345,7 +341,7 @@
 		// Performance Trend Chart
 		const perfCtx = document.getElementById('performanceChart');
 		if (perfCtx) {
-			performanceChart = new Chart(perfCtx, {
+			new Chart(perfCtx, {
 				type: 'line',
 				data: {
 					labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
@@ -382,7 +378,7 @@
 		// Cost Optimization Chart  
 		const costCtx = document.getElementById('costTrendChart');
 		if (costCtx) {
-			costTrendChart = new Chart(costCtx, {
+			new Chart(costCtx, {
 				type: 'bar',
 				data: {
 					labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
@@ -408,7 +404,7 @@
 		// Predictive Analytics Chart
 		const predCtx = document.getElementById('predictiveChart');
 		if (predCtx) {
-			predictiveChart = new Chart(predCtx, {
+			new Chart(predCtx, {
 				type: 'line',
 				data: {
 					labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Forecast'],
@@ -575,7 +571,7 @@
 			 class:text-blue-800={notification.type === 'info'}>
 			<div class="flex justify-between items-start">
 				<p class="text-sm font-medium leading-relaxed">{notification.message}</p>
-				<button on:click={() => notification = null} class="ml-3 text-gray-400 hover:text-gray-600 transition-colors">
+				<button on:click={() => notification = null} class="ml-3 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Close notification">
 					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
 						<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
 					</svg>

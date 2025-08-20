@@ -255,6 +255,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = Field(default="gpt-4o-mini", description="Default OpenAI model")
     OPENAI_MAX_TOKENS: int = Field(default=2048, description="OpenAI max tokens")
     
+    # Default AI Model (general configuration)
+    default_ai_model: str = Field(default="gpt-4o-mini", description="Default AI model for general use")
+    
     # Anthropic API  
     ANTHROPIC_API_KEY: str = Field(description="Anthropic API key")
     ANTHROPIC_MODEL: str = Field(default="claude-3-sonnet-20240229", description="Default Anthropic model")

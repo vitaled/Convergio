@@ -24,6 +24,11 @@ RUN_SECURITY=${RUN_SECURITY:-true}
 RUN_MASTER_RUNNER=${RUN_MASTER_RUNNER:-true}
 VERBOSE=${VERBOSE:-false}
 
+# When not fail-fast, allow commands to fail and continue; we will track failures
+if [[ "$FAIL_FAST" != "true" ]]; then
+  set +e
+fi
+
 # Ensure base URLs align with backend defaults
 export API_BASE_URL=${API_BASE_URL:-"http://localhost:${BACKEND_PORT}"}
 export COST_API_BASE_URL=${COST_API_BASE_URL:-"http://localhost:${BACKEND_PORT}/api/v1"}
@@ -63,6 +68,14 @@ info() {
   echo -e "${PURPLE}ℹ️  $1${NC}"
 }
 
+# Failure tracking
+declare -a FAILURES
+record_failure() {
+  local name="$1"; local code="${2:-1}"
+  FAILURES+=("$name (exit $code)")
+  error "$name failed (exit $code)"
+}
+
 # Function to run tests with appropriate flags
 run_pytest() {
   local test_path="$1"
@@ -90,7 +103,20 @@ run_pytest() {
     config_arg="-c pytest.ini"
   fi
 
-  pytest $pytest_flags $extra_flags "$test_path" $config_arg
+  # Execute pytest; when not fail-fast, do not exit the script on failure
+  if [[ "$FAIL_FAST" == "true" ]]; then
+    pytest $pytest_flags $extra_flags "$test_path" $config_arg
+  else
+    set +e
+    pytest $pytest_flags $extra_flags "$test_path" $config_arg
+    local code=$?
+    set -e
+    if (( code != 0 )); then
+      record_failure "PyTest: $test_name" "$code"
+    else
+      success "$test_name passed"
+    fi
+  fi
 }
 
 # -----------------------------
@@ -146,7 +172,19 @@ if [[ "$RUN_MASTER_RUNNER" == "true" ]]; then
   subsection "Running Master Test Runner"
   if [[ -f "tests/master_test_runner.py" ]]; then
     cd tests
-    python master_test_runner.py
+    if [[ "$FAIL_FAST" == "true" ]]; then
+      python master_test_runner.py
+    else
+      set +e
+      python master_test_runner.py
+      code=$?
+      set -e
+      if (( code != 0 )); then
+        record_failure "Master Test Runner" "$code"
+      else
+        success "Master Test Runner passed"
+      fi
+    fi
     cd ..
   else
     info "Master test runner not found at tests/master_test_runner.py — skipping"
@@ -187,7 +225,19 @@ if [[ -d "frontend" ]]; then
   fi
 
   # Prefer package script, fallback to direct vitest
-  npm run -s test -- $vitest_flags || npx vitest run $vitest_flags
+  if [[ "$FAIL_FAST" == "true" ]]; then
+    npm run -s test -- $vitest_flags || npx vitest run $vitest_flags
+  else
+    set +e
+    npm run -s test -- $vitest_flags || npx vitest run $vitest_flags
+    code=$?
+    set -e
+    if (( code != 0 )); then
+      record_failure "Frontend Vitest" "$code"
+    else
+      success "Frontend Vitest passed"
+    fi
+  fi
   
   # -----------------------------
   # Frontend: Storybook Tests
@@ -195,9 +245,22 @@ if [[ -d "frontend" ]]; then
   section "📚 Frontend Storybook Tests"
   
   subsection "Running Storybook tests"
-  npm run -s test:ui -- $vitest_flags \
-    || npm run -s test:storybook -- $vitest_flags \
-    || warning "Storybook tests failed or not available"
+  if [[ "$FAIL_FAST" == "true" ]]; then
+    npm run -s test:ui -- $vitest_flags \
+      || npm run -s test:storybook -- $vitest_flags \
+      || warning "Storybook tests failed or not available"
+  else
+    set +e
+    npm run -s test:ui -- $vitest_flags \
+      || npm run -s test:storybook -- $vitest_flags
+    code=$?
+    set -e
+    if (( code != 0 )); then
+      record_failure "Frontend Storybook" "$code"
+    else
+      success "Frontend Storybook passed"
+    fi
+  fi
   
   # -----------------------------
   # Frontend: Playwright E2E Tests
@@ -214,7 +277,19 @@ if [[ -d "frontend" ]]; then
   fi
 
   # Prefer package script, fallback to direct playwright
-  npm run -s test:e2e -- $playwright_flags || npx playwright test $playwright_flags
+  if [[ "$FAIL_FAST" == "true" ]]; then
+    npm run -s test:e2e -- $playwright_flags || npx playwright test $playwright_flags
+  else
+    set +e
+    npm run -s test:e2e -- $playwright_flags || npx playwright test $playwright_flags
+    code=$?
+    set -e
+    if (( code != 0 )); then
+      record_failure "Frontend Playwright" "$code"
+    else
+      success "Frontend Playwright passed"
+    fi
+  fi
   
   # -----------------------------
   # Frontend: Security Audit
@@ -223,7 +298,19 @@ if [[ -d "frontend" ]]; then
     section "🔒 Frontend Security Audit"
     
     subsection "Running npm audit"
-    npm run -s security:scan || warning "Security audit failed"
+    if [[ "$FAIL_FAST" == "true" ]]; then
+      npm run -s security:scan || warning "Security audit failed"
+    else
+      set +e
+      npm run -s security:scan
+      code=$?
+      set -e
+      if (( code != 0 )); then
+        record_failure "Frontend Security Audit" "$code"
+      else
+        success "Frontend Security Audit passed"
+      fi
+    fi
   fi
   
   popd >/dev/null
@@ -243,7 +330,19 @@ if [[ -f "backend/go.mod" ]]; then
   if find backend -type f -name "*_test.go" | grep -q .; then
       pushd backend >/dev/null
       info "Running go test ./..."
-      go test ./...
+      if [[ "$FAIL_FAST" == "true" ]]; then
+        go test ./...
+      else
+        set +e
+        go test ./...
+        code=$?
+        set -e
+        if (( code != 0 )); then
+          record_failure "Go tests" "$code"
+        else
+          success "Go tests passed"
+        fi
+      fi
       popd >/dev/null
     else
       info "No Go tests found under backend/"
@@ -290,7 +389,14 @@ fi
 # -----------------------------
 section "📋 Test Execution Summary"
 
-success "All test suites completed!"
+if (( ${#FAILURES[@]} > 0 )); then
+  warning "Some test suites failed (${#FAILURES[@]}):"
+  for item in "${FAILURES[@]}"; do
+    echo "  - $item"
+  done
+else
+  success "All test suites completed!"
+fi
 info "Test results and logs are available in:"
 info "  - Backend: tests/logs/"
 info "  - Frontend: frontend/test-results/ (if Playwright tests ran)"
@@ -302,4 +408,9 @@ else
   info "All tests ran to completion regardless of failures"
 fi
 
-section "✅ All tests completed successfully!"
+if (( ${#FAILURES[@]} > 0 )); then
+  section "❌ Completed with Failures"
+  exit 1
+else
+  section "✅ All tests completed successfully!"
+fi

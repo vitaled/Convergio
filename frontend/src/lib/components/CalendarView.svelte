@@ -202,17 +202,17 @@
 		</div>
 		
 		<div class="header-controls">
-			<button on:click={previousMonth} class="nav-btn">
+			<button on:click={previousMonth} class="nav-btn" aria-label="Previous month">
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 				</svg>
 			</button>
 			
-			<button on:click={goToToday} class="today-btn">
+			<button on:click={goToToday} class="today-btn" aria-label="Go to today">
 				Today
 			</button>
 			
-			<button on:click={nextMonth} class="nav-btn">
+			<button on:click={nextMonth} class="nav-btn" aria-label="Next month">
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 				</svg>
@@ -261,9 +261,10 @@
 					class:today={day.isToday}
 					class:has-tasks={day.tasks.length > 0}
 					on:click={() => selectDay(day)}
-					on:keydown={() => {}}
+					on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && selectDay(day)}
 					role="button"
 					tabindex="0"
+					aria-label={`Select day ${day.date.toDateString()}`}
 				>
 					<div class="day-header">
 						<span class="day-number">{day.day}</span>
@@ -303,6 +304,7 @@
 							on:click|stopPropagation={() => createTask(day.date)}
 							class="add-task-btn"
 							title="Add task"
+							aria-label="Add task"
 						>
 							+
 						</button>
@@ -324,8 +326,23 @@
 	
 	<!-- Task details dialog -->
 	{#if showTaskDialog && selectedDay}
-		<div class="task-dialog-overlay" on:click={() => showTaskDialog = false}>
-			<div class="task-dialog" on:click|stopPropagation>
+			<div 
+				class="task-dialog-overlay" 
+				on:click={() => showTaskDialog = false}
+				role="button"
+				tabindex="0"
+				aria-label="Close tasks dialog"
+				on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (showTaskDialog = false)}
+			>
+						<div 
+							class="task-dialog" 
+							on:click|stopPropagation 
+							role="dialog" 
+							aria-modal="true"
+							tabindex="-1"
+							aria-label="Tasks for selected day"
+							on:keydown={(e) => (e.key === 'Escape') && (showTaskDialog = false)}
+						>
 				<div class="dialog-header">
 					<h3 class="text-lg font-semibold">
 						Tasks for {selectedDay.date.toLocaleDateString()}

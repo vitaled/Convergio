@@ -35,8 +35,9 @@
     max?: number;
     minLength?: number;
     maxLength?: number;
-    pattern?: string;
-    custom?: (value: any) => string | null;
+  pattern?: string;
+  // eslint-disable-next-line no-unused-vars
+  custom?: Function | ((value: any) => string | null);
   }
   
   interface UIConfig {
@@ -126,14 +127,14 @@
         if (rules.maxLength && value.length > rules.maxLength) {
           return `${field.label} must be no more than ${rules.maxLength} characters`;
         }
-        if (rules.pattern && !new RegExp(rules.pattern).test(value)) {
+  if (rules.pattern && !new RegExp(rules.pattern).test(value)) {
           return `${field.label} format is invalid`;
         }
         break;
         
       case 'number':
       case 'currency':
-      case 'percentage':
+      case 'percentage': {
         const numValue = parseFloat(value);
         if (rules.min !== undefined && numValue < rules.min) {
           return `${field.label} must be at least ${rules.min}`;
@@ -142,13 +143,15 @@
           return `${field.label} must be no more than ${rules.max}`;
         }
         break;
+      }
         
-      case 'email':
+      case 'email': {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) {
           return `${field.label} must be a valid email address`;
         }
         break;
+      }
         
       case 'url':
         try {
@@ -158,12 +161,13 @@
         }
         break;
         
-      case 'phone':
-        const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+      case 'phone': {
+        const phoneRegex = new RegExp("^[\\d\\s\\-\\+\\(\\)]+$");
         if (!phoneRegex.test(value)) {
           return `${field.label} must be a valid phone number`;
         }
         break;
+      }
     }
     
     // Custom validation
@@ -186,14 +190,7 @@
     }
   }
   
-  function formatCurrency(value: number): string {
-    const symbol = fields.find(f => f.type === 'currency')?.uiConfig?.currencySymbol || '$';
-    return `${symbol}${value.toFixed(2)}`;
-  }
-  
-  function formatPercentage(value: number): string {
-    return `${value}%`;
-  }
+  // Removed unused helpers to satisfy lint
   
   // Sort fields by display order
   $: sortedFields = [...fields].sort((a, b) => 
@@ -463,7 +460,7 @@
             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500
                    {errors[field.name] ? 'border-red-500' : 'border-gray-300'}
                    {readonly ? 'bg-gray-100' : ''}"
-          />
+          ></textarea>
           {#if field.uiConfig?.showCharCount && field.validation?.maxLength}
             <div class="text-xs text-gray-500 mt-1">
               {formData[field.name]?.length || 0} / {field.validation.maxLength}

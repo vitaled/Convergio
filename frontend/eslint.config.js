@@ -44,11 +44,19 @@ export default [
       parserOptions: {
         parser: tsParser,
         extraFileExtensions: ['.svelte']
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.es2021,
+        // also allow Node-like typing references occasionally used in TS annotations
+        ...globals.node
       }
     },
     rules: {
       'svelte/no-at-html-tags': 'warn',
-      'svelte/valid-compile': 'error'
+      'svelte/valid-compile': 'error',
+      // TS already checks undefined types; avoid false positives in Svelte TS
+      'no-undef': 'off'
     }
   },
 

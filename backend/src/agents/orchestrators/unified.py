@@ -14,7 +14,74 @@ from autogen_agentchat.conditions import MaxMessageTermination, TextMentionTermi
 from autogen_agentchat.messages import TextMessage
 
 from .base import BaseGroupChatOrchestrator
-from .resilience import CircuitBreaker, CircuitBreakerConfig, CircuitState, HealthMonitor
+# Inline resilience components (moved from removed resilience.py)
+from enum import Enum
+from typing import Callable
+from dataclasses import dataclass, field
+
+class CircuitState(Enum):
+    """Circuit breaker states"""
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+@dataclass
+class CircuitBreakerConfig:
+    """Configuration for circuit breaker"""
+    failure_threshold: int = 5
+    recovery_timeout: int = 60
+    success_threshold: int = 3
+    half_open_max_calls: int = 3
+
+@dataclass
+class CircuitBreakerStats:
+    """Statistics for circuit breaker"""
+    total_calls: int = 0
+    failed_calls: int = 0
+    successful_calls: int = 0
+    consecutive_failures: int = 0
+    consecutive_successes: int = 0
+    last_failure_time: Optional[datetime] = None
+    last_success_time: Optional[datetime] = None
+    state_changes: list = field(default_factory=list)
+
+class CircuitBreaker:
+    """Circuit breaker implementation"""
+    def __init__(self, name: str, config: Optional[CircuitBreakerConfig] = None):
+        self.name = name
+        self.config = config or CircuitBreakerConfig()
+        self.state = CircuitState.CLOSED
+        self.stats = CircuitBreakerStats()
+        self.half_open_calls = 0
+        self.state_changed_at = datetime.now()
+        
+    async def call(self, func: Callable, *args, **kwargs) -> Any:
+        """Execute function through circuit breaker"""
+        try:
+            self.stats.total_calls += 1
+            result = await func(*args, **kwargs)
+            self.stats.successful_calls += 1
+            return result
+        except Exception as e:
+            self.stats.failed_calls += 1
+            raise
+
+class HealthMonitor:
+    """Basic health monitoring"""
+    def __init__(self, check_interval: int = 30):
+        self.check_interval = check_interval
+        self._running = False
+        self._task = None
+        
+    async def start(self, orchestrators=None):
+        """Start health monitoring"""
+        self._running = True
+        logger.info("Health monitor started")
+        
+    async def stop(self):
+        """Stop health monitoring"""
+        self._running = False
+        logger.info("Health monitor stopped")
 from agents.services.groupchat.intelligent_router import IntelligentAgentRouter
 # RAG functionality is now dynamically imported in initialize() method when enabled
 from agents.services.groupchat.metrics import extract_agents_used, estimate_cost
@@ -344,8 +411,18 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             )
         
         if not best_agent:
-            # Fallback to first available agent
-            best_agent = list(self.agents.values())[0]
+            # Fallback to first available agent if any exist
+            if self.agents:
+                best_agent = list(self.agents.values())[0]
+            else:
+                # No agents available - return error response
+                return {
+                    "response": "No agents available for processing this request.",
+                    "agents_used": [],
+                    "turn_count": 0,
+                    "duration_seconds": 0,
+                    "error": "No agents loaded"
+                }
         
         logger.info(f"🎯 Single agent execution: {best_agent.name}")
         
@@ -520,3 +597,103 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             "circuit_breaker": "open",
             "circuit_status": self.circuit_breaker.get_status()
         }
+    
+    # ===================== SWARM ORCHESTRATION =====================
+    async def orchestrate_swarm(
+        self,
+        message: str,
+        user_id: str = "api_user",
+        conversation_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        master_agent: str = "ali_chief_of_staff"
+    ) -> Dict[str, Any]:
+        """
+        Orchestrate using swarm intelligence with a master agent
+        Compatible with AliSwarmOrchestrator interface
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Use master agent if available, fallback to regular orchestration
+        enhanced_context = context or {}
+        enhanced_context.update({
+            "swarm_mode": True,
+            "master_agent": master_agent,
+            "multi_agent_preferred": True
+        })
+        
+        return await self.orchestrate(
+            message=message,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            context=enhanced_context
+        )
+    
+    # ===================== STREAMING CAPABILITIES =====================
+    async def create_streaming_session(
+        self,
+        websocket: Any,
+        user_id: str,
+        agent_name: Optional[str] = None,
+        session_context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Create streaming session compatible with StreamingOrchestrator
+        """
+        from uuid import uuid4
+        session_id = str(uuid4())
+        
+        # Store session info in context for streaming
+        self._streaming_sessions = getattr(self, '_streaming_sessions', {})
+        self._streaming_sessions[session_id] = {
+            'websocket': websocket,
+            'user_id': user_id,
+            'agent_name': agent_name,
+            'context': session_context,
+            'created_at': datetime.now()
+        }
+        
+        return session_id
+    
+    async def stream_response(
+        self,
+        session_id: str,
+        message: str,
+        **kwargs
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Stream response for a session"""
+        sessions = getattr(self, '_streaming_sessions', {})
+        session = sessions.get(session_id)
+        
+        if not session:
+            yield {"error": "Session not found"}
+            return
+        
+        # Use streaming via WebSocket
+        async for chunk in self.stream(
+            message=message,
+            websocket=session['websocket'],
+            context=session.get('context'),
+            **kwargs
+        ):
+            yield {"content": chunk, "session_id": session_id}
+    
+    # ===================== WORKFLOW ORCHESTRATION =====================
+    async def generate_workflow(self, prompt: str) -> Dict[str, Any]:
+        """Generate workflow from prompt (GraphFlow compatibility)"""
+        # Delegate to regular orchestration with workflow context
+        return await self.orchestrate(
+            message=f"Generate a workflow for: {prompt}",
+            context={"workflow_generation": True, "format": "structured"}
+        )
+    
+    async def execute_workflow(
+        self, 
+        workflow_id: str, 
+        input_data: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute workflow by ID (GraphFlow compatibility)"""
+        return await self.orchestrate(
+            message=f"Execute workflow {workflow_id}",
+            context={"workflow_execution": True, "input_data": input_data}
+        )

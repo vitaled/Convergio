@@ -6,7 +6,8 @@
   export let ariaLabel = '';
   export let ariaDescribedBy = '';
   export let type: 'button' | 'submit' | 'reset' = 'button';
-  export let accessKey = '';
+  // For external reference only; not used in template
+  export const accessKey = '';
   export let tabIndex = 0;
 
   $: buttonClass = `
@@ -32,7 +33,7 @@
   class={buttonClass}
   {type}
   {disabled}
-  aria-label={ariaLabel || $$slots.default ? undefined : 'Button'}
+  aria-label={ariaLabel || ($$slots.default ? undefined : 'Button')}
   aria-describedby={ariaDescribedBy || undefined}
   aria-busy={loading}
   aria-disabled={disabled || loading}

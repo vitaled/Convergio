@@ -59,10 +59,12 @@ def setup_logging(test_name: str):
     return logger, log_file
 
 # Common fixtures
-@pytest.fixture
+@pytest.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
 
@@ -101,7 +103,7 @@ def _wait_for_http(base_url: str, timeout: float = 20.0) -> bool:
 def ensure_backend_server():
     """Ensure the FastAPI backend is running for HTTP-based e2e tests.
 
-    - If something is already listening on port 9000, do nothing.
+    - If something is already listening on the backend port, do nothing.
     - Otherwise, start uvicorn in a subprocess and wait until /health responds.
     - Clean up the subprocess at session end.
     """
@@ -202,7 +204,8 @@ async def test_client():
         logging.getLogger(__name__).warning(f"Direct service connection failed, using HTTP client: {e}")
     
     # Use httpx async client to connect to the test server
-    base_url = os.environ.get("API_BASE_URL", "http://localhost:9000")
+    backend_port = os.environ.get("BACKEND_PORT", "9000")
+    base_url = os.environ.get("API_BASE_URL", f"http://localhost:{backend_port}")
     
     async with httpx.AsyncClient(base_url=base_url, timeout=30.0) as client:
         yield client
@@ -471,8 +474,11 @@ def pytest_configure(config):
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("DATABASE_URL", "postgresql://localhost/convergio_test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
-os.environ.setdefault("API_BASE_URL", "http://localhost:9000")
-os.environ.setdefault("COST_API_BASE_URL", "http://localhost:9000/api/v1")
+
+# Dynamic URLs based on configured ports
+backend_port = os.environ.get("BACKEND_PORT", "9000")
+os.environ.setdefault("API_BASE_URL", f"http://localhost:{backend_port}")
+os.environ.setdefault("COST_API_BASE_URL", f"http://localhost:{backend_port}/api/v1")
 
 # --- Test-only augmentation for ALI proactive e2e to ensure forward-looking indicator is evaluated ---
 try:

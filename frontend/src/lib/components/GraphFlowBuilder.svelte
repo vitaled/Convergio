@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { writable } from 'svelte/store';
   
   export let workflowId: string = '';
-  export let onSave: (workflow: Workflow) => void = () => {};
+  // eslint-disable-next-line no-unused-vars
+  export let onSave: (_w: Workflow) => void = () => {};
   
   interface Node {
     id: string;
@@ -53,6 +53,13 @@
   let pan = { x: 0, y: 0 };
   let showProperties = false;
   let showNodeLibrary = true;
+  
+  function handleKeyDown(e: KeyboardEvent) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdge) {
+      deleteEdge(selectedEdge.id);
+      e.preventDefault();
+    }
+  }
   
   const nodeTemplates = [
     { type: 'agent', label: 'AI Agent', icon: '🤖', color: '#4f46e5' },
@@ -232,11 +239,13 @@
     
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+  window.addEventListener('keydown', handleKeyDown);
   });
   
   onDestroy(() => {
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', handleMouseUp);
+  window.removeEventListener('keydown', handleKeyDown);
   });
 </script>
 
@@ -305,7 +314,7 @@
       </div>
     {/if}
     
-    <div class="canvas-container">
+  <div class="canvas-container">
       <svg
         bind:this={canvas}
         class="workflow-canvas"

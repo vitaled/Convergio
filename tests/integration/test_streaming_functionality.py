@@ -318,6 +318,13 @@ async def test_streaming_message_processing():
     
     try:
         from agents.services.streaming_orchestrator import StreamingOrchestrator
+        from core.redis import init_redis
+        
+        # Ensure Redis is initialized
+        try:
+            await init_redis()
+        except Exception:
+            pytest.skip("Redis not available for streaming tests")
         
         orchestrator = StreamingOrchestrator()
         await orchestrator.initialize()
@@ -427,6 +434,13 @@ async def test_streaming_memory_integration():
     try:
         from agents.services.streaming_orchestrator import StreamingOrchestrator
         from agents.memory.autogen_memory_system import AutoGenMemorySystem
+        from core.redis import init_redis
+        
+        # Ensure Redis is initialized
+        try:
+            await init_redis()
+        except Exception:
+            pytest.skip("Redis not available for streaming tests")
         
         orchestrator = StreamingOrchestrator()
         await orchestrator.initialize()

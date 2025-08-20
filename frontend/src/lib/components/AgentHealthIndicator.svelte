@@ -39,10 +39,8 @@
       if (response.ok) {
         const data = await response.json();
         
-        // Check specific agent if name provided
-        const agentData = agentName ? 
-          data.agents?.find((a: any) => a.name === agentName) : 
-          data;
+  // Optionally filter for a specific agent if name provided (not used internally)
+  // const agentData = agentName ? data.agents?.find((a: any) => a.name === agentName) : data;
 
         // Check tool availability
         const toolsHealthy = {

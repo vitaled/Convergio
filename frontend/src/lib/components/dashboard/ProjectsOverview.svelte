@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { projectsService, type ProjectOverview, type Client, type Engagement, type EngagementDetail } from '$lib/services/projectsService';
+  import { projectsService, type ProjectOverview, type EngagementDetail } from '$lib/services/projectsService';
 
   let projectOverview: ProjectOverview | null = null;
   let selectedEngagement: EngagementDetail | null = null;
@@ -18,15 +18,7 @@
     }
   }
 
-  function getPriorityColor(priority: string): string {
-    switch (priority) {
-      case 'critical': return 'text-red-600 bg-red-50';
-      case 'high': return 'text-orange-600 bg-orange-50';
-      case 'medium': return 'text-yellow-600 bg-yellow-50';
-      case 'low': return 'text-gray-600 bg-gray-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  }
+  // removed unused getPriorityColor
 
   async function loadData() {
     try {
@@ -68,6 +60,7 @@
       <button 
         on:click={loadData}
         class="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+        aria-label="Refresh projects overview"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -81,7 +74,7 @@
     {#if loading}
       <div class="p-4">
         <div class="animate-pulse space-y-4">
-          {#each Array(4) as _}
+          {#each Array(4) as __}
             <div class="flex items-center justify-between p-4 border border-gray-100 rounded">
               <div class="flex items-center space-x-3">
                 <div class="w-3 h-3 bg-gray-200 rounded-full"></div>
