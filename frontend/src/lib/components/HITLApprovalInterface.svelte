@@ -344,7 +344,10 @@
           class="approval-card"
           class:selected={selectedApproval?.id === approval.id}
           class:expired={approval.status === 'expired'}
+          role="button"
+          tabindex="0"
           on:click={() => selectedApproval = approval}
+          on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectedApproval = approval)}
         >
           <div class="approval-header">
             <div class="approval-agent">
@@ -460,7 +463,7 @@
                 bind:value={decisionReason}
                 placeholder="Explain your decision..."
                 rows="3"
-              />
+              ></textarea>
             </div>
             
             <div class="form-group">
@@ -470,7 +473,7 @@
                 bind:value={modifiedAction}
                 placeholder="Suggest an alternative action..."
                 rows="2"
-              />
+              ></textarea>
             </div>
             
             <div class="decision-actions">

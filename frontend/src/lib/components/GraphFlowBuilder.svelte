@@ -324,7 +324,7 @@
           {@const sourceNode = workflow.nodes.find(n => n.id === edge.source)}
           {@const targetNode = workflow.nodes.find(n => n.id === edge.target)}
           {#if sourceNode && targetNode}
-            <g class="edge" class:selected={selectedEdge?.id === edge.id}>
+      <g class="edge" class:selected={selectedEdge?.id === edge.id}>
               <path
                 d="M {sourceNode.position.x + 180} {sourceNode.position.y + 30}
                    C {sourceNode.position.x + 250} {sourceNode.position.y + 30},
@@ -333,7 +333,10 @@
                 stroke="#94a3b8"
                 stroke-width="2"
                 fill="none"
-                on:click={() => selectedEdge = edge}
+        role="button"
+        tabindex="0"
+        on:click={() => selectedEdge = edge}
+        on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (selectedEdge = edge)}
               />
               {#if edge.label}
                 <text
@@ -370,6 +373,15 @@
             class="workflow-node {node.type}"
             class:selected={selectedNode?.id === node.id}
             style="left: {node.position.x}px; top: {node.position.y}px"
+            role="button"
+            aria-label={`Workflow node ${node.label}`}
+            tabindex="0"
+            on:keydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                selectedNode = node;
+                e.preventDefault();
+              }
+            }}
             on:mousedown={(e) => startDragging(node, e)}
           >
             <div class="node-header">
@@ -388,17 +400,25 @@
             {#if node.inputs && node.inputs.length > 0}
               <div
                 class="node-port input"
+                role="button"
+                aria-label="Input port"
+                tabindex="0"
                 on:mouseup={() => endConnection(node.id, 'input')}
                 on:mousedown|stopPropagation={(e) => startConnection(node.id, 'input', e)}
-              />
+                on:keydown|stopPropagation={(e) => (e.key === 'Enter' || e.key === ' ') && startConnection(node.id, 'input', /** @type {any} */(e))}
+              ></div>
             {/if}
             
             {#if node.outputs && node.outputs.length > 0}
               <div
                 class="node-port output"
+                role="button"
+                aria-label="Output port"
+                tabindex="0"
                 on:mouseup={() => endConnection(node.id, 'output')}
                 on:mousedown|stopPropagation={(e) => startConnection(node.id, 'output', e)}
-              />
+                on:keydown|stopPropagation={(e) => (e.key === 'Enter' || e.key === ' ') && startConnection(node.id, 'output', /** @type {any} */(e))}
+              ></div>
             {/if}
           </div>
         {/each}
@@ -411,18 +431,18 @@
         <button class="close-btn" on:click={() => showProperties = false}>×</button>
         
         <div class="property-group">
-          <label>ID</label>
-          <input type="text" value={selectedNode.id} disabled />
+          <label for="prop-id">ID</label>
+          <input id="prop-id" type="text" value={selectedNode.id} disabled />
         </div>
         
         <div class="property-group">
-          <label>Label</label>
-          <input type="text" bind:value={selectedNode.label} />
+          <label for="prop-label">Label</label>
+          <input id="prop-label" type="text" bind:value={selectedNode.label} />
         </div>
         
         <div class="property-group">
-          <label>Type</label>
-          <select bind:value={selectedNode.type}>
+          <label for="prop-type">Type</label>
+          <select id="prop-type" bind:value={selectedNode.type}>
             {#each nodeTemplates as template}
               <option value={template.type}>{template.label}</option>
             {/each}
@@ -431,8 +451,8 @@
         
         {#if selectedNode.type === 'agent'}
           <div class="property-group">
-            <label>Agent</label>
-            <select bind:value={selectedNode.data.agentName}>
+            <label for="prop-agent">Agent</label>
+            <select id="prop-agent" bind:value={selectedNode.data.agentName}>
               {#each availableAgents as agent}
                 <option value={agent}>{agent}</option>
               {/each}
@@ -442,27 +462,30 @@
         
         {#if selectedNode.type === 'condition'}
           <div class="property-group">
-            <label>Condition Expression</label>
+            <label for="prop-expression">Condition Expression</label>
             <textarea
+              id="prop-expression"
               bind:value={selectedNode.data.expression}
               placeholder="e.g., result.score > 0.8"
               rows="3"
-            />
+            ></textarea>
           </div>
         {/if}
         
         <div class="property-group">
-          <label>Position</label>
+          <div class="field-label">Position</div>
           <div class="position-inputs">
             <input
               type="number"
               bind:value={selectedNode.position.x}
               placeholder="X"
+              aria-label="Position X"
             />
             <input
               type="number"
               bind:value={selectedNode.position.y}
               placeholder="Y"
+              aria-label="Position Y"
             />
           </div>
         </div>
@@ -692,7 +715,7 @@
     background: white;
     border: 2px solid #4f46e5;
     border-radius: 50%;
-    cursor: crosshair;
+  cursor: crosshair;
   }
   
   .node-port.input {

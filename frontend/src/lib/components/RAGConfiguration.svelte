@@ -443,7 +443,7 @@
                 on:input={handleInputChange}
                 rows="4"
                 placeholder="Enter system prompt for RAG context..."
-              />
+              ></textarea>
             </div>
             
             <div class="form-group">
@@ -454,7 +454,7 @@
                 on:input={handleInputChange}
                 rows="4"
                 placeholder="Additional instructions for retrieval and generation..."
-              />
+              ></textarea>
             </div>
           </div>
         {/if}
@@ -600,7 +600,6 @@
   }
   
   input[type="number"],
-  input[type="text"],
   input[type="range"],
   select,
   textarea {
