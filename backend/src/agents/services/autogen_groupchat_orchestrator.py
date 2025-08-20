@@ -18,7 +18,7 @@ from autogen_agentchat.teams import RoundRobinGroupChat, SelectorGroupChat
 from autogen_agentchat.messages import HandoffMessage, TextMessage
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from agents.services.cost_tracker import CostTracker
+from services.unified_cost_tracker import unified_cost_tracker
 from agents.services.redis_state_manager import RedisStateManager
 from agents.services.agent_loader import DynamicAgentLoader, AgentMetadata
 from agents.services.groupchat.initializer import initialize_model_client, initialize_agent_loader
@@ -57,7 +57,7 @@ class ModernGroupChatOrchestrator:
     
     def __init__(self, 
                  state_manager: RedisStateManager, 
-                 cost_tracker: CostTracker,
+                 cost_tracker: Any,  # unified_cost_tracker or mock
                  agents_directory: str = None,
                  memory_system=None,
                  observers: Optional[list] = None):

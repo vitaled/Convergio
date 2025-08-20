@@ -30,8 +30,24 @@ def get_local_model():
             model_name = 'sentence-transformers/all-MiniLM-L6-v2'
             
             logger.info(f"Loading local embedding model: {model_name}")
-            _model = SentenceTransformer(model_name)
-            logger.info("✅ Local embedding model loaded successfully")
+            
+            # Try offline first, then online with timeout
+            try:
+                # First try offline mode
+                _model = SentenceTransformer(model_name, cache_folder="./models", device='cpu')
+                logger.info("✅ Local embedding model loaded from cache")
+            except:
+                try:
+                    # Try online download with timeout
+                    import socket
+                    socket.setdefaulttimeout(10)
+                    _model = SentenceTransformer(model_name, cache_folder="./models", device='cpu')
+                    logger.info("✅ Local embedding model downloaded and loaded")
+                except Exception as download_error:
+                    logger.warning(f"⚠️ Could not download model: {download_error}")
+                    # Use simple fallback - just return zeros for now
+                    _model = None
+                    logger.info("📱 Using fallback embedding (development mode)")
             
         except ImportError:
             logger.error("sentence-transformers not installed. Install with: pip install sentence-transformers")

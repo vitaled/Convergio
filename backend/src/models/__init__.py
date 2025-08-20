@@ -4,15 +4,18 @@
 
 from .talent import Talent
 from .user import User
+from .activity import Activity
+from .engagement import Engagement
+from .project import Project
 
 try:
-    from document import Document, DocumentEmbedding
+    from .document import Document, DocumentEmbedding
 except ImportError:
     # document model might not be available in all environments
     pass
 
 try:
-    from cost_tracking import (
+    from .cost_tracking import (
         CostTracking, CostSession, DailyCostSummary, 
         ProviderPricing, CostAlert, Provider, CostStatus
     )
@@ -20,4 +23,4 @@ except ImportError:
     # cost tracking models might not be available in all environments
     pass
 
-__all__ = ["Talent", "User"]
+__all__ = ["Talent", "User", "Activity", "Engagement", "Project"]

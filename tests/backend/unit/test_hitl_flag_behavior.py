@@ -35,7 +35,13 @@ async def test_hitl_gates_conversation_when_required(monkeypatch):
     import agents.services.autogen_groupchat_orchestrator as orch_mod
     from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
     from agents.services.redis_state_manager import RedisStateManager
-    from agents.services.cost_tracker import CostTracker
+    from services.unified_cost_tracker import unified_cost_tracker
+
+    class MockCostTracker:
+        async def track_api_call(self, **kwargs):
+            return {"success": True, "cost_breakdown": {"total_cost_usd": 0.01}}
+        async def check_budget_limits(self, conversation_id: str):
+            return {"can_proceed": True}
 
     # Stub groupchat creation to avoid real AutoGen team
     def create_fake_groupchat(participants, model_client, max_turns, rag_injector=None, enable_per_turn_rag=False, enable_turn_by_turn_selection=False, intelligent_selector=None):
@@ -58,7 +64,7 @@ async def test_hitl_gates_conversation_when_required(monkeypatch):
         async def initialize(self):
             return None
 
-    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=CostTracker(FakeState("redis://")))
+    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=MockCostTracker())
     orch._initialized = True
     orch.agents = {"a": SimpleNamespace(name="a")}
     orch.model_client = SimpleNamespace(model="gpt-4o-mini")

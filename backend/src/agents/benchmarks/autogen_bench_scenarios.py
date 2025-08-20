@@ -15,7 +15,7 @@ import structlog
 
 from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
 from agents.services.redis_state_manager import RedisStateManager
-from agents.services.cost_tracker import CostTracker
+from services.unified_cost_tracker import unified_cost_tracker
 from agents.observability.otel_integration import initialize_otel, record_conversation_metrics
 from agents.utils.config import get_settings
 

@@ -34,17 +34,24 @@ async def test_cost_safety_gating_blocks_on_budget(monkeypatch):
     # Patch cost tracker to force denial
     from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
     from agents.services.redis_state_manager import RedisStateManager
-    from agents.services.cost_tracker import CostTracker
+    from services.unified_cost_tracker import unified_cost_tracker
 
     class FakeState(RedisStateManager):
         async def initialize(self):
             return None
 
-    class FakeCost(CostTracker):
-        async def check_budget_limits(self, conversation_id: str):  # type: ignore[override]
+    class FakeCost:
+        async def check_budget_limits(self, conversation_id: str):
             return {"can_proceed": False, "reason": "Daily budget limit exceeded"}
+        
+        async def track_api_call(self, **kwargs):
+            return {"success": True, "cost_breakdown": {"total_cost_usd": 0.01}}
 
-    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=FakeCost(FakeState("redis://")))
+    # Mock the unified cost tracker to simulate budget limits
+    import unittest.mock
+    with unittest.mock.patch('services.unified_cost_tracker.unified_cost_tracker') as mock_tracker:
+        mock_tracker.get_realtime_overview.return_value = {"total_cost_usd": 120.0, "status": "over_budget"}
+        orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=FakeCost())
 
     # Patch internal initialization to avoid heavy deps
     async def _noop():
@@ -108,13 +115,19 @@ async def test_speaker_policy_flag_controls_selection(monkeypatch):
     from types import SimpleNamespace
     from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
     from agents.services.redis_state_manager import RedisStateManager
-    from agents.services.cost_tracker import CostTracker
+    from services.unified_cost_tracker import unified_cost_tracker
 
     class FakeState(RedisStateManager):
         async def initialize(self):
             return None
 
-    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=CostTracker(FakeState("redis://")))
+    class MockCostTracker:
+        async def track_api_call(self, **kwargs):
+            return {"success": True, "cost_breakdown": {"total_cost_usd": 0.01}}
+        async def check_budget_limits(self, conversation_id: str):
+            return {"can_proceed": True}
+
+    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=MockCostTracker())
     orch._initialized = True
     # Create fake agents list of different sizes
     Agent = SimpleNamespace
@@ -168,7 +181,7 @@ async def test_rag_flag_controls_memory_fetch(monkeypatch):
 
     from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
     from agents.services.redis_state_manager import RedisStateManager
-    from agents.services.cost_tracker import CostTracker
+    from services.unified_cost_tracker import unified_cost_tracker
     import agents.services.autogen_groupchat_orchestrator as orch_mod
 
     # Stub groupchat creation and runner
@@ -189,7 +202,13 @@ async def test_rag_flag_controls_memory_fetch(monkeypatch):
         async def initialize(self):
             return None
 
-    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=CostTracker(FakeState("redis://")))
+    class MockCostTracker:
+        async def track_api_call(self, **kwargs):
+            return {"success": True, "cost_breakdown": {"total_cost_usd": 0.01}}
+        async def check_budget_limits(self, conversation_id: str):
+            return {"can_proceed": True}
+
+    orch = ModernGroupChatOrchestrator(state_manager=FakeState("redis://"), cost_tracker=MockCostTracker())
     orch._initialized = True
     orch.agents = {"a": SimpleNamespace(name="a")}
     orch.model_client = SimpleNamespace(model="gpt-4o-mini")

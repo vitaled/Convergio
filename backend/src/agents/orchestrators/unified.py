@@ -18,6 +18,7 @@ from .resilience import CircuitBreaker, CircuitBreakerConfig, CircuitState, Heal
 from agents.services.groupchat.intelligent_router import IntelligentAgentRouter
 # RAG functionality is now dynamically imported in initialize() method when enabled
 from agents.services.groupchat.metrics import extract_agents_used, estimate_cost
+from services.unified_cost_tracker import unified_cost_tracker
 from agents.services.agent_intelligence import AgentIntelligence
 from agents.security.ai_security_guardian import AISecurityGuardian
 from agents.services.agent_loader import DynamicAgentLoader
@@ -252,13 +253,23 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                     enhanced_message, context, user_id, conversation_id
                 )
             
-            # Update metrics
+            # Update metrics and track REAL costs
             duration = (datetime.now() - start_time).total_seconds()
             self.update_metrics(
                 tokens_used=result.get("tokens", 0),
                 cost=result.get("cost", 0.0),
                 response_time=duration
             )
+            
+            # Track real costs from API responses if available
+            try:
+                # If we have cost breakdown with real data, track it
+                cost_breakdown = result.get("cost_breakdown", {})
+                if cost_breakdown and cost_breakdown.get("total_cost_usd", 0) > 0:
+                    logger.info(f"🔥 Real cost tracked: ${cost_breakdown.get('total_cost_usd', 0):.4f}")
+                    # Cost tracking is handled by unified tracker in the API layer
+            except Exception as e:
+                logger.debug(f"Cost tracking info: {e}")
             
             # Circuit breaker tracks success automatically
             

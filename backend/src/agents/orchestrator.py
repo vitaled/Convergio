@@ -13,7 +13,7 @@ from core.redis import get_redis_client
 from agents.orchestrators.unified import UnifiedOrchestrator
 from agents.orchestrators.base import OrchestratorRegistry
 from agents.services.redis_state_manager import RedisStateManager  
-from agents.services.cost_tracker import CostTracker
+from services.unified_cost_tracker import unified_cost_tracker
 from agents.memory.autogen_memory_system import AutoGenMemorySystem
 from agents.observability.otel_observer import OtelAutoGenObserver
 
@@ -61,7 +61,9 @@ class RealAgentOrchestrator:
             
             # Initialize REAL components from agents service
             self.state_manager = RedisStateManager(redis_url)
-            self.cost_tracker = CostTracker(self.state_manager)
+            # Use unified cost tracker instead of CostTracker
+            from services.unified_cost_tracker import unified_cost_tracker
+            self.cost_tracker = unified_cost_tracker
             
             # Initialize Memory System with Redis persistence  
             self.memory_system = AutoGenMemorySystem()

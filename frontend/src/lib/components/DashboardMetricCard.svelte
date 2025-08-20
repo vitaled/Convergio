@@ -32,6 +32,10 @@
 <div 
   class="rounded-xl border-2 border-gray-300 bg-white p-6 shadow-lg hover:shadow-xl hover:border-blue-500 transition-all duration-300 cursor-pointer {loading ? 'opacity-60' : ''}"
   on:click={handleClick}
+  on:keydown={(e) => e.key === 'Enter' || e.key === ' ' ? handleClick() : null}
+  role="button"
+  tabindex="0"
+  aria-label="Dashboard metric card for {title}"
 >
   <div class="flex items-center justify-between">
     <div class="flex items-center space-x-4">

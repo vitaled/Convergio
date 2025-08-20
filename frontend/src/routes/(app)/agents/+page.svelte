@@ -688,15 +688,6 @@
 
 <!-- AI Agents Page -->
 <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 space-y-8">
-  <!-- Enhanced Header -->
-  <div class="px-6 py-8">
-    <div class="max-w-7xl mx-auto">
-      <div class="text-center">
-        <h1 class="text-3xl font-bold text-gray-900 mb-3">AI Team</h1>
-        <p class="text-lg text-gray-600 max-w-2xl mx-auto">Your specialized AI agents powered by Microsoft AutoGen, ready to tackle any business challenge with strategic intelligence and operational excellence.</p>
-      </div>
-    </div>
-  </div>
 
   <div class="px-6 pb-8">
     <div class="max-w-7xl mx-auto">
@@ -1386,5 +1377,5 @@
       </div>
     </div>
   {/if}
-
+  </div>
 </div>

@@ -168,17 +168,35 @@
           </div>
         {/if}
 
-        <!-- Provider Breakdown -->
-        {#if Object.keys($costData.provider_breakdown).length > 0}
+        <!-- Service Breakdown (DETAILED) -->
+        {#if $costData.service_details && Object.keys($costData.service_details).length > 0}
           <div class="space-y-3">
-            <div class="text-sm font-bold text-gray-900">Provider Costs (Today)</div>
-            {#each Object.entries($costData.provider_breakdown) as [provider, cost]}
-              <div class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
-                <div class="flex items-center space-x-3">
-                  <div class="w-3 h-3 rounded-full {provider === 'openai' ? 'bg-green-500' : provider === 'anthropic' ? 'bg-purple-500' : provider === 'perplexity' ? 'bg-blue-500' : 'bg-gray-500'}"></div>
-                  <span class="capitalize font-bold text-gray-900">{provider}</span>
+            <div class="text-sm font-bold text-gray-900">🔥 Service Details (Today)</div>
+            {#each Object.entries($costData.service_details) as [provider, details]}
+              <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div class="flex justify-between items-center">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-4 h-4 rounded-full {provider === 'openai' ? 'bg-green-500' : provider === 'anthropic' ? 'bg-purple-500' : provider === 'perplexity' ? 'bg-blue-500' : 'bg-gray-500'}"></div>
+                    <span class="capitalize font-bold text-gray-900">{provider}</span>
+                  </div>
+                  <span class="font-mono font-bold text-gray-900">{formatCost(details.cost_usd)}</span>
                 </div>
-                <span class="font-mono font-bold text-gray-900">{formatCost(cost)}</span>
+                
+                <!-- Service Detail Stats -->
+                <div class="grid grid-cols-3 gap-3 text-xs">
+                  <div class="bg-white p-2 rounded">
+                    <div class="text-gray-600 font-bold">Calls</div>
+                    <div class="font-bold text-gray-900">{details.calls}</div>
+                  </div>
+                  <div class="bg-white p-2 rounded">
+                    <div class="text-gray-600 font-bold">Tokens</div>
+                    <div class="font-bold text-gray-900">{details.tokens.toLocaleString()}</div>
+                  </div>
+                  <div class="bg-white p-2 rounded">
+                    <div class="text-gray-600 font-bold">Avg/Call</div>
+                    <div class="font-bold text-gray-900">{formatCost(details.avg_cost_per_call)}</div>
+                  </div>
+                </div>
               </div>
             {/each}
           </div>
@@ -197,24 +215,68 @@
           </div>
         {/if}
 
+        <!-- Current Session Info -->
+        {#if $costData.session_summary && $costData.session_summary.total_calls > 0}
+          <div class="space-y-3">
+            <div class="text-sm font-bold text-gray-900">🚀 Current Session</div>
+            <div class="bg-blue-50 rounded-lg p-4 space-y-3">
+              <div class="grid grid-cols-3 gap-3 text-sm">
+                <div class="bg-white p-2 rounded">
+                  <div class="text-blue-700 font-bold">Cost</div>
+                  <div class="font-bold text-blue-900">{formatCost($costData.session_summary.total_cost_usd)}</div>
+                </div>
+                <div class="bg-white p-2 rounded">
+                  <div class="text-blue-700 font-bold">Calls</div>
+                  <div class="font-bold text-blue-900">{$costData.session_summary.total_calls}</div>
+                </div>
+                <div class="bg-white p-2 rounded">
+                  <div class="text-blue-700 font-bold">Tokens</div>
+                  <div class="font-bold text-blue-900">{$costData.session_summary.total_tokens.toLocaleString()}</div>
+                </div>
+              </div>
+              
+              <!-- Session Provider Breakdown -->
+              {#if $costData.session_summary.by_provider && Object.keys($costData.session_summary.by_provider).length > 0}
+                <div class="space-y-2">
+                  <div class="text-xs font-bold text-blue-800">Session Providers:</div>
+                  {#each Object.entries($costData.session_summary.by_provider) as [provider, stats]}
+                    <div class="flex justify-between text-xs bg-white p-2 rounded">
+                      <span class="capitalize font-bold text-gray-700">{provider}</span>
+                      <span class="font-mono font-bold text-gray-900">{formatCost(stats.cost)} ({stats.calls} calls)</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/if}
+
         <!-- Usage Metrics -->
         {#if $costData.total_interactions > 0}
           <div class="pt-4 border-t border-gray-200 space-y-3">
+            <div class="text-sm font-bold text-gray-900">📊 Overall Stats</div>
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div class="bg-gray-50 p-3 rounded">
-                <div class="text-gray-700 font-bold">Interactions</div>
+                <div class="text-gray-700 font-bold">Total Interactions</div>
                 <div class="font-bold text-gray-900">{$costData.total_interactions.toLocaleString()}</div>
               </div>
               
               <div class="bg-gray-50 p-3 rounded">
-                <div class="text-gray-700 font-bold">Tokens</div>
+                <div class="text-gray-700 font-bold">Total Tokens</div>
                 <div class="font-bold text-gray-900">{$costData.total_tokens.toLocaleString()}</div>
               </div>
 
-              {#if $costData.active_sessions > 0}
-                <div class="col-span-2 bg-gray-50 p-3 rounded">
-                  <div class="text-gray-700 font-bold">Active Sessions</div>
-                  <div class="font-bold text-gray-900">{$costData.active_sessions}</div>
+              {#if $costData.today_interactions}
+                <div class="bg-green-50 p-3 rounded">
+                  <div class="text-green-700 font-bold">Today Interactions</div>
+                  <div class="font-bold text-green-900">{$costData.today_interactions.toLocaleString()}</div>
+                </div>
+              {/if}
+              
+              {#if $costData.today_tokens}
+                <div class="bg-green-50 p-3 rounded">
+                  <div class="text-green-700 font-bold">Today Tokens</div>
+                  <div class="font-bold text-green-900">{$costData.today_tokens.toLocaleString()}</div>
                 </div>
               {/if}
             </div>

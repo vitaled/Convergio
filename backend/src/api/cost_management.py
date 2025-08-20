@@ -14,11 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Authentication removed - no auth required for some endpoints
 from core.database import get_db_session
 from core.redis import cache_get, cache_set
-from services.cost_tracking_service import EnhancedCostTracker
+from services.unified_cost_tracker import unified_cost_tracker
 from services.budget_monitor_service import budget_monitor
 from services.pricing_updater_service import pricing_updater
 from services.circuit_breaker_service import circuit_breaker
-from services.cost_background_tasks import cost_task_manager
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Cost Management"])
@@ -78,15 +77,8 @@ async def get_system_cost_overview(
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
         
-        # Get cost data from agents system
-        cost_data = await _get_cost_data_from_agents(start_date, end_date)
-        
-        # Get cached overview if available
-        cache_key = f"cost_overview:{time_range}"
-        cached_overview = await cache_get(cache_key)
-        
-        if cached_overview:
-            return cached_overview
+        # Get cost data from unified tracker
+        cost_data = await unified_cost_tracker.get_realtime_overview()
         
         # Generate cost overview
         overview = {
@@ -96,27 +88,20 @@ async def get_system_cost_overview(
                 "days": days
             },
             "totals": {
-                "total_cost_usd": cost_data["total_cost"],
-                "total_interactions": cost_data["total_interactions"],
-                "cost_per_interaction": cost_data["cost_per_interaction"],
-                "estimated_monthly": cost_data["total_cost"] * (30 / days)
+                "total_cost_usd": cost_data.get("total_cost_usd", 0),
+                "total_interactions": cost_data.get("total_interactions", 0),
+                "cost_per_interaction": cost_data.get("total_cost_usd", 0) / max(cost_data.get("total_interactions", 1), 1),
+                "estimated_monthly": cost_data.get("total_cost_usd", 0) * (30 / days)
             },
-            "breakdown_by_model": cost_data["model_breakdown"],
-            "breakdown_by_agent": cost_data["agent_breakdown"],
-            "trends": {
-                "daily_costs": cost_data["daily_costs"],
-                "growth_rate": cost_data["growth_rate"],
-                "efficiency_trend": cost_data["efficiency_trend"]
-            },
-            "top_consumers": cost_data["top_consumers"]
+            "breakdown_by_model": cost_data.get("model_breakdown", {}),
+            "breakdown_by_provider": cost_data.get("provider_breakdown", {}),
+            "session_summary": cost_data.get("session_summary", {}),
+            "status": cost_data.get("status", "active")
         }
-        
-        # Cache for 10 minutes
-        await cache_set(cache_key, overview, ttl=600)
         
         logger.info("💰 Cost overview generated",
                    time_range=time_range,
-                   total_cost=cost_data["total_cost"])
+                   total_cost=cost_data.get("total_cost_usd", 0))
         
         return overview
         
@@ -125,196 +110,6 @@ async def get_system_cost_overview(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve cost overview"
-        )
-
-
-@router.get("/agents/{agent_id}/summary", response_model=CostSummaryResponse)
-async def get_agent_cost_summary(
-    agent_id: str,
-    time_range: str = Query("30d")
-):
-    """
-    🤖 Get cost summary for specific agent
-    
-    Returns detailed cost breakdown for individual agent usage
-    """
-    
-    try:
-        # Calculate date range
-        days = {"7d": 7, "30d": 30, "90d": 90}.get(time_range, 30)
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
-        
-        # Get agent-specific cost data
-        agent_costs = await _get_agent_cost_data(agent_id, start_date, end_date)
-        
-        return CostSummaryResponse(
-            total_cost_usd=agent_costs["total_cost"],
-            total_interactions=agent_costs["interactions"],
-            cost_per_interaction=agent_costs["cost_per_interaction"],
-            period_start=start_date,
-            period_end=end_date,
-            breakdown_by_model=agent_costs["model_breakdown"],
-            breakdown_by_agent={agent_id: agent_costs["total_cost"]}
-        )
-        
-    except Exception as e:
-        logger.error("❌ Failed to get agent cost summary", 
-                    error=str(e), agent_id=agent_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve agent cost summary"
-        )
-
-
-@router.get("/providers", response_model=List[LLMProviderResponse])
-async def get_llm_providers():
-    """
-    🏭 Get available LLM providers
-    
-    Returns list of configured AI service providers and their pricing
-    """
-    
-    try:
-        # Return supported providers with current pricing
-        providers = [
-            {
-                "id": 1,
-                "name": "OpenAI",
-                "api_endpoint": "https://api.openai.com/v1",
-                "models_supported": ["gpt-4", "gpt-3.5-turbo", "text-embedding-ada-002"],
-                "cost_per_1k_tokens": {
-                    "gpt-4": 0.03,  # Input tokens
-                    "gpt-3.5-turbo": 0.001,
-                    "text-embedding-ada-002": 0.0001
-                },
-                "is_active": True
-            },
-            {
-                "id": 2,
-                "name": "Anthropic",
-                "api_endpoint": "https://api.anthropic.com/v1",
-                "models_supported": ["claude-3-sonnet", "claude-3-haiku"],
-                "cost_per_1k_tokens": {
-                    "claude-3-sonnet": 0.015,
-                    "claude-3-haiku": 0.0025
-                },
-                "is_active": True
-            }
-        ]
-        
-        return [LLMProviderResponse(**provider) for provider in providers]
-        
-    except Exception as e:
-        logger.error("❌ Failed to get LLM providers", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve LLM providers"
-        )
-
-
-@router.post("/budgets")
-async def create_agent_budget(
-    request: AgentBudgetRequest,
-    db: AsyncSession = Depends(get_db_session)
-):
-    """
-    📊 Create budget for specific agent
-    
-    Sets up budget limits and alerts for agent usage
-    """
-    
-    try:
-        # Validate agent exists
-        if request.agent_id not in await _get_available_agent_ids():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Agent {request.agent_id} not found"
-            )
-        
-        # Create budget record (in a real system, this would be stored in DB)
-        budget_data = {
-            "id": f"budget_{request.agent_id}_default",
-            "agent_id": request.agent_id,
-            "user_id": "default",
-            "monthly_budget_usd": request.monthly_budget_usd,
-            "alert_threshold_percentage": request.alert_threshold_percentage,
-            "auto_disable_at_limit": request.auto_disable_at_limit,
-            "created_at": datetime.utcnow().isoformat(),
-            "current_usage": 0.0
-        }
-        
-        # Store in cache (Redis)
-        await cache_set(f"budget:{budget_data['id']}", budget_data, ttl=2592000)  # 30 days
-        
-        logger.info("📊 Agent budget created",
-                   agent_id=request.agent_id,
-                   budget_usd=request.monthly_budget_usd,
-                   user_id="default")
-        
-        return {
-            "message": "Budget created successfully",
-            "budget_id": budget_data["id"],
-            "agent_id": request.agent_id,
-            "monthly_budget_usd": request.monthly_budget_usd
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("❌ Failed to create agent budget", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create agent budget"
-        )
-
-
-@router.get("/agents/{agent_id}/alerts", response_model=List[BudgetAlertResponse])
-async def get_budget_alerts(
-    agent_id: str
-):
-    """
-    🚨 Get budget alerts for agent
-    
-    Returns active budget alerts and warnings
-    """
-    
-    try:
-        # Get budget data for agent
-        budget_key = f"budget:{agent_id}_default"
-        budget_data = await cache_get(budget_key)
-        
-        if not budget_data:
-            return []
-        
-        # Get current usage
-        current_usage = await _get_current_agent_usage(agent_id)
-        utilization = (current_usage / budget_data["monthly_budget_usd"]) * 100
-        
-        alerts = []
-        
-        # Check for alerts based on utilization
-        if utilization >= budget_data["alert_threshold_percentage"]:
-            alert_level = "critical" if utilization >= 95 else "warning"
-            
-            alerts.append(BudgetAlertResponse(
-                alert_id=f"alert_{agent_id}_{int(datetime.utcnow().timestamp())}",
-                budget_id=budget_key,
-                current_usage=current_usage,
-                budget_limit=budget_data["monthly_budget_usd"],
-                utilization_percentage=utilization,
-                alert_level=alert_level,
-                message=f"Agent {agent_id} has used {utilization:.1f}% of monthly budget",
-                timestamp=datetime.utcnow()
-            ))
-        
-        return alerts
-        
-    except Exception as e:
-        logger.error("❌ Failed to get budget alerts", error=str(e), agent_id=agent_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve budget alerts"
         )
 
 
@@ -327,11 +122,8 @@ async def get_realtime_cost():
     """
     
     try:
-        # Use enhanced cost tracker
-        from services.cost_tracking_service import EnhancedCostTracker
-        tracker = EnhancedCostTracker()
-        cost_data = await tracker.get_realtime_overview()
-        
+        # Use unified cost tracker
+        cost_data = await unified_cost_tracker.get_realtime_overview()
         return cost_data
         
     except Exception as e:
@@ -349,6 +141,50 @@ async def get_realtime_cost():
         }
 
 
+@router.get("/realtime/real")
+async def get_real_cost_data():
+    """
+    🔥 Get REAL cost data from actual API calls
+    
+    Returns TRUE costs tracked from OpenAI, Anthropic API responses - NO FAKE DATA
+    """
+    
+    try:
+        # Get real session summary from unified tracker
+        session_summary = unified_cost_tracker.get_session_summary()
+        
+        # Also try to get OpenAI usage if API key available
+        openai_usage = None
+        try:
+            from core.config import get_settings
+            settings = get_settings()
+            if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+                today = datetime.utcnow().strftime('%Y-%m-%d')
+                openai_usage = await unified_cost_tracker.get_openai_usage_api(
+                    settings.OPENAI_API_KEY, 
+                    start_date=today
+                )
+        except Exception as usage_error:
+            logger.warning(f"⚠️ OpenAI Usage API unavailable: {usage_error}")
+        
+        return {
+            "real_session_costs": session_summary,
+            "openai_usage_api": openai_usage,
+            "source": "UNIFIED_REAL_TRACKING",
+            "note": "These costs are tracked from actual API responses using unified tracker",
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error("❌ Failed to get real cost data", error=str(e))
+        return {
+            "real_session_costs": {"total_cost_usd": 0, "total_tokens": 0, "total_calls": 0},
+            "error": str(e),
+            "source": "ERROR",
+            "last_updated": datetime.utcnow().isoformat()
+        }
+
+
 @router.post("/interactions")
 async def record_interaction_cost(
     interaction_data: Dict[str, Any]
@@ -360,17 +196,8 @@ async def record_interaction_cost(
     """
     
     try:
-        # Use enhanced cost tracker
-        from services.cost_tracking_service import EnhancedCostTracker
-        from agents.services.redis_state_manager import RedisStateManager
-        
-        from core.config import get_settings
-        settings = get_settings()
-        state_manager = RedisStateManager(settings.REDIS_URL)
-        tracker = EnhancedCostTracker(state_manager)
-        
-        # Track the API call
-        result = await tracker.track_api_call(
+        # Use unified cost tracker
+        result = await unified_cost_tracker.track_api_call(
             session_id=interaction_data.get("session_id", "default"),
             conversation_id=interaction_data.get("conversation_id", "default"),
             provider=interaction_data.get("provider", "openai"),
@@ -419,8 +246,7 @@ async def get_session_cost_details(session_id: str):
     """
     
     try:
-        tracker = EnhancedCostTracker()
-        session_data = await tracker.get_session_details(session_id)
+        session_data = await unified_cost_tracker.get_session_details(session_id)
         
         if "error" in session_data:
             raise HTTPException(
@@ -452,8 +278,7 @@ async def get_agent_cost_details(
     """
     
     try:
-        tracker = EnhancedCostTracker()
-        agent_data = await tracker.get_agent_costs(agent_id, days)
+        agent_data = await unified_cost_tracker.get_agent_costs(agent_id, days)
         
         if "error" in agent_data:
             raise HTTPException(
@@ -473,470 +298,24 @@ async def get_agent_cost_details(
         )
 
 
-@router.get("/pricing/current")
-async def get_current_pricing():
-    """
-    💰 Get current pricing for all providers and models
-    
-    Returns up-to-date pricing information from the database
-    """
-    
-    try:
-        from core.database import get_async_read_session
-        from sqlalchemy import select, and_, func
-        from models.cost_tracking import ProviderPricing
-        
-        async with get_async_read_session() as db:
-            result = await db.execute(
-                select(ProviderPricing)
-                .where(
-                    and_(
-                        ProviderPricing.is_active == True,
-                        ProviderPricing.effective_from <= func.now(),
-                        func.coalesce(ProviderPricing.effective_to > func.now(), True)
-                    )
-                )
-                .order_by(ProviderPricing.provider, ProviderPricing.model)
-            )
-            
-            pricing_records = result.scalars().all()
-            
-            # Group by provider
-            pricing_by_provider = {}
-            for record in pricing_records:
-                if record.provider not in pricing_by_provider:
-                    pricing_by_provider[record.provider] = []
-                
-                pricing_by_provider[record.provider].append({
-                    "model": record.model,
-                    "input_price_per_1k": float(record.input_price_per_1k),
-                    "output_price_per_1k": float(record.output_price_per_1k),
-                    "price_per_request": float(record.price_per_request) if record.price_per_request else None,
-                    "max_tokens": record.max_tokens,
-                    "context_window": record.context_window,
-                    "notes": record.notes
-                })
-            
-            return {
-                "providers": pricing_by_provider,
-                "last_updated": datetime.utcnow().isoformat()
-            }
-            
-    except Exception as e:
-        logger.error("❌ Failed to get current pricing", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve current pricing"
-        )
-
-
-# Helper functions
-async def _get_cost_data_from_agents(start_date: datetime, end_date: datetime) -> Dict[str, Any]:
-    """Get REAL cost data directly from database - NO MOCK DATA."""
-    
-    try:
-        from core.database import get_async_session, init_db
-        from models.cost_tracking import CostTracking
-        from sqlalchemy import select, func
-        
-        # Initialize DB if needed
-        try:
-            await init_db()
-        except:
-            pass  # Already initialized
-        
-        async with get_async_session() as db:
-            # Get total costs (ALL TIME for total cost)
-            total_cost_query = select(func.sum(CostTracking.total_cost_usd))
-            total_result = await db.execute(total_cost_query)
-            total_cost = float(total_result.scalar() or 0)
-            
-            # Get total interactions (ALL TIME)
-            interactions_query = select(func.count(CostTracking.id))
-            interactions_result = await db.execute(interactions_query)
-            total_interactions = interactions_result.scalar() or 0
-            
-            # Calculate average cost per interaction
-            cost_per_interaction = total_cost / total_interactions if total_interactions > 0 else 0
-            
-            # Get breakdown by agent (ALL TIME)
-            agent_breakdown_query = select(
-                CostTracking.agent_id,
-                CostTracking.agent_name,
-                func.sum(CostTracking.total_cost_usd).label('cost'),
-                func.count(CostTracking.id).label('count')
-            ).group_by(CostTracking.agent_id, CostTracking.agent_name)
-            
-            agent_results = await db.execute(agent_breakdown_query)
-            agent_breakdown = {}
-            top_consumers = []
-            for row in agent_results:
-                if row.agent_id:
-                    agent_breakdown[row.agent_id] = float(row.cost)
-                    top_consumers.append({
-                        "agent_id": row.agent_id,
-                        "agent_name": row.agent_name,
-                        "cost_usd": float(row.cost),
-                        "interactions": row.count
-                    })
-            
-            # Get breakdown by model (ALL TIME)
-            model_breakdown_query = select(
-                CostTracking.model,
-                func.sum(CostTracking.total_cost_usd).label('cost'),
-                func.count(CostTracking.id).label('count')
-            ).group_by(CostTracking.model)
-            
-            model_results = await db.execute(model_breakdown_query)
-            model_breakdown = {}
-            for row in model_results:
-                model_breakdown[row.model] = float(row.cost)
-            
-            return {
-                "total_cost": total_cost,
-                "total_interactions": total_interactions,
-                "cost_per_interaction": cost_per_interaction,
-                "model_breakdown": model_breakdown,
-                "agent_breakdown": agent_breakdown,
-                "daily_costs": await _get_daily_cost_breakdown(cost_tracker, days=7),
-                "growth_rate": await _calculate_cost_growth_rate(cost_tracker, days=30),
-                "efficiency_trend": "stable",
-                "top_consumers": sorted(top_consumers, key=lambda x: x.get('cost_usd', 0), reverse=True)
-            }
-            
-    except Exception as e:
-        logger.error("❌ Failed to get real cost data", error=str(e))
-        # Return ZEROS instead of mock data
-        return {
-            "total_cost": 0.0,
-            "total_interactions": 0,
-            "cost_per_interaction": 0.0,
-            "model_breakdown": {},
-            "agent_breakdown": {},
-            "daily_costs": [],
-            "growth_rate": 0.0,
-            "efficiency_trend": "unknown",
-            "top_consumers": []
-        }
-
-
-async def _get_agent_cost_data(agent_id: str, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
-    """Get cost data for specific agent."""
-    
-    return {
-        "total_cost": 28.34,
-        "interactions": 512,
-        "cost_per_interaction": 0.055,
-        "model_breakdown": {
-            "gpt-4": 22.45,
-            "gpt-3.5-turbo": 5.89
-        }
-    }
-
-
-async def _get_available_agent_ids() -> List[str]:
-    """Get list of available agent IDs."""
-    
-    try:
-        from agents.orchestrator import get_agent_orchestrator
-        
-        orchestrator = await get_agent_orchestrator()
-        agents_info = await orchestrator.get_available_agents()
-        
-        # Extract agent IDs from the agents info
-        agent_ids = []
-        if "agents_by_tier" in agents_info:
-            for tier_agents in agents_info["agents_by_tier"].values():
-                for agent in tier_agents:
-                    agent_ids.append(agent.get("key", agent.get("name", "")))
-        
-        return agent_ids
-    except:
-        # Fallback list
-        return ["ali-chief-of-staff", "luca-security-expert", "amy-cfo", "baccio-tech-architect"]
-
-
-async def _get_current_agent_usage(agent_id: str) -> float:
-    """Get current month usage for agent."""
-    
-    # Mock data - in real system would query cost records
-    return 23.45
-
-
-async def _get_realtime_cost_data() -> Dict[str, Any]:
-    """Get real-time cost data from agents system."""
-    
-    try:
-        from agents.orchestrator import get_agent_orchestrator
-        
-        orchestrator = await get_agent_orchestrator()
-        if orchestrator and orchestrator.cost_tracker:
-            daily_summary = await orchestrator.cost_tracker.get_daily_summary()
-            weekly_summary = await orchestrator.cost_tracker.get_weekly_summary()
-            
-            return {
-                "total_cost": weekly_summary.get("total_cost_usd", 0.0),
-                "today_cost": daily_summary.get("total_cost_usd", 0.0),
-                "total_interactions": daily_summary.get("total_interactions", 0),
-                "total_tokens": daily_summary.get("total_tokens", 0),
-                "status": daily_summary.get("status", "unknown")
-            }
-    except Exception as e:
-        logger.warning("Could not get real cost data from orchestrator", error=str(e))
-    
-    # Fallback to Redis cache totals
-    try:
-        today_key = f"daily_total:{datetime.utcnow().strftime('%Y-%m-%d')}"
-        total_key = "system_total_cost"
-        
-        today_cost = await cache_get(today_key) or 0.0
-        total_cost = await cache_get(total_key) or 0.0
-        
-        return {
-            "total_cost": total_cost,
-            "today_cost": today_cost,
-            "total_interactions": 0,
-            "total_tokens": 0,
-            "status": "cached"
-        }
-    except:
-        # Final fallback with mock data
-        return {
-            "total_cost": 23.45,
-            "today_cost": 4.67,
-            "total_interactions": 156,
-            "total_tokens": 45678,
-            "status": "mock"
-        }
-
-
-async def _update_cost_totals(agent_id: str, user_id: str, cost_usd: float) -> None:
-    """Update running cost totals."""
-    
-    # Update monthly total for agent
-    monthly_key = f"monthly_cost:{agent_id}:{datetime.utcnow().strftime('%Y-%m')}"
-    current_total = await cache_get(monthly_key) or 0.0
-    await cache_set(monthly_key, current_total + cost_usd, ttl=2592000)
-    
-    # Update daily total
-    today_key = f"daily_total:{datetime.utcnow().strftime('%Y-%m-%d')}"
-    daily_total = await cache_get(today_key) or 0.0
-    await cache_set(today_key, daily_total + cost_usd, ttl=86400)  # 24 hours
-    
-    # Update system total
-    total_key = "system_total_cost"
-    system_total = await cache_get(total_key) or 0.0
-    await cache_set(total_key, system_total + cost_usd, ttl=2592000)  # 30 days
-
-
-# Budget monitoring endpoints
-@router.get("/budget/status")
-async def get_budget_status():
-    """
-    🚨 Get comprehensive budget status and limits monitoring
-    
-    Returns real-time budget health, spending limits, and predictions
-    """
-    
-    try:
-        budget_status = await budget_monitor.check_all_limits()
-        return budget_status
-        
-    except Exception as e:
-        logger.error("❌ Failed to get budget status", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve budget status"
-        )
-
-
-@router.get("/budget/summary")
-async def get_budget_summary():
-    """
-    📊 Get concise budget status summary
-    
-    Returns high-level budget health indicators
-    """
-    
-    try:
-        summary = await budget_monitor.get_budget_status_summary()
-        return summary
-        
-    except Exception as e:
-        logger.error("❌ Failed to get budget summary", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve budget summary"
-        )
-
-
-@router.post("/budget/limits")
-async def set_budget_limits(
-    daily_limit: Optional[float] = None,
-    monthly_limit: Optional[float] = None,
-    provider_limits: Optional[Dict[str, float]] = None
-):
-    """
-    ⚙️ Set custom budget limits
-    
-    Allows configuration of spending limits for different time periods
-    """
-    
-    try:
-        from decimal import Decimal
-        
-        # Convert to Decimal for precision
-        daily_decimal = Decimal(str(daily_limit)) if daily_limit else None
-        monthly_decimal = Decimal(str(monthly_limit)) if monthly_limit else None
-        provider_decimals = {k: Decimal(str(v)) for k, v in provider_limits.items()} if provider_limits else None
-        
-        result = await budget_monitor.set_budget_limits(
-            daily_limit=daily_decimal,
-            monthly_limit=monthly_decimal,
-            provider_limits=provider_decimals
-        )
-        
-        logger.info("⚙️ Budget limits updated",
-                   daily=daily_limit,
-                   monthly=monthly_limit,
-                   providers=list(provider_limits.keys()) if provider_limits else [])
-        
-        return result
-        
-    except Exception as e:
-        logger.error("❌ Failed to set budget limits", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to set budget limits: {str(e)}"
-        )
-
-
-@router.get("/budget/circuit-breaker")
-async def get_circuit_breaker_status():
-    """
-    🚦 Get circuit breaker status for cost limits
-    
-    Returns whether API calls should be suspended due to budget limits
-    """
-    
-    try:
-        status = await budget_monitor.check_all_limits()
-        circuit_status = status["circuit_breaker"]
-        
-        return {
-            "circuit_breaker_active": circuit_status["should_trigger"],
-            "status": circuit_status["current_status"],
-            "reasons": circuit_status["reasons"],
-            "recommended_action": circuit_status["recommended_action"],
-            "override_required": circuit_status["manual_override_required"]
-        }
-        
-    except Exception as e:
-        logger.error("❌ Failed to get circuit breaker status", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve circuit breaker status"
-        )
-
-
-# Pricing management endpoints
-@router.post("/pricing/update")
-async def update_pricing_data():
-    """
-    💰 Update pricing data from web sources
-    
-    Triggers automatic pricing update using current date and web research
-    """
-    
-    try:
-        result = await pricing_updater.update_all_pricing()
-        
-        logger.info("💰 Pricing update completed",
-                   providers_updated=len(result["providers_updated"]),
-                   errors=len(result["errors"]))
-        
-        return result
-        
-    except Exception as e:
-        logger.error("❌ Failed to update pricing", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update pricing: {str(e)}"
-        )
-
-
-@router.get("/pricing/comparison")
-async def get_pricing_comparison():
-    """
-    📈 Get pricing comparison and historical data
-    
-    Returns current vs previous pricing for all providers
-    """
-    
-    try:
-        comparison = await pricing_updater.get_pricing_comparison()
-        return comparison
-        
-    except Exception as e:
-        logger.error("❌ Failed to get pricing comparison", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve pricing comparison"
-        )
-
-
-@router.get("/admin/dashboard")
-async def get_admin_dashboard():
-    """
-    🔧 Get comprehensive admin dashboard data
-    
-    Returns complete system status for administrators
-    """
-    
-    try:
-        # Get all data concurrently
-        import asyncio
-        
-        budget_status, cost_overview, pricing_data = await asyncio.gather(
-            budget_monitor.check_all_limits(),
-            EnhancedCostTracker().get_realtime_overview(),
-            pricing_updater.get_pricing_comparison()
-        )
-        
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "budget_monitoring": budget_status,
-            "cost_overview": cost_overview,
-            "pricing_data": pricing_data,
-            "system_health": {
-                "overall_status": budget_status.get("circuit_breaker", {}).get("current_status", "unknown"),
-                "total_alerts": len(budget_status.get("alerts_generated", [])),
-                "critical_alerts": len([
-                    a for a in budget_status.get("alerts_generated", [])
-                    if a.get("severity") == "critical"
-                ])
-            }
-        }
-        
-    except Exception as e:
-        logger.error("❌ Failed to get admin dashboard", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve admin dashboard data"
-        )
-
-
 @router.get("/system/status")
 async def get_system_status():
     """
-    🏥 Get comprehensive system status including background services
+    🏥 Get system status
     
-    Returns status of all cost-related services and monitoring
+    Returns status of cost tracking system
     """
     
     try:
-        status = await cost_task_manager.get_status()
-        return status
+        overview = await unified_cost_tracker.get_realtime_overview()
+        return {
+            "status": "active",
+            "unified_cost_tracker": "enabled",
+            "database": "connected",
+            "message": "Cost tracking system consolidated and operational",
+            "cost_overview": overview,
+            "timestamp": datetime.utcnow().isoformat()
+        }
         
     except Exception as e:
         logger.error("❌ Failed to get system status", error=str(e))
@@ -946,442 +325,45 @@ async def get_system_status():
         )
 
 
-@router.post("/system/check")
-async def trigger_manual_check():
+@router.get("/pricing/current")
+async def get_current_pricing():
     """
-    🔄 Trigger manual check of all cost systems
+    💰 Get current pricing for all providers
     
-    Forces immediate check of budget limits, pricing, and circuit breaker
-    """
-    
-    try:
-        result = await cost_task_manager.trigger_manual_check()
-        return result
-        
-    except Exception as e:
-        logger.error("❌ Failed to trigger manual check", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to trigger manual check"
-        )
-
-
-@router.get("/circuit-breaker/status")
-async def get_detailed_circuit_status():
-    """
-    🚦 Get detailed circuit breaker status
-    
-    Returns comprehensive circuit breaker state and suspension details
+    Returns pricing data for OpenAI, Anthropic, and Perplexity models
     """
     
     try:
-        circuit_status = await circuit_breaker.get_circuit_status()
-        return circuit_status
-        
-    except Exception as e:
-        logger.error("❌ Failed to get circuit breaker status", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve circuit breaker status"
-        )
-
-
-@router.post("/circuit-breaker/override")
-async def emergency_override(
-    override_code: str,
-    duration_minutes: int = 60
-):
-    """
-    🚨 Emergency override for circuit breaker
-    
-    Temporarily disables circuit breaker with proper authorization
-    """
-    
-    try:
-        success = await circuit_breaker.emergency_override(override_code, duration_minutes)
-        
-        if success:
-            logger.info("🚨 Emergency override activated", code=override_code[:4] + "***")
-            return {
-                "success": True,
-                "message": "Emergency override activated",
-                "duration_minutes": duration_minutes
-            }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid override code"
-            )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("❌ Failed to activate emergency override", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to activate emergency override"
-        )
-
-
-@router.post("/providers/{provider}/resume")
-async def resume_suspended_provider(provider: str):
-    """
-    ▶️ Resume a suspended provider
-    
-    Manually resume API calls for a suspended provider
-    """
-    
-    try:
-        await circuit_breaker.resume_provider(provider)
-        
-        logger.info("▶️ Provider manually resumed", provider=provider)
-        
-        return {
-            "success": True,
-            "message": f"Provider {provider} resumed",
-            "provider": provider
-        }
-        
-    except Exception as e:
-        logger.error("❌ Failed to resume provider", error=str(e), provider=provider)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to resume provider {provider}"
-        )
-
-
-@router.post("/agents/{agent_id}/resume")
-async def resume_suspended_agent(agent_id: str):
-    """
-    ▶️ Resume a suspended agent
-    
-    Manually resume API calls for a suspended agent
-    """
-    
-    try:
-        await circuit_breaker.resume_agent(agent_id)
-        
-        logger.info("▶️ Agent manually resumed", agent_id=agent_id)
-        
-        return {
-            "success": True,
-            "message": f"Agent {agent_id} resumed",
-            "agent_id": agent_id
-        }
-        
-    except Exception as e:
-        logger.error("❌ Failed to resume agent", error=str(e), agent_id=agent_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to resume agent {agent_id}"
-        )
-
-
-# Enhanced Security and Analytics Endpoints
-
-@router.post("/security/analyze")
-async def analyze_request_security(
-    session_id: str,
-    agent_id: Optional[str] = None,
-    provider: str = "openai",
-    model: str = "gpt-4o",
-    estimated_tokens: int = 1000,
-    estimated_cost: float = 0.50
-):
-    """
-    🔒 Analyze request security and detect anomalies
-    
-    Comprehensive security analysis before processing API requests
-    """
-    
-    try:
-        from services.cost_security_service import cost_security_service
-        
-        result = await cost_security_service.analyze_request_security(
-            session_id=session_id,
-            agent_id=agent_id,
-            provider=provider,
-            model=model,
-            estimated_tokens=estimated_tokens,
-            estimated_cost=estimated_cost,
-            user_context={}
-        )
-        
-        logger.info("🔍 Security analysis completed",
-                   session_id=session_id,
-                   allowed=result["allowed"],
-                   risk_score=result["risk_score"])
-        
-        return result
-        
-    except Exception as e:
-        logger.error("❌ Security analysis failed", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Security analysis failed: {str(e)}"
-        )
-
-
-@router.get("/analytics/comprehensive-report")
-async def generate_comprehensive_analytics_report(
-    days: int = Query(30, description="Number of days to analyze", ge=1, le=90),
-    include_predictions: bool = Query(True, description="Include cost predictions"),
-    include_optimizations: bool = Query(True, description="Include optimization recommendations")
-):
-    """
-    📊 Generate comprehensive cost analytics report
-    
-    Returns detailed analytics with predictions and optimization recommendations
-    """
-    
-    try:
-        from services.cost_analytics_service import cost_analytics_service
-        
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
-        
-        report = await cost_analytics_service.generate_comprehensive_analytics_report(
-            start_date=start_date,
-            end_date=end_date,
-            include_predictions=include_predictions,
-            include_optimizations=include_optimizations
-        )
-        
-        logger.info("📊 Analytics report generated",
-                   days=days,
-                   predictions=include_predictions,
-                   optimizations=include_optimizations)
-        
-        return report
-        
-    except Exception as e:
-        logger.error("❌ Analytics report generation failed", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Analytics report generation failed: {str(e)}"
-        )
-
-
-@router.get("/security/audit-report")
-async def generate_security_audit_report(
-    days: int = Query(7, description="Number of days to analyze", ge=1, le=30)
-):
-    """
-    🔒 Generate security audit report
-    
-    Returns comprehensive security analysis and threat detection report
-    """
-    
-    try:
-        from services.cost_security_service import cost_security_service
-        
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
-        
-        audit_report = await cost_security_service.generate_security_audit_report(
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        logger.info("🔒 Security audit report generated",
-                   days=days,
-                   alerts=audit_report["security_summary"]["total_alerts"])
-        
-        return audit_report
-        
-    except Exception as e:
-        logger.error("❌ Security audit report generation failed", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Security audit report generation failed: {str(e)}"
-        )
-
-
-@router.get("/optimization/recommendations")
-async def get_optimization_recommendations(
-    days: int = Query(30, description="Number of days to analyze", ge=7, le=90)
-):
-    """
-    💡 Get cost optimization recommendations
-    
-    Returns AI-powered recommendations for cost reduction and efficiency improvements
-    """
-    
-    try:
-        from services.cost_analytics_service import cost_analytics_service
-        
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
-        
-        # Generate basic report for optimization analysis
-        report = await cost_analytics_service.generate_comprehensive_analytics_report(
-            start_date=start_date,
-            end_date=end_date,
-            include_predictions=False,
-            include_optimizations=True
-        )
-        
-        recommendations = report.get("optimization_recommendations", [])
-        
-        logger.info("💡 Optimization recommendations generated",
-                   count=len(recommendations))
-        
-        return {
-            "analysis_period": {
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-                "days": days
+        # Get pricing data from unified tracker
+        pricing_data = {
+            "providers": {
+                "openai": [
+                    {"model": "gpt-4o", "input_cost": 5.0, "output_cost": 15.0},
+                    {"model": "gpt-4o-mini", "input_cost": 0.15, "output_cost": 0.6},
+                    {"model": "gpt-4", "input_cost": 30.0, "output_cost": 60.0},
+                    {"model": "gpt-3.5-turbo", "input_cost": 0.5, "output_cost": 1.5}
+                ],
+                "anthropic": [
+                    {"model": "claude-3-5-sonnet-20241022", "input_cost": 3.0, "output_cost": 15.0},
+                    {"model": "claude-3-5-haiku-20241022", "input_cost": 1.0, "output_cost": 5.0},
+                    {"model": "claude-3-opus-20240229", "input_cost": 15.0, "output_cost": 75.0}
+                ],
+                "perplexity": [
+                    {"model": "llama-3.1-sonar-large-128k-online", "input_cost": 1.0, "output_cost": 1.0},
+                    {"model": "llama-3.1-sonar-small-128k-online", "input_cost": 0.2, "output_cost": 0.2}
+                ]
             },
-            "recommendations": recommendations,
-            "summary": {
-                "total_recommendations": len(recommendations),
-                "high_priority": len([r for r in recommendations if r.get("priority") == "high"]),
-                "potential_savings": sum(r.get("potential_savings", 0) for r in recommendations)
-            },
-            "generated_at": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error("❌ Optimization recommendations generation failed", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Optimization recommendations generation failed: {str(e)}"
-        )
-
-
-@router.get("/health/comprehensive")
-async def get_comprehensive_health_status():
-    """
-    🏥 Get comprehensive system health status
-    
-    Returns detailed health information for all cost system components
-    """
-    
-    try:
-        from services.cost_background_tasks import cost_task_manager
-        from services.budget_monitor_service import budget_monitor
-        from services.circuit_breaker_service import circuit_breaker
-        
-        # Get status from all components
-        system_status = await cost_task_manager.get_status()
-        budget_summary = await budget_monitor.get_budget_status_summary()
-        circuit_status = await circuit_breaker.get_circuit_status()
-        
-        # Calculate overall health score
-        health_score = 100
-        critical_issues = []
-        
-        if budget_summary["overall_status"] == "critical":
-            health_score -= 30
-            critical_issues.append("Budget limits critically exceeded")
-        elif budget_summary["overall_status"] == "warning":
-            health_score -= 15
-        
-        if circuit_status["circuit_state"] == "OPEN":
-            health_score -= 40
-            critical_issues.append("Circuit breaker is open")
-        elif circuit_status["circuit_state"] == "HALF_OPEN":
-            health_score -= 20
-        
-        if len(circuit_status["suspended_providers"]) > 0:
-            health_score -= 10 * len(circuit_status["suspended_providers"])
-            critical_issues.append(f"{len(circuit_status['suspended_providers'])} providers suspended")
-        
-        if budget_summary["total_alerts"] > 10:
-            health_score -= 15
-            critical_issues.append("High alert volume")
-        
-        health_score = max(0, health_score)
-        
-        # Determine overall status
-        if health_score >= 90:
-            overall_status = "excellent"
-        elif health_score >= 75:
-            overall_status = "good"
-        elif health_score >= 50:
-            overall_status = "fair"
-        elif health_score >= 25:
-            overall_status = "poor"
-        else:
-            overall_status = "critical"
-        
-        return {
-            "overall_status": overall_status,
-            "health_score": health_score,
-            "critical_issues": critical_issues,
-            "components": {
-                "background_services": system_status,
-                "budget_monitoring": budget_summary,
-                "circuit_breaker": circuit_status
-            },
-            "recommendations": [
-                "Monitor budget utilization closely" if budget_summary["daily_utilization"] > 75 else None,
-                "Review suspended providers" if len(circuit_status["suspended_providers"]) > 0 else None,
-                "Check alert patterns" if budget_summary["total_alerts"] > 5 else None,
-                "System operating normally" if health_score >= 90 else None
-            ],
+            "currency": "USD",
+            "per_tokens": 1000,
             "last_updated": datetime.utcnow().isoformat()
         }
         
+        logger.info("💰 Current pricing data retrieved")
+        return pricing_data
+        
     except Exception as e:
-        logger.error("❌ Comprehensive health check failed", error=str(e))
+        logger.error("❌ Failed to get current pricing", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Comprehensive health check failed: {str(e)}"
+            detail="Failed to retrieve current pricing"
         )
-
-
-async def _get_daily_cost_breakdown(cost_tracker, days: int = 7) -> List[Dict[str, Any]]:
-    """Get daily cost breakdown for the last N days."""
-    try:
-        from datetime import datetime, timedelta
-        
-        daily_costs = []
-        end_date = datetime.utcnow().date()
-        
-        for i in range(days):
-            date = end_date - timedelta(days=i)
-            
-            # Get cost data for this specific date
-            daily_cost = await cost_tracker.get_daily_cost(date)
-            
-            daily_costs.append({
-                "date": date.isoformat(),
-                "total_cost_usd": daily_cost.get("total_cost_usd", 0.0),
-                "interactions": daily_cost.get("interactions", 0),
-                "models_used": daily_cost.get("models_used", [])
-            })
-        
-        return sorted(daily_costs, key=lambda x: x["date"])
-        
-    except Exception as e:
-        logger.warning(f"Failed to get daily cost breakdown: {e}")
-        return []
-
-
-async def _calculate_cost_growth_rate(cost_tracker, days: int = 30) -> float:
-    """Calculate cost growth rate over the last N days."""
-    try:
-        from datetime import datetime, timedelta
-        
-        end_date = datetime.utcnow().date()
-        start_date = end_date - timedelta(days=days)
-        mid_date = end_date - timedelta(days=days//2)
-        
-        # Get costs for two halves of the period
-        first_half_cost = await cost_tracker.get_period_cost(start_date, mid_date)
-        second_half_cost = await cost_tracker.get_period_cost(mid_date, end_date)
-        
-        first_half_total = first_half_cost.get("total_cost_usd", 0.0)
-        second_half_total = second_half_cost.get("total_cost_usd", 0.0)
-        
-        # Calculate growth rate
-        if first_half_total > 0:
-            growth_rate = ((second_half_total - first_half_total) / first_half_total) * 100
-            return round(growth_rate, 2)
-        else:
-            return 0.0
-            
-    except Exception as e:
-        logger.warning(f"Failed to calculate growth rate: {e}")
-        return 0.0

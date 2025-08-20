@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 from core.config import get_settings
 from core.database import get_db_session
-from agents.orchestrator import OrchestratorAgent
+from agents.orchestrator import RealAgentOrchestrator
 from agents.ali_ceo import AliCEO
 from agents.amy_cfo import AmyCFO
 
@@ -170,18 +170,20 @@ class TestCoreBackendFunctionality:
             mock_agent.return_value = mock_instance
             
             # Initialize orchestrator
-            orchestrator = OrchestratorAgent()
+            orchestrator = RealAgentOrchestrator()
+            await orchestrator.initialize()
             assert orchestrator is not None
             logger.info("✓ Orchestrator initialized")
             
             # Test coordination
-            response = await orchestrator.coordinate(
+            response = await orchestrator.orchestrate_conversation(
                 message="Test message",
+                user_id="test_user",
                 context={"test": True}
             )
             
             assert response is not None
-            assert "messages" in response or "content" in response
+            assert "messages" in response or "content" in response or "response" in response
             logger.info("✓ Orchestrator coordination successful")
     
     @pytest.mark.asyncio
