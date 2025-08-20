@@ -10,8 +10,14 @@ from typing import Any, Dict
 import structlog
 from structlog.processors import JSONRenderer
 from structlog.stdlib import add_log_level, filter_by_level
+from structlog.dev import ConsoleRenderer
 
 from core.config import get_settings
+
+# Define known chatty third-party loggers used in the project
+openai_logger = logging.getLogger("openai")
+autogen_logger = logging.getLogger("autogen")
+httpx_logger = logging.getLogger("httpx")
 
 
 def setup_logging() -> None:
@@ -28,7 +34,7 @@ def setup_logging() -> None:
             filter_by_level,  # Filter by log level
             add_log_level,    # Add log level to event dict
             structlog.processors.TimeStamper(fmt="iso"),  # ISO timestamp
-            structlog.dev.ConsoleRenderer() if settings.LOG_FORMAT == "console" else JSONRenderer(),
+            ConsoleRenderer() if settings.LOG_FORMAT == "console" else JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
             getattr(logging, settings.LOG_LEVEL)

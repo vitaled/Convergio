@@ -65,6 +65,13 @@ async_read_engine: Optional[AsyncEngine] = None  # Read replica engine
 async_session_factory: Optional[async_sessionmaker] = None
 async_read_session_factory: Optional[async_sessionmaker] = None  # Read replica sessions
 
+# Track the event loop that initialized the current engine/session factory.
+# This avoids cross-loop connection issues under pytest-asyncio, which creates a
+# new loop per test by default. asyncpg connections are bound to the loop they
+# were created with; reusing them across loops can trigger 'Event loop is closed'
+# during connection termination.
+_engine_event_loop_id: Optional[int] = None
+
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models"""
@@ -153,7 +160,7 @@ def create_database_engine(is_read_replica: bool = False) -> AsyncEngine:
 async def init_db() -> None:
     """Initialize database connection and session factory"""
     
-    global engine, async_engine, async_read_engine, async_session_factory, async_read_session_factory
+    global engine, async_engine, async_read_engine, async_session_factory, async_read_session_factory, _engine_event_loop_id
     
     try:
         # Use pre-configured engine if provided (tests may patch 'engine')
@@ -203,21 +210,96 @@ async def init_db() -> None:
                 logger.warning("⚠️ Unable to ensure pgvector extension", error=str(ext_e))
             await conn.run_sync(lambda sync_conn: sync_conn.execute(text("SELECT 1")))
 
-            # Optionally auto-create tables (disabled by default to avoid partial metadata issues)
-            # Enable via AUTO_CREATE_DB_TABLES=true when needed (e.g., local dev with SQLite)
-            if os.getenv("AUTO_CREATE_DB_TABLES", "false").lower() in ("1", "true", "yes"):
+            # Optionally auto-create tables in test/dev or when running under pytest
+            should_autocreate = os.getenv("AUTO_CREATE_DB_TABLES", "").lower() in ("1", "true", "yes")
+            try:
+                import sys as _sys
+                running_pytest = "pytest" in _sys.modules
+            except Exception:
+                running_pytest = False
+            settings_env = get_settings().ENVIRONMENT
+            if should_autocreate or running_pytest or settings_env in ("test", "development"):
                 try:
-                    from core.database import Base as _Base
-                    await conn.run_sync(_Base.metadata.create_all)
-                    logger.info("🧱 Database tables ensured (env-flag enabled)")
+                    # Check for presence of a core table used by tests
+                    res = await conn.execute(text("SELECT to_regclass('public.projects')"))
+                    reg = res.scalar()
+                    if not reg:
+                        # Import models to populate metadata, then create all
+                        try:
+                            # Import ALL models to ensure table creation
+                            from models import project as _m_project  # noqa: F401
+                            from models import talent as _m_talent    # noqa: F401
+                            from models import engagement as _m_eng    # noqa: F401
+                            from models import cost_tracking as _m_ct  # noqa: F401
+                            from models import client as _m_client    # noqa: F401
+                            from models import activity as _m_activity  # noqa: F401
+                            from models import document as _m_document  # noqa: F401
+                            from models import tenant as _m_tenant    # noqa: F401
+                        except Exception as _imp_e:
+                            logger.warning("⚠️ Model import for create_all failed", error=str(_imp_e))
+                        from core.database import Base as _Base
+                        await conn.run_sync(_Base.metadata.create_all)
+                        logger.info("🧱 Database tables ensured (auto-create in test/dev)")
                 except Exception as ce:
                     logger.warning("⚠️ Table auto-create skipped/failed", error=str(ce))
         
+        # Record the loop identity that owns these resources
+        try:
+            loop = asyncio.get_running_loop()
+            _engine_event_loop_id = id(loop)
+        except RuntimeError:
+            # No running loop; keep as-is
+            _engine_event_loop_id = None
+
         logger.info("✅ Database initialized successfully")
         
     except Exception as e:
         logger.error("❌ Failed to initialize database", error=str(e))
-        raise
+        # Graceful fallback to SQLite in non-production environments
+        try:
+            settings = get_settings()
+        except Exception:
+            settings = None
+        allow_fallback = os.getenv("SQLITE_FALLBACK", "false").lower() in ("1", "true", "yes")
+        if settings and settings.ENVIRONMENT != "production" and allow_fallback:
+            try:
+                logger.warning("⚠️ Falling back to SQLite for development due to DB init failure", reason=str(e))
+                # Create lightweight SQLite engine
+                sqlite_url = os.getenv("DEV_SQLITE_URL", "sqlite+aiosqlite:///./dev.db")
+                fallback_engine = create_async_engine(
+                    sqlite_url,
+                    echo=settings.ENVIRONMENT in ("development", "test"),
+                    future=True,
+                )
+                # Swap globals
+                engine = fallback_engine
+                async_engine = fallback_engine
+                async_session_factory = async_sessionmaker(
+                    async_engine,
+                    class_=CustomAsyncSession,
+                    expire_on_commit=False,
+                    autoflush=True,
+                    autocommit=False,
+                )
+                async_read_engine = async_engine
+                async_read_session_factory = async_session_factory
+
+                # Ensure tables exist for basic operation
+                try:
+                    async with async_engine.begin() as conn:
+                        from core.database import Base as _Base
+                        await conn.run_sync(_Base.metadata.create_all)
+                    logger.info("🧱 SQLite fallback tables ensured")
+                except Exception as ce:
+                    logger.warning("⚠️ Unable to auto-create tables on SQLite fallback", error=str(ce))
+                logger.info("✅ Database initialized with SQLite fallback", url=sqlite_url)
+                return
+            except Exception as fe:
+                logger.error("❌ SQLite fallback failed", error=str(fe))
+                # Propagate original error after fallback failure
+                raise e
+        else:
+            raise
 
 
 async def ensure_dev_schema() -> None:
@@ -364,7 +446,7 @@ async def ensure_dev_schema() -> None:
 async def close_db() -> None:
     """Close database connections"""
     
-    global engine, async_engine, async_read_engine
+    global engine, async_engine, async_read_engine, async_session_factory, async_read_session_factory, _engine_event_loop_id
     
     # Dispose primary engine (support tests that patch `engine` only)
     if engine and engine is not async_engine:
@@ -406,6 +488,11 @@ async def close_db() -> None:
         finally:
             async_read_engine = None
 
+    # Always reset session factories to avoid dangling references to disposed engines
+    async_session_factory = None
+    async_read_session_factory = None
+    _engine_event_loop_id = None
+
 
 def get_async_session_factory() -> async_sessionmaker:
     """Get async session factory"""
@@ -437,10 +524,22 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 # Dependency for FastAPI route injection
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database session injection (write operations)"""
-    global async_session_factory
-    # Lazy-initialize in test/dev to avoid manual init during e2e
+    global async_session_factory, _engine_event_loop_id
+    # Lazy-initialize and ensure engine matches the current running event loop in test/dev
     try:
-        if async_session_factory is None and get_settings().ENVIRONMENT in ("test", "development"):
+        settings = get_settings()
+        loop = asyncio.get_running_loop()
+        current_loop_id = id(loop)
+        # Initialize if needed in test/dev
+        if async_session_factory is None and settings.ENVIRONMENT in ("test", "development"):
+            await init_db()
+        # Re-initialize if the loop changed (pytest-asyncio creates new loop per test)
+        elif (
+            settings.ENVIRONMENT in ("test", "development")
+            and _engine_event_loop_id is not None
+            and _engine_event_loop_id != current_loop_id
+        ):
+            await close_db()
             await init_db()
     except Exception:
         # If init fails, propagate original error when requesting session

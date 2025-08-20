@@ -5,9 +5,12 @@ Real-time analytics with performance metrics and KPIs
 
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+import io
+import csv
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -293,14 +296,13 @@ async def export_analytics_data(
             return await _generate_csv_export(export_data)
         elif format == "xlsx":
             return await _generate_xlsx_export(export_data)
-        else:  # json
+        else:
             return export_data
-        
     except Exception as e:
         logger.error("❌ Failed to export analytics data", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to export analytics data"
+            detail="Failed to export analytics data",
         )
 
 
@@ -430,3 +432,83 @@ async def _get_cost_analytics_for_export(user_id: int, start_date: datetime) -> 
 
 async def _get_performance_analytics_for_export(start_date: datetime) -> Dict[str, Any]:
     return {"avg_response_time": 2.3, "uptime": 99.9}
+
+
+def _flatten_for_csv(data: Dict[str, Any], prefix: str = "") -> List[List[str]]:
+    """Flatten nested dict into rows of [key, value] for a simple CSV."""
+    rows: List[List[str]] = []
+    for k, v in data.items():
+        key = f"{prefix}{k}" if not prefix else f"{prefix}.{k}"
+        if isinstance(v, dict):
+            rows.extend(_flatten_for_csv(v, key))
+        else:
+            # Represent non-dict values as string
+            try:
+                rows.append([key, str(v)])
+            except Exception:
+                rows.append([key, ""]) 
+    return rows
+
+
+async def _generate_csv_export(export_data: Dict[str, Any]) -> StreamingResponse:
+    """Generate a simple two-column CSV (key,value) from export_data."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["key", "value"])  # header
+    for section, content in export_data.items():
+        if isinstance(content, dict):
+            for row in _flatten_for_csv(content, section):
+                writer.writerow(row)
+        else:
+            writer.writerow([section, str(content)])
+    buffer.seek(0)
+    headers = {
+        "Content-Disposition": "attachment; filename=analytics_export.csv"
+    }
+    return StreamingResponse(buffer, media_type="text/csv", headers=headers)
+
+
+async def _generate_xlsx_export(export_data: Dict[str, Any]):
+    """Generate a simple XLSX with one sheet per top-level section if openpyxl is available."""
+    try:
+        import openpyxl  # type: ignore
+    except Exception:
+        # Fallback when openpyxl is not installed
+        return {
+            "status": "not_implemented",
+            "message": "XLSX export requires openpyxl; not installed",
+        }
+    from openpyxl import Workbook  # type: ignore
+    from openpyxl.utils import get_column_letter  # type: ignore
+    wb = Workbook()
+    # Remove default sheet
+    default_ws = wb.active
+    wb.remove(default_ws)
+    # Create one sheet per top-level section
+    for section, content in export_data.items():
+        ws = wb.create_sheet(title=str(section)[:31] or "Sheet")
+        if isinstance(content, dict):
+            rows = _flatten_for_csv(content)
+            ws.append(["key", "value"])  # header
+            for key, value in rows:
+                ws.append([key, value])
+            # Autosize columns (simple)
+            for col_idx in range(1, 3):
+                max_len = 0
+                for cell in ws[get_column_letter(col_idx)]:
+                    max_len = max(max_len, len(str(cell.value)) if cell.value else 0)
+                ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, 80)
+        else:
+            ws.append(["value"])
+            ws.append([str(content)])
+    # Save to bytes
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    headers = {
+        "Content-Disposition": "attachment; filename=analytics_export.xlsx"
+    }
+    return StreamingResponse(out, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers=headers)
+
+
+# end of file

@@ -10,6 +10,7 @@ from sqlalchemy import Integer, String, DateTime, func, Boolean, ForeignKey
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 
 from core.database import Base
 
@@ -33,10 +34,11 @@ class Talent(Base):
     is_admin: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)      # Legacy field
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))  # Legacy field
     
-    # Vector embeddings - existing in DB
-    skills_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)        # vector(1536)
-    experience_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)    # vector(1536)
-    profile_embedding: Mapped[Optional[bytes]] = mapped_column(nullable=True)       # vector(1536)
+    # Vector embeddings - existing in DB (pgvector)
+    # Use explicit pgvector type to avoid BYTEA casts on NULL that break inserts
+    skills_embedding: Mapped[Optional[list]] = mapped_column(Vector(1536), nullable=True)
+    experience_embedding: Mapped[Optional[list]] = mapped_column(Vector(1536), nullable=True)
+    profile_embedding: Mapped[Optional[list]] = mapped_column(Vector(1536), nullable=True)
     
     # Timestamps - matching existing schema
     created_at: Mapped[Optional[datetime]] = mapped_column(

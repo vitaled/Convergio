@@ -271,10 +271,16 @@ def create_enhanced_rate_limiter(redis_client: redis.Redis, enabled: bool = True
     return engine, middleware
 
 def get_slowapi_limiter() -> Limiter:
-    """Get slowapi limiter for backwards compatibility"""
+    """Get slowapi limiter for backwards compatibility using configured Redis"""
+    try:
+        from core.config import get_settings
+        s = get_settings()
+        storage = s.REDIS_URL
+    except Exception:
+        storage = "redis://localhost:6379/1"
     return Limiter(
         key_func=get_remote_address,
-        storage_uri="redis://localhost:6379/1",
+        storage_uri=storage,
         enabled=True,
         headers_enabled=True,
         default="1000/minute"  # Conservative default

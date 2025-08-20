@@ -199,7 +199,7 @@ class UnifiedCostTracker:
                     output_cost_usd=cost_breakdown.output_cost_usd,
                     total_cost_usd=cost_breakdown.total_cost_usd,
                     response_time_ms=response_time_ms,
-                    metadata=metadata or {},
+                    request_metadata=metadata or {},
                     created_at=datetime.utcnow()
                 )
                 

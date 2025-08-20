@@ -250,20 +250,19 @@ def create_app() -> FastAPI:
     # ================================
     
     # Enhanced Rate Limiting Middleware (first for security)
+    # Note: Redis is initialized in lifespan startup. Middleware is attached here without blocking on Redis.
     if settings.RATE_LIMITING_ENABLED:
         try:
             from core.redis import get_redis_client
-            import asyncio
-            redis_client = asyncio.run(get_redis_client())
-            rate_engine, rate_middleware = create_enhanced_rate_limiter(redis_client, enabled=True)
+            redis_client = get_redis_client()
+            rate_engine, _ = create_enhanced_rate_limiter(redis_client, enabled=True)
             app.add_middleware(ProductionRateLimitMiddleware, rate_engine=rate_engine, enabled=True)
-            
-            # Add slowapi limiter for backwards compatibility
+            # Backwards compatibility: slowapi handler
             limiter = get_slowapi_limiter()
             app.state.limiter = limiter
             app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
         except Exception as e:
-            logger.warning(f"⚠️ Rate limiting middleware initialization failed: {e}")
+            logger.warning(f"⚠️ Rate limiting middleware initialization deferred: {e}")
     
     # Security Headers Middleware
     app.add_middleware(SecurityHeadersMiddleware)
@@ -331,7 +330,7 @@ def create_app() -> FastAPI:
     # AI orchestration APIs (no auth required)
     app.include_router(agents_router, prefix="/api/v1/agents", tags=["AI Agents"])
     
-    # Ali Intelligence API
+    # Ali Intelligence API (single registration)
     app.include_router(ali_intelligence_router, prefix="/api/v1/agents", tags=["Ali Intelligence"])
     
     # Agent ecosystem health monitoring
@@ -349,8 +348,7 @@ def create_app() -> FastAPI:
     # User API Keys management (no auth required)
     app.include_router(user_keys_router, prefix="/api/v1", tags=["User Keys"])
     
-    # Ali Intelligence System (CEO assistant)
-    app.include_router(ali_intelligence_router, prefix="/api/v1", tags=["Ali Intelligence"])
+    # (Removed duplicate Ali Intelligence router registration)
     
     # Cost Management & Monitoring (no auth required for real-time data)
     app.include_router(cost_management_router, prefix="/api/v1/cost-management", tags=["Cost Management"])

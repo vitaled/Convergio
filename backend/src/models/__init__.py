@@ -1,26 +1,12 @@
 """
-📊 Convergio - Database Models Package
+Convergio models package.
+
+Intentionally no side-effect imports to avoid duplicate table definitions when
+packages are imported via both 'models.*' and 'src.models.*'. Import specific
+models from their modules, e.g.:
+
+from models.activity import Activity
+from models.cost_tracking import CostTracking
 """
 
-from .talent import Talent
-from .user import User
-from .activity import Activity
-from .engagement import Engagement
-from .project import Project
-
-try:
-    from .document import Document, DocumentEmbedding
-except ImportError:
-    # document model might not be available in all environments
-    pass
-
-try:
-    from .cost_tracking import (
-        CostTracking, CostSession, DailyCostSummary, 
-        ProviderPricing, CostAlert, Provider, CostStatus
-    )
-except ImportError:
-    # cost tracking models might not be available in all environments
-    pass
-
-__all__ = ["Talent", "User", "Activity", "Engagement", "Project"]
+__all__ = []

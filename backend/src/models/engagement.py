@@ -14,6 +14,8 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.database import Base
+# Ensure Activity mapper is registered so relationship string resolves during mapper setup
+from .activity import Activity  # noqa: F401
 
 
 class Engagement(Base):

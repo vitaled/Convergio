@@ -370,8 +370,9 @@ async def validate_service_connectivity() -> Dict[str, bool]:
     # Database connectivity
     try:
         from core.database import get_db_session
+        from sqlalchemy import text as _sql_text
         async with get_db_session() as session:
-            await session.execute("SELECT 1")
+            await session.execute(_sql_text("SELECT 1"))
         results["database"] = True
         logger.info("✅ Database connectivity verified")
     except Exception as e:
@@ -381,7 +382,7 @@ async def validate_service_connectivity() -> Dict[str, bool]:
     # Redis connectivity
     try:
         from core.redis import get_redis_client
-        redis_client = await get_redis_client()
+        redis_client = get_redis_client()
         await redis_client.ping()
         results["redis"] = True
         logger.info("✅ Redis connectivity verified")
