@@ -74,8 +74,8 @@
     {#if loading}
       <div class="p-4">
         <div class="animate-pulse space-y-4">
-          {#each Array(4) as __}
-            <div class="flex items-center justify-between p-4 border border-gray-100 rounded">
+          {#each Array.from({ length: 4 }, (_, i) => i) as i (i)}
+            <div class="flex items-center justify-between p-4 border border-gray-100 rounded" data-index={i}>
               <div class="flex items-center space-x-3">
                 <div class="w-3 h-3 bg-gray-200 rounded-full"></div>
                 <div>
@@ -205,6 +205,7 @@
           <button 
             on:click={closeDetails}
             class="text-gray-400 hover:text-gray-600"
+            aria-label="Close details"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

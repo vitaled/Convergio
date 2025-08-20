@@ -656,10 +656,21 @@
   
   <!-- Agent Selector Modal -->
   {#if showAgentSelector}
-    <div class="modal-overlay" on:click={() => showAgentSelector = false} role="dialog" aria-modal="true">
-      <div class="agent-selector-modal" on:click|stopPropagation>
+    <div
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="agent-selector-title"
+  tabindex="0"
+  on:click={(e) => { if (e.currentTarget === e.target) showAgentSelector = false; }}
+  on:keydown={(e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); showAgentSelector = false; } }}
+    >
+      <div
+        class="agent-selector-modal"
+        role="document"
+      >
         <div class="modal-header">
-          <h3>Select AI Agent</h3>
+          <h3 id="agent-selector-title">Select AI Agent</h3>
           <button class="close-btn" on:click={() => showAgentSelector = false} aria-label="Close">×</button>
         </div>
         

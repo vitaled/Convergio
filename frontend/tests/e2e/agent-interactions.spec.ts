@@ -6,7 +6,7 @@ test.describe('Agent Interactions', () => {
     await page.goto('/');
     
     // Wait for the app to load
-    await page.waitForSelector('text=Convergio', { timeout: 10000 });
+    await page.waitForSelector('span:has-text("platform.Convergio.io")', { timeout: 10000 });
   });
 
   test('should display API status dropdown', async ({ page }) => {
@@ -26,7 +26,7 @@ test.describe('Agent Interactions', () => {
 
   test('should navigate to agents page', async ({ page }) => {
     // Click on Agents in navigation
-    await page.click('text=Agents');
+    await page.click('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
     
     // Wait for agents page to load
     await page.waitForURL('**/agents');
@@ -40,7 +40,7 @@ test.describe('Agent Interactions', () => {
     test.setTimeout(20000);
     
     // Navigate to agents page
-    await page.click('text=Agents');
+    await page.click('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
     await page.waitForURL('**/agents');
     
     // Look for conversation start button or chat interface
@@ -78,7 +78,7 @@ test.describe('Agent Interactions', () => {
 
   test('should display agent list', async ({ page }) => {
     // Navigate to agents page
-    await page.click('text=Agents');
+    await page.click('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
     await page.waitForURL('**/agents');
     
     // Look for agent cards or list
@@ -102,7 +102,7 @@ test.describe('Agent Interactions', () => {
     test.setTimeout(15000);
     
     // Navigate to agents page
-    await page.click('text=Agents');
+    await page.click('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
     await page.waitForURL('**/agents');
     
     // Set up WebSocket listener with Promise for first message
@@ -168,7 +168,7 @@ test.describe('Complex Orchestrations', () => {
       const initialText = await costDisplay.first().textContent();
       
       // Trigger an action that might update costs
-      const agentsLink = page.locator('text=Agents');
+      const agentsLink = page.locator('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
       if (await agentsLink.count() > 0) {
         await agentsLink.click();
         await page.waitForTimeout(2000);
@@ -182,7 +182,7 @@ test.describe('Complex Orchestrations', () => {
 
   test('should show agent signatures when available', async ({ page }) => {
     await page.goto('/');
-    await page.click('text=Agents');
+    await page.click('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
     await page.waitForURL('**/agents');
     
     // Look for signature indicators
@@ -198,7 +198,7 @@ test.describe('Performance and Error Handling', () => {
   test('should load quickly', async ({ page }) => {
     const startTime = Date.now();
     await page.goto('/');
-    await page.waitForSelector('text=Convergio');
+    await page.waitForSelector('span:has-text("platform.Convergio.io")');
     const loadTime = Date.now() - startTime;
     
     console.log(`Page load time: ${loadTime}ms`);
@@ -220,12 +220,12 @@ test.describe('Performance and Error Handling', () => {
     await page.waitForTimeout(2000);
     
     // App should still be functional despite API error
-    await expect(page.locator('text=Convergio')).toBeVisible();
+    await expect(page.locator('span:has-text("platform.Convergio.io")')).toBeVisible();
   });
 
   test('should reconnect WebSocket on disconnect', async ({ page }) => {
     await page.goto('/');
-    await page.click('text=Agents');
+    await page.click('nav a:has-text("Agents"), a[href*="agents"]:has-text("Agents")');
     
     let wsCount = 0;
     page.on('websocket', ws => {

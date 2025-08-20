@@ -385,9 +385,9 @@
           </div>
         </div>
         
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Tags</label>
-          <div class="flex flex-wrap gap-2">
+        <fieldset>
+          <legend class="block text-sm font-medium text-gray-700 mb-2">Tags</legend>
+          <div class="flex flex-wrap gap-2" role="group" aria-label="Task tags">
             {#each availableTags as tag}
               <button
                 type="button"
@@ -400,12 +400,13 @@
               </button>
             {/each}
           </div>
-        </div>
+        </fieldset>
         
         {#if availableAgents.length > 0}
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Manual Agent Assignment (Optional)</label>
+            <label class="block text-sm font-medium text-gray-700 mb-2" for="mkb-agent-select">Manual Agent Assignment (Optional)</label>
             <select
+              id="mkb-agent-select"
               bind:value={newTaskData.assignedAgent}
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
