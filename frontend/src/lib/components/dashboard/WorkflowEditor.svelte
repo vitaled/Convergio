@@ -223,17 +223,17 @@
   }
 </script>
 
-<div class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex">
+<div class="fixed inset-0 bg-surface-900 dark:bg-surface-100 bg-opacity-50 z-50 flex">
   <!-- Editor Container -->
   <div class="flex-1 bg-surface-950 dark:bg-surface-50 flex flex-col">
     <!-- Header -->
-    <div class="bg-gray-800 text-surface-950 dark:text-surface-50 px-6 py-4 flex items-center justify-between">
+    <div class="bg-surface-800 dark:bg-surface-200 text-surface-950 dark:text-surface-50 px-6 py-4 flex items-center justify-between">
       <div class="flex items-center space-x-4">
         <h2 class="text-lg font-medium">AutoGen GraphFlow Editor</h2>
         <input 
           type="text" 
           bind:value={workflow.name}
-          class="px-3 py-1 bg-gray-700 text-surface-950 dark:text-surface-50 rounded text-sm"
+          class="px-3 py-1 bg-surface-700 dark:bg-surface-300 text-surface-950 dark:text-surface-50 rounded text-sm"
           placeholder="Workflow name"
         />
       </div>
@@ -246,7 +246,7 @@
         </button>
         <button 
           on:click={onClose}
-          class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-surface-950 dark:text-surface-50 rounded text-sm"
+          class="px-4 py-2 bg-surface-600 dark:bg-surface-400 hover:bg-surface-700 dark:bg-surface-300 text-surface-950 dark:text-surface-50 rounded text-sm"
         >
           Close
         </button>
@@ -442,7 +442,7 @@
     </div>
     
     <!-- Status Bar -->
-    <div class="bg-gray-800 text-surface-950 dark:text-surface-50 px-6 py-2 text-xs flex items-center justify-between">
+    <div class="bg-surface-800 dark:bg-surface-200 text-surface-950 dark:text-surface-50 px-6 py-2 text-xs flex items-center justify-between">
       <span>Nodes: {workflow.steps.length} | Edges: {workflow.edges.length}</span>
       <span>AutoGen GraphFlow - DiGraphBuilder Compatible</span>
     </div>

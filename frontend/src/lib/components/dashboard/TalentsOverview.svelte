@@ -58,7 +58,7 @@
           {/each}
         </div>
         {#each Array(5) as _}
-          <div class="flex items-center space-x-3 p-3 border border-gray-100 rounded">
+          <div class="flex items-center space-x-3 p-3 border border-surface-700 dark:border-surface-300 rounded">
             <div class="w-8 h-8 bg-surface-700 dark:bg-surface-300 rounded-full"></div>
             <div class="flex-1">
               <div class="w-32 h-4 bg-surface-700 dark:bg-surface-300 rounded mb-1"></div>
@@ -100,7 +100,7 @@
         <div class="space-y-3">
           <h4 class="text-xs font-medium text-surface-300 dark:text-surface-700">Team Members</h4>
           {#each talents.slice(0, 10) as talent}
-            <div class="flex items-center justify-between p-3 border border-gray-100 rounded hover:bg-surface-900 dark:bg-surface-100">
+            <div class="flex items-center justify-between p-3 border border-surface-700 dark:border-surface-300 rounded hover:bg-surface-900 dark:bg-surface-100">
               <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                   <span class="text-surface-950 dark:text-surface-50 text-sm font-semibold">

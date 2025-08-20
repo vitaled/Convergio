@@ -59,7 +59,7 @@ Provides conversation management UI: reset, history, resume, delete
     {#if hasMessages}
       <button
         on:click={handleShowHistory}
-        class="p-1 text-gray-400 hover:text-surface-400 dark:text-surface-600 rounded"
+        class="p-1 text-surface-400 dark:text-surface-600 hover:text-surface-300 dark:hover:text-surface-700 rounded"
         aria-label="Show conversation history"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -68,7 +68,7 @@ Provides conversation management UI: reset, history, resume, delete
       </button>
       <button
         on:click={handleReset}
-        class="p-1 text-gray-400 hover:text-orange-600 rounded"
+        class="p-1 text-surface-400 dark:text-surface-600 hover:text-orange-600 rounded"
         aria-label="Reset conversation with {agentName}"
       >
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -167,7 +167,7 @@ Provides conversation management UI: reset, history, resume, delete
                   {truncateContent(message.content)}
                 </div>
               </div>
-              <div class="text-xs text-gray-400" role="status">
+              <div class="text-xs text-surface-400 dark:text-surface-600" role="status">
                 {#if message.status === 'sending'}
                   <span class="animate-spin" aria-label="Sending message">⏳</span>
                 {:else if message.status === 'error'}

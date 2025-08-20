@@ -75,7 +75,7 @@
       <div class="p-4">
         <div class="animate-pulse space-y-4">
           {#each Array.from({ length: 4 }, (_, i) => i) as i (i)}
-            <div class="flex items-center justify-between p-4 border border-gray-100 rounded" data-index={i}>
+            <div class="flex items-center justify-between p-4 border border-surface-700 dark:border-surface-300 rounded" data-index={i}>
               <div class="flex items-center space-x-3">
                 <div class="w-3 h-3 bg-surface-700 dark:bg-surface-300 rounded-full"></div>
                 <div>
@@ -101,7 +101,7 @@
     {:else}
       <!-- Summary Stats -->
       {#if projectOverview}
-        <div class="p-4 border-b border-gray-100">
+        <div class="p-4 border-b border-surface-700 dark:border-surface-300">
           <h4 class="text-xs font-medium text-surface-300 dark:text-surface-700 mb-3">Project Summary</h4>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div class="bg-blue-50 p-3 rounded">
@@ -125,7 +125,7 @@
 
         <!-- Recent Projects -->
         {#if projectOverview.recent_engagements.length > 0}
-          <div class="p-4 border-b border-gray-100">
+          <div class="p-4 border-b border-surface-700 dark:border-surface-300">
             <h4 class="text-xs font-medium text-surface-300 dark:text-surface-700 mb-3">Recent Projects</h4>
             <div class="space-y-3">
               {#each projectOverview.recent_engagements.slice(0, 5) as engagement}
@@ -204,7 +204,7 @@
           </div>
           <button 
             on:click={closeDetails}
-            class="text-gray-400 hover:text-surface-400 dark:text-surface-600"
+            class="text-surface-400 dark:text-surface-600 hover:text-surface-300 dark:hover:text-surface-700"
             aria-label="Close details"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -198,7 +198,7 @@
 			 class:text-blue-800={notification.type === 'info'}>
 			<div class="flex justify-between items-start">
 				<p class="text-sm font-medium">{notification.message}</p>
-				<button on:click={() => notification = null} class="ml-2 text-gray-400 hover:text-surface-400 dark:text-surface-600" aria-label="Dismiss notification">
+				<button on:click={() => notification = null} class="ml-2 text-surface-400 dark:text-surface-600 hover:text-surface-300 dark:hover:text-surface-700" aria-label="Dismiss notification">
 					<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
 						<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
 					</svg>
@@ -215,7 +215,7 @@
 			<div class="px-6 py-4 border-b">
 				<div class="flex justify-between items-center">
 					<h2 class="text-xl font-semibold">Create Swarm Task</h2>
-					<button on:click={() => showCreateTaskModal = false} class="text-gray-400 hover:text-surface-400 dark:text-surface-600" aria-label="Close modal">
+					<button on:click={() => showCreateTaskModal = false} class="text-surface-400 dark:text-surface-600 hover:text-surface-300 dark:hover:text-surface-700" aria-label="Close modal">
 						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
 						</svg>
@@ -268,7 +268,7 @@
 				<button 
 					on:click={createSwarmTask}
 					disabled={!newTaskForm.description.trim()}
-					class="px-4 py-2 bg-blue-600 text-surface-950 dark:text-surface-50 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+					class="px-4 py-2 bg-blue-600 text-surface-950 dark:text-surface-50 rounded-md hover:bg-blue-700 disabled:bg-surface-400 dark:disabled:bg-surface-600 disabled:cursor-not-allowed"
 				>
 					Create Task
 				</button>
@@ -522,7 +522,7 @@
 						</table>
 						{#if $swarmTasks.length === 0}
 							<div class="text-center py-12">
-								<svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<svg class="mx-auto h-12 w-12 text-surface-400 dark:text-surface-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
 								</svg>
 								<h3 class="text-lg font-medium text-surface-100 dark:text-surface-900 mb-2">No swarm tasks</h3>

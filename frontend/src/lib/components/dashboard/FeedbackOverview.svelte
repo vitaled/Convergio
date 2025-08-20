@@ -92,7 +92,7 @@
           {/each}
         </div>
         {#each Array(5) as _}
-          <div class="flex items-center space-x-3 p-3 border border-gray-100 rounded">
+          <div class="flex items-center space-x-3 p-3 border border-surface-700 dark:border-surface-300 rounded">
             <div class="w-8 h-8 bg-surface-700 dark:bg-surface-300 rounded"></div>
             <div class="flex-1">
               <div class="w-32 h-4 bg-surface-700 dark:bg-surface-300 rounded mb-1"></div>
@@ -168,7 +168,7 @@
           <h4 class="text-xs font-medium text-surface-300 dark:text-surface-700 mb-3">Recent Feedback</h4>
           <div class="space-y-3">
             {#each feedback.slice(0, 8) as item}
-              <div class="flex items-center justify-between p-3 border border-gray-100 rounded hover:bg-surface-900 dark:bg-surface-100">
+              <div class="flex items-center justify-between p-3 border border-surface-700 dark:border-surface-300 rounded hover:bg-surface-900 dark:bg-surface-100">
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded flex items-center justify-center">
                     <svg class="w-4 h-4 text-surface-950 dark:text-surface-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,7 +178,7 @@
                   <div>
                     <p class="text-sm font-medium text-surface-100 dark:text-surface-900">{item.title}</p>
                     <p class="text-xs text-surface-500 dark:text-surface-500 truncate max-w-sm">{item.description}</p>
-                    <p class="text-xs text-gray-400">{formatDate(item.created_at)}</p>
+                    <p class="text-xs text-surface-400 dark:text-surface-600">{formatDate(item.created_at)}</p>
                   </div>
                 </div>
                 <div class="flex items-center space-x-2">

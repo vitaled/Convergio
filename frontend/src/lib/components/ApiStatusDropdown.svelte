@@ -245,7 +245,7 @@
             </div>
           </div>
           <div class="flex items-center space-x-2">
-            <div class="h-3 w-3 rounded-full {apiStatus.openai.connected ? 'bg-green-500' : 'bg-gray-400'}"></div>
+            <div class="h-3 w-3 rounded-full {apiStatus.openai.connected ? 'bg-green-500' : 'bg-surface-500 dark:bg-surface-500'}"></div>
             <span class="text-sm font-bold {apiStatus.openai.connected ? 'text-green-700' : 'text-surface-400 dark:text-surface-600'}">
               {apiStatus.openai.connected ? 'Active' : 'Inactive'}
             </span>
@@ -270,7 +270,7 @@
             </div>
           </div>
           <div class="flex items-center space-x-2">
-            <div class="h-3 w-3 rounded-full {apiStatus.anthropic.connected ? 'bg-green-500' : 'bg-gray-400'}"></div>
+            <div class="h-3 w-3 rounded-full {apiStatus.anthropic.connected ? 'bg-green-500' : 'bg-surface-500 dark:bg-surface-500'}"></div>
             <span class="text-sm font-bold {apiStatus.anthropic.connected ? 'text-green-700' : 'text-surface-400 dark:text-surface-600'}">
               {apiStatus.anthropic.connected ? 'Active' : 'Inactive'}
             </span>

@@ -167,7 +167,7 @@
           {/each}
         </div>
         {#each Array(5) as _}
-          <div class="flex items-center space-x-3 p-3 border border-gray-100 rounded">
+          <div class="flex items-center space-x-3 p-3 border border-surface-700 dark:border-surface-300 rounded">
             <div class="w-8 h-8 bg-surface-700 dark:bg-surface-300 rounded"></div>
             <div class="flex-1">
               <div class="w-32 h-4 bg-surface-700 dark:bg-surface-300 rounded mb-1"></div>
@@ -210,7 +210,7 @@
           <h4 class="text-xs font-medium text-surface-300 dark:text-surface-700 mb-3">Active Workflows</h4>
           <div class="space-y-3">
             {#each workflows.slice(0, 5) as workflow}
-              <div class="flex items-center justify-between p-3 border border-gray-100 rounded hover:bg-surface-900 dark:bg-surface-100">
+              <div class="flex items-center justify-between p-3 border border-surface-700 dark:border-surface-300 rounded hover:bg-surface-900 dark:bg-surface-100">
                 <div class="flex items-center space-x-3">
                   <div class="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded flex items-center justify-center">
                     <svg class="w-4 h-4 text-surface-950 dark:text-surface-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -223,7 +223,7 @@
                       {workflow.steps_count} agent steps • {formatDuration(workflow.estimated_duration)}
                     </p>
                     {#if workflow.agents_involved && workflow.agents_involved.length > 0}
-                      <p class="text-xs text-gray-400 mt-1">
+                      <p class="text-xs text-surface-400 dark:text-surface-600 mt-1">
                         Agents: {workflow.agents_involved.join(', ')}
                       </p>
                     {/if}
@@ -300,7 +300,7 @@
 
 <!-- Workflow Details Modal -->
 {#if showDetails && selectedWorkflow}
-  <div class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="fixed inset-0 bg-surface-600 dark:bg-surface-400 bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-surface-950 dark:bg-surface-50 rounded max-w-4xl max-h-[90vh] overflow-y-auto p-6 w-full">
       <div class="flex justify-between items-start mb-4">
         <div>
@@ -309,7 +309,7 @@
         </div>
         <button 
           on:click={() => { showDetails = false; selectedWorkflow = null; }}
-          class="text-gray-400 hover:text-surface-400 dark:text-surface-600"
+          class="text-surface-400 dark:text-surface-600 hover:text-surface-300 dark:hover:text-surface-700"
         >
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

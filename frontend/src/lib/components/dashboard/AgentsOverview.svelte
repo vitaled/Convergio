@@ -75,7 +75,7 @@
           {/each}
         </div>
         {#each Array(6) as _}
-          <div class="flex items-center space-x-3 p-3 border border-gray-100 rounded">
+          <div class="flex items-center space-x-3 p-3 border border-surface-700 dark:border-surface-300 rounded">
             <div class="w-8 h-8 bg-surface-700 dark:bg-surface-300 rounded-full"></div>
             <div class="flex-1">
               <div class="w-32 h-4 bg-surface-700 dark:bg-surface-300 rounded mb-1"></div>
@@ -147,7 +147,7 @@
         <div class="space-y-3">
           <h4 class="text-xs font-medium text-surface-300 dark:text-surface-700">Active Agents</h4>
           {#each agents.slice(0, 8) as agent}
-            <div class="flex items-center justify-between p-3 border border-gray-100 rounded hover:bg-surface-900 dark:bg-surface-100">
+            <div class="flex items-center justify-between p-3 border border-surface-700 dark:border-surface-300 rounded hover:bg-surface-900 dark:bg-surface-100">
               <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
                   <span class="text-surface-950 dark:text-surface-50 text-sm font-semibold">

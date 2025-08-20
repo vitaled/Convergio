@@ -350,7 +350,7 @@
 				<button
 					on:click={() => performIntelligentAnalysis()}
 					disabled={$isThinking}
-					class="px-3 py-1 bg-blue-600 text-surface-950 dark:text-surface-50 text-xs rounded hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+					class="px-3 py-1 bg-blue-600 text-surface-950 dark:text-surface-50 text-xs rounded hover:bg-blue-700 disabled:bg-surface-400 dark:disabled:bg-surface-600 transition-colors"
 				>
 					{$isThinking ? 'Analyzing...' : 'Re-analyze'}
 				</button>
