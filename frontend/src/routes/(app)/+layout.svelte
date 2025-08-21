@@ -63,9 +63,9 @@
 </script>
 
 <!-- Clean Professional Layout -->
-<div class="min-h-screen bg-surface-950 dark:bg-surface-50 font-sans text-base">
+<div class="min-h-screen bg-surface-50 dark:bg-surface-950 font-sans text-base">
   <!-- Clean Professional Top Navigation -->
-  <div class="bg-surface-950 dark:bg-surface-50 border-b-2 border-surface-700 dark:border-surface-300 shadow-sm">
+  <div class="bg-surface-50 dark:bg-surface-950 border-b-2 border-surface-300 dark:border-surface-700 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
         <!-- Logo & Title -->
@@ -75,8 +75,8 @@
               C
             </div>
             <div class="flex flex-col">
-              <span class="text-lg font-bold text-surface-100 dark:text-surface-900 leading-tight">Convergio</span>
-              <span class="text-sm text-surface-400 dark:text-surface-600 leading-none">AI Agent Platform</span>
+              <span class="text-lg font-bold text-surface-900 dark:text-surface-100 leading-tight">Convergio</span>
+              <span class="text-sm text-surface-600 dark:text-surface-400 leading-none">AI Agent Platform</span>
             </div>
           </button>
         </div>
@@ -90,7 +90,7 @@
               aria-current={isActive(item.href) ? 'page' : null}
               class="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 {isActive(item.href)
                 ? 'bg-blue-600 text-surface-950 dark:text-surface-50 shadow-md'
-                : 'text-surface-200 dark:text-surface-800 hover:text-blue-600 hover:bg-blue-50'}"
+                : 'text-surface-800 dark:text-surface-200 hover:text-blue-600 hover:bg-blue-50'}"
             >
               <img src={item.iconPath} alt="" class="h-4 w-4" />
               <span>{item.label}</span>

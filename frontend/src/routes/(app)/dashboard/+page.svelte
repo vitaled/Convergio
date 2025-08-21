@@ -114,7 +114,7 @@
 </svelte:head>
 
 <!-- Comprehensive Dashboard -->
-<div class="min-h-screen bg-surface-900 dark:bg-surface-100 space-y-6">
+<div class="min-h-screen bg-surface-100 dark:bg-surface-900 space-y-6">
   <!-- Dashboard Navigation -->
   <DashboardNavigation bind:activeSection />
 
@@ -123,8 +123,8 @@
     <!-- Executive Brief Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-lg font-medium text-surface-100 dark:text-surface-900">Executive Overview</h1>
-        <p class="mt-1 text-sm text-surface-300 dark:text-surface-700">Real-time business metrics and insights</p>
+        <h1 class="text-lg font-medium text-surface-900 dark:text-surface-100">Executive Overview</h1>
+        <p class="mt-1 text-sm text-surface-700 dark:text-surface-300">Real-time business metrics and insights</p>
       </div>
       <button
         on:click={requestExecutiveBrief}
@@ -140,7 +140,7 @@
       {#if loading}
         <!-- Loading state -->
         {#each Array(4) as _, i}
-          <div class="bg-surface-950 dark:bg-surface-50 border border-surface-700 dark:border-surface-300 rounded p-4 animate-pulse">
+          <div class="bg-surface-50 dark:bg-surface-950 border border-surface-300 dark:border-surface-700 rounded p-4 animate-pulse">
             <div class="h-4 bg-surface-700 dark:bg-surface-300 rounded mb-2"></div>
             <div class="h-6 bg-surface-700 dark:bg-surface-300 rounded mb-1"></div>
             <div class="h-3 bg-surface-700 dark:bg-surface-300 rounded"></div>
@@ -203,8 +203,8 @@
     <!-- Performance & Cost Metrics -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Performance Metrics -->
-      <div class="bg-surface-950 dark:bg-surface-50 border-2 border-surface-600 dark:border-surface-400 rounded-xl p-6 shadow-lg">
-        <h3 class="text-lg font-medium text-surface-100 dark:text-surface-900 mb-6">Performance Metrics</h3>
+      <div class="bg-surface-50 dark:bg-surface-950 border-2 border-surface-400 dark:border-surface-600 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-medium text-surface-900 dark:text-surface-100 mb-6">Performance Metrics</h3>
         {#if loading}
           <div class="space-y-3 animate-pulse">
             {#each Array(4) as _, i}
@@ -217,32 +217,32 @@
         {:else}
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Agent Interactions</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Agent Interactions</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.performance_metrics?.agent_interactions != null
                   ? formatNumber(dashboardData.performance_metrics.agent_interactions)
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Avg Response Time</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Avg Response Time</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.performance_metrics?.avg_response_time != null
                   ? `${dashboardData.performance_metrics.avg_response_time.toFixed(2)}s`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Success Rate</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Success Rate</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.performance_metrics?.success_rate != null
                   ? `${dashboardData.performance_metrics.success_rate.toFixed(1)}%`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Peak Concurrent Users</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Peak Concurrent Users</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.performance_metrics?.peak_concurrent_users != null
                   ? formatNumber(dashboardData.performance_metrics.peak_concurrent_users)
                   : '-'}
@@ -253,8 +253,8 @@
       </div>
 
       <!-- Cost Summary -->
-      <div class="bg-surface-950 dark:bg-surface-50 border-2 border-surface-600 dark:border-surface-400 rounded-xl p-6 shadow-lg">
-        <h3 class="text-lg font-medium text-surface-100 dark:text-surface-900 mb-6">Cost Summary</h3>
+      <div class="bg-surface-50 dark:bg-surface-950 border-2 border-surface-400 dark:border-surface-600 rounded-xl p-6 shadow-lg">
+        <h3 class="text-lg font-medium text-surface-900 dark:text-surface-100 mb-6">Cost Summary</h3>
         {#if loading}
           <div class="space-y-3 animate-pulse">
             {#each Array(4) as _, i}
@@ -267,32 +267,32 @@
         {:else}
           <div class="space-y-3">
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Total Cost</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Total Cost</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.cost_summary?.total_cost_usd != null
                   ? formatCurrency(dashboardData.cost_summary.total_cost_usd)
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Cost per Interaction</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Cost per Interaction</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.cost_summary?.cost_per_interaction != null
                   ? `$${(dashboardData.cost_summary.cost_per_interaction).toFixed(4)}`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Budget Utilization</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Budget Utilization</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.cost_summary?.budget_utilization != null
                   ? `${dashboardData.cost_summary.budget_utilization.toFixed(1)}%`
                   : '-'}
               </span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-surface-300 dark:text-surface-700">Top Model</span>
-              <span class="text-lg font-medium text-surface-100 dark:text-surface-900">
+              <span class="text-sm text-surface-700 dark:text-surface-300">Top Model</span>
+              <span class="text-lg font-medium text-surface-900 dark:text-surface-100">
                 {dashboardData?.cost_summary?.top_models?.[0]?.model ?? 'N/A'}
               </span>
             </div>
@@ -302,20 +302,20 @@
     </div>
 
     <!-- Recent Activity Preview -->
-    <div class="bg-surface-950 dark:bg-surface-50 border-2 border-surface-600 dark:border-surface-400 rounded-xl shadow-lg">
-      <div class="px-6 py-4 border-b border-surface-700 dark:border-surface-300/50">
+    <div class="bg-surface-50 dark:bg-surface-950 border-2 border-surface-400 dark:border-surface-600 rounded-xl shadow-lg">
+      <div class="px-6 py-4 border-b border-surface-300 dark:border-surface-700/50">
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-medium text-surface-100 dark:text-surface-900">Recent Projects</h3>
+          <h3 class="text-lg font-medium text-surface-900 dark:text-surface-100">Recent Projects</h3>
           <div class="flex space-x-2">
             <button 
               on:click={() => createProject('product_launch')}
-              class="px-3 py-1.5 text-sm bg-surface-800 dark:bg-surface-200/80 hover:bg-surface-700 dark:bg-surface-300/80 text-surface-100 dark:text-surface-900 rounded-lg transition-all duration-300 border border-surface-600 dark:border-surface-400/50"
+              class="px-3 py-1.5 text-sm bg-surface-200 dark:bg-surface-800/80 hover:bg-surface-700 dark:bg-surface-300/80 text-surface-900 dark:text-surface-100 rounded-lg transition-all duration-300 border border-surface-400 dark:border-surface-600/50"
             >
               Launch
             </button>
             <button 
               on:click={() => createProject('market_analysis')}
-              class="px-3 py-1.5 text-sm bg-surface-800 dark:bg-surface-200/80 hover:bg-surface-700 dark:bg-surface-300/80 text-surface-100 dark:text-surface-900 rounded-lg transition-all duration-300 border border-surface-600 dark:border-surface-400/50"
+              class="px-3 py-1.5 text-sm bg-surface-200 dark:bg-surface-800/80 hover:bg-surface-700 dark:bg-surface-300/80 text-surface-900 dark:text-surface-100 rounded-lg transition-all duration-300 border border-surface-400 dark:border-surface-600/50"
             >
               Analysis
             </button>

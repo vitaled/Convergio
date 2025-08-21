@@ -102,16 +102,16 @@
   <!-- Main Cost Display Button -->
   <button
     on:click={() => showDetails = !showDetails}
-    class="flex items-start space-x-2 px-4 py-2 bg-surface-950 dark:bg-surface-50 rounded-lg hover:bg-blue-50 transition-all duration-200 shadow-sm"
+    class="flex items-start space-x-2 px-4 py-2 bg-surface-50 dark:bg-surface-950 rounded-lg hover:bg-blue-50 dark:hover:bg-surface-800 transition-all duration-200 shadow-sm"
     title="Click to toggle detailed cost breakdown"
   >
     <span class="text-lg">{getStatusIcon($costData.status)}</span>
     <div class="flex flex-col items-start">
-      <span class="text-sm font-bold text-surface-100 dark:text-surface-900">
+      <span class="text-sm font-bold text-surface-900 dark:text-surface-100">
         {formatCost($costData.total_cost_usd)}
       </span>
       {#if $costData.today_cost_usd > 0 && $costData.today_cost_usd !== $costData.total_cost_usd}
-        <span class="text-xs text-surface-300 dark:text-surface-700 font-medium">
+        <span class="text-xs text-surface-700 dark:text-surface-300 font-medium">
           {formatCost($costData.today_cost_usd)} today
         </span>
       {/if}
@@ -123,7 +123,7 @@
 
   <!-- Dropdown Panel -->
   {#if showDetails}
-    <div class="absolute right-0 top-full mt-2 w-96 bg-surface-950 dark:bg-surface-50 border-2 border-surface-600 dark:border-surface-400 rounded-xl shadow-2xl z-[10000] overflow-hidden">
+    <div class="absolute right-0 top-full mt-2 w-96 bg-surface-50 dark:bg-surface-950 border-2 border-surface-400 dark:border-surface-600 rounded-xl shadow-2xl z-[10000] overflow-hidden">
       <!-- Header -->
       <div class="bg-blue-600 text-surface-950 dark:text-surface-50 px-6 py-4">
         <div class="flex items-center justify-between">
@@ -139,9 +139,9 @@
       <div class="p-6 space-y-6">
         <!-- Cost Metrics -->
         <div class="grid grid-cols-2 gap-4">
-          <div class="bg-surface-800 dark:bg-surface-200 p-4 rounded-lg">
-            <div class="text-sm font-bold text-surface-300 dark:text-surface-700 mb-1">Total Cost</div>
-            <div class="text-xl font-bold text-surface-100 dark:text-surface-900">
+          <div class="bg-surface-200 dark:bg-surface-800 p-4 rounded-lg">
+            <div class="text-sm font-bold text-surface-700 dark:text-surface-300 mb-1">Total Cost</div>
+            <div class="text-xl font-bold text-surface-900 dark:text-surface-100">
               {formatCost($costData.total_cost_usd)}
             </div>
           </div>
@@ -158,10 +158,10 @@
         {#if $costData.budget_utilization > 0}
           <div class="space-y-2">
             <div class="flex justify-between text-sm">
-              <span class="font-bold text-surface-200 dark:text-surface-800">Budget Used:</span>
-              <span class="font-bold text-surface-100 dark:text-surface-900">{$costData.budget_utilization.toFixed(1)}%</span>
+              <span class="font-bold text-surface-800 dark:text-surface-200">Budget Used:</span>
+              <span class="font-bold text-surface-900 dark:text-surface-100">{$costData.budget_utilization.toFixed(1)}%</span>
             </div>
-            <div class="w-full bg-surface-700 dark:bg-surface-300 rounded-full h-3">
+            <div class="w-full bg-surface-300 dark:bg-surface-700 rounded-full h-3">
               <div class="h-3 rounded-full {$costData.budget_utilization > 80 ? 'bg-red-500' : $costData.budget_utilization > 50 ? 'bg-yellow-500' : 'bg-green-500'}" 
                    style="width: {Math.min($costData.budget_utilization, 100)}%"></div>
             </div>
@@ -171,30 +171,30 @@
         <!-- Service Breakdown (DETAILED) -->
         {#if $costData.service_details && Object.keys($costData.service_details).length > 0}
           <div class="space-y-3">
-            <div class="text-sm font-bold text-surface-100 dark:text-surface-900">🔥 Service Details (Today)</div>
+            <div class="text-sm font-bold text-surface-900 dark:text-surface-100">🔥 Service Details (Today)</div>
             {#each Object.entries($costData.service_details) as [provider, details]}
-              <div class="bg-surface-900 dark:bg-surface-100 rounded-lg p-4 space-y-2">
+              <div class="bg-surface-100 dark:bg-surface-900 rounded-lg p-4 space-y-2">
                 <div class="flex justify-between items-center">
                   <div class="flex items-center space-x-3">
                     <div class="w-4 h-4 rounded-full {provider === 'openai' ? 'bg-green-500' : provider === 'anthropic' ? 'bg-purple-500' : provider === 'perplexity' ? 'bg-blue-500' : 'bg-surface-900 dark:bg-surface-1000'}"></div>
-                    <span class="capitalize font-bold text-surface-100 dark:text-surface-900">{provider}</span>
+                    <span class="capitalize font-bold text-surface-900 dark:text-surface-100">{provider}</span>
                   </div>
-                  <span class="font-mono font-bold text-surface-100 dark:text-surface-900">{formatCost(details.cost_usd)}</span>
+                  <span class="font-mono font-bold text-surface-900 dark:text-surface-100">{formatCost(details.cost_usd)}</span>
                 </div>
                 
                 <!-- Service Detail Stats -->
                 <div class="grid grid-cols-3 gap-3 text-xs">
-                  <div class="bg-surface-950 dark:bg-surface-50 p-2 rounded">
-                    <div class="text-surface-400 dark:text-surface-600 font-bold">Calls</div>
-                    <div class="font-bold text-surface-100 dark:text-surface-900">{details.calls}</div>
+                  <div class="bg-surface-50 dark:bg-surface-950 p-2 rounded">
+                    <div class="text-surface-600 dark:text-surface-400 font-bold">Calls</div>
+                    <div class="font-bold text-surface-900 dark:text-surface-100">{details.calls}</div>
                   </div>
-                  <div class="bg-surface-950 dark:bg-surface-50 p-2 rounded">
-                    <div class="text-surface-400 dark:text-surface-600 font-bold">Tokens</div>
-                    <div class="font-bold text-surface-100 dark:text-surface-900">{details.tokens.toLocaleString()}</div>
+                  <div class="bg-surface-50 dark:bg-surface-950 p-2 rounded">
+                    <div class="text-surface-600 dark:text-surface-400 font-bold">Tokens</div>
+                    <div class="font-bold text-surface-900 dark:text-surface-100">{details.tokens.toLocaleString()}</div>
                   </div>
-                  <div class="bg-surface-950 dark:bg-surface-50 p-2 rounded">
-                    <div class="text-surface-400 dark:text-surface-600 font-bold">Avg/Call</div>
-                    <div class="font-bold text-surface-100 dark:text-surface-900">{formatCost(details.avg_cost_per_call)}</div>
+                  <div class="bg-surface-50 dark:bg-surface-950 p-2 rounded">
+                    <div class="text-surface-600 dark:text-surface-400 font-bold">Avg/Call</div>
+                    <div class="font-bold text-surface-900 dark:text-surface-100">{formatCost(details.avg_cost_per_call)}</div>
                   </div>
                 </div>
               </div>
@@ -285,13 +285,13 @@
       </div>
 
       <!-- Footer -->
-      <div class="bg-surface-800 dark:bg-surface-200 px-6 py-4 flex justify-between items-center text-sm">
-        <span class="text-surface-300 dark:text-surface-700 font-medium">
+      <div class="bg-surface-200 dark:bg-surface-800 px-6 py-4 flex justify-between items-center text-sm">
+        <span class="text-surface-700 dark:text-surface-300 font-medium">
           Updated: {$costData.last_updated ? new Date($costData.last_updated + (($costData.last_updated.includes('Z') || $costData.last_updated.includes('+')) ? '' : 'Z')).toLocaleTimeString() : 'N/A'}
         </span>
         <button 
           on:click={fetchCostData}
-          class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-surface-950 dark:text-surface-50 font-bold rounded transition-colors"
+          class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded transition-colors"
         >
           Refresh
         </button>

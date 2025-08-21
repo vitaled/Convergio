@@ -3,7 +3,7 @@
  * Gestisce light/dark mode con persistenza localStorage
  */
 
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -133,12 +133,12 @@ export const themeUtils = {
    * Cicla tra tutti i temi
    */
   cycleTheme() {
-    theme.subscribe(current => {
-      const themes: Theme[] = ['light', 'dark', 'system'];
-      const currentIndex = themes.indexOf(current);
-      const nextIndex = (currentIndex + 1) % themes.length;
-      theme.set(themes[nextIndex]);
-    })();
+    // Get current value without subscribing
+    const currentTheme = get(theme);
+    const themes: Theme[] = ['light', 'dark', 'system'];
+    const currentIndex = themes.indexOf(currentTheme);
+    const nextIndex = (currentIndex + 1) % themes.length;
+    this.setTheme(themes[nextIndex]);
   },
   
   /**

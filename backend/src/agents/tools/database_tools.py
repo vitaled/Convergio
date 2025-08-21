@@ -233,31 +233,36 @@ class DatabaseTools:
         """Get overview of projects from database"""
         try:
             from core.database import get_async_session
-            from models.project import Project
+            from models.engagement import Engagement
+            from sqlalchemy import select, func
             
             async with get_async_session() as db:
-                # Get all projects with basic stats
-                projects = await Project.get_all(db, limit=1000) if hasattr(Project, 'get_all') else []
+                # Get all engagements (projects) with basic stats
+                stmt = select(Engagement)
+                result = await db.execute(stmt)
+                engagements = result.scalars().all()
                 
                 # Calculate stats
-                total_projects = len(projects)
-                active_projects = sum(1 for p in projects if getattr(p, 'status', None) == 'active')
-                in_progress = sum(1 for p in projects if getattr(p, 'status', None) == 'in_progress') 
-                completed = sum(1 for p in projects if getattr(p, 'status', None) == 'completed')
+                total_projects = len(engagements)
+                active_projects = sum(1 for p in engagements if getattr(p, 'status', None) == 'active')
+                in_progress = sum(1 for p in engagements if getattr(p, 'status', None) == 'in_progress') 
+                completed = sum(1 for p in engagements if getattr(p, 'status', None) == 'completed')
+                planning = sum(1 for p in engagements if getattr(p, 'status', None) == 'planning')
                 
-                # Get clients count (assuming projects have client_id)
+                # Get clients count from engagements
                 clients = set()
-                for p in projects:
+                for p in engagements:
                     if hasattr(p, 'client_id') and p.client_id:
                         clients.add(p.client_id)
                 
                 return {
                     "total_projects": total_projects,
-                    "active_projects": active_projects, 
+                    "active_projects": active_projects + in_progress + planning, 
                     "in_progress": in_progress,
+                    "planning": planning,
                     "completed": completed,
                     "total_clients": len(clients),
-                    "latest_project": projects[0].name if projects and hasattr(projects[0], 'name') else "No projects found",
+                    "latest_project": engagements[0].title if engagements and hasattr(engagements[0], 'title') else "No projects found",
                     "status": "success",
                     "timestamp": datetime.utcnow().isoformat()
                 }
@@ -484,9 +489,39 @@ RECENT DOCUMENTS:
 
 
 def search_knowledge(query: str) -> str:
-    """Search for information in the knowledge base"""
+    """Search for information in the knowledge base using vector search"""
     try:
-        result = safe_run_async(DatabaseTools.search_documents(query))
+        # Use direct vector search API instead of database async issues
+        import requests
+        
+        response = requests.post(
+            'http://localhost:9000/api/v1/vector/search',
+            json={'query': query, 'top_k': 5},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            results = data.get('results', [])
+            
+            if not results:
+                result = {"status": "success", "results_count": 0, "results": []}
+            else:
+                result = {
+                    "status": "success", 
+                    "results_count": len(results),
+                    "results": [
+                        {
+                            "title": r.get("title", "Untitled"),
+                            "snippet": r.get("content", "")[:200] + "..." if len(r.get("content", "")) > 200 else r.get("content", ""),
+                            "id": r.get("document_id", "unknown"),
+                            "similarity": r.get("similarity_score", 0)
+                        }
+                        for r in results[:3]
+                    ]
+                }
+        else:
+            result = {"status": "error", "error": f"Vector API returned {response.status_code}"}
         
         if result["status"] == "success":
             if result["results_count"] == 0:
@@ -549,27 +584,45 @@ def get_database_tools() -> List[FunctionTool]:
 def query_projects() -> str:
     """Get project overview from database"""
     try:
-        result = safe_run_async(DatabaseTools.get_projects_overview())
+        # Direct database query without async complications
+        from sqlalchemy import create_engine, text
+        from core.config import get_settings
         
-        if "error" not in result:
-            return f"""✅ PROJECT OVERVIEW FROM DATABASE:
-• Total Projects: {result['total_projects']}
-• Active Projects: {result['active_projects']}
-• In Progress: {result['in_progress']}
-• Completed: {result['completed']}
-• Total Clients: {result['total_clients']}
-• Latest Project: {result.get('latest_project', 'N/A')}"""
-        else:
-            # If projects table doesn't exist, return sample data
-            if "does not exist" in result.get('error', ''):
-                return """✅ PROJECT OVERVIEW (Sample Data):
-• Total Projects: 12
-• Active Projects: 5
-• In Progress: 3
-• Completed: 4
-• Total Clients: 8
-• Latest Project: Convergio Platform Migration"""
-            return f"❌ Failed to retrieve projects: {result.get('error', 'Unknown error')}"
+        settings = get_settings()
+        
+        # Create synchronous engine
+        sync_db_url = settings.DATABASE_URL_SYNC
+        engine = create_engine(sync_db_url)
+        
+        with engine.connect() as conn:
+            # Query engagements table directly
+            result = conn.execute(text("SELECT COUNT(*) as total, status FROM engagements GROUP BY status"))
+            rows = result.fetchall()
+            
+            total_projects = sum(row[0] for row in rows)
+            status_counts = {row[1]: row[0] for row in rows}
+            
+            active_count = status_counts.get('active', 0) + status_counts.get('in_progress', 0) + status_counts.get('planning', 0)
+            
+            # Get latest project
+            latest_result = conn.execute(text("SELECT title FROM engagements ORDER BY created_at DESC LIMIT 1"))
+            latest_row = latest_result.fetchone()
+            latest_project = latest_row[0] if latest_row else "No projects found"
+            
+            result_data = {
+                "total_projects": total_projects,
+                "active_projects": active_count,
+                "completed": status_counts.get('completed', 0),
+                "latest_project": latest_project,
+                "status_breakdown": status_counts
+            }
+        
+        return f"""✅ PROJECT OVERVIEW FROM DATABASE:
+• Total Projects: {result_data['total_projects']}
+• Active Projects: {result_data['active_projects']}
+• Completed: {result_data['completed']}
+• Latest Project: {result_data['latest_project']}
+• Status Breakdown: {result_data['status_breakdown']}"""
             
     except Exception as e:
         return f"❌ Project query failed: {str(e)}"
