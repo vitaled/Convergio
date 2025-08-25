@@ -57,6 +57,8 @@ from api.projects import router as projects_router
 from api.system_status import router as system_status_router
 from api.telemetry import router as telemetry_router
 from api.governance import router as governance_router
+from api.pm_orchestration import router as pm_orchestration_router
+from api.realtime_endpoints import router as realtime_router
 
 # Setup non-blocking structured logging for asyncio
 setup_async_logging()
@@ -382,6 +384,12 @@ def create_app() -> FastAPI:
     
     # Governance System (Rate limiting, SLO monitoring, Runbooks for M5)
     app.include_router(governance_router, prefix="/api/v1/governance", tags=["Governance"])
+    
+    # PM Orchestration System (AI-orchestrated project management)
+    app.include_router(pm_orchestration_router, tags=["PM Orchestration"])
+    
+    # Real-time Streaming System (WebSocket and SSE for orchestration updates)
+    app.include_router(realtime_router, tags=["Real-time Streaming"])
     
     # ================================
     # 🔄 GLOBAL EXCEPTION HANDLERS

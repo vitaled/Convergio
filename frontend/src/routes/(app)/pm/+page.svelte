@@ -4,13 +4,15 @@
 	import ModernGanttChart from '$lib/components/modern/ModernGanttChart.svelte';
 	import ModernAnalyticsDashboard from '$lib/components/modern/ModernAnalyticsDashboard.svelte';
 	import AIProjectIntegration from '$lib/components/modern/AIProjectIntegration.svelte';
+	import PMOrchestrationDashboard from '$lib/components/orchestration/PMOrchestrationDashboard.svelte';
 	
 	let selectedProjectId = '';
 	let projects: any[] = [];
-	let selectedView: 'kanban' | 'gantt' | 'analytics' | 'ai_integration' = 'kanban';
+	let selectedView: 'orchestration' | 'kanban' | 'gantt' | 'analytics' | 'ai_integration' = 'orchestration';
 	let projectAnalytics: any = null;
 	let loading = false;
 	let error = '';
+	let orchestrationEnabled = true; // Toggle for orchestration features
 	
 	onMount(async () => {
 		await loadProjects();
@@ -79,8 +81,8 @@
 </script>
 
 <svelte:head>
-	<title>Project Management - Convergio</title>
-	<meta name="description" content="Manage your AI agent projects and workflows" />
+	<title>AI-Orchestrated Project Management - Convergio</title>
+	<meta name="description" content="CRM-style AI orchestration for project management with real-time collaboration" />
 </svelte:head>
 
 <!-- Projects Page -->
@@ -88,8 +90,8 @@
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
-			<h1 class="text-lg font-medium text-surface-900 dark:text-surface-100">Projects</h1>
-			<p class="mt-1 text-sm text-surface-700 dark:text-surface-300">Manage AI agent projects and coordinate workflows</p>
+			<h1 class="text-lg font-medium text-surface-900 dark:text-surface-100">🚀 AI-Orchestrated Project Management</h1>
+			<p class="mt-1 text-sm text-surface-700 dark:text-surface-300">CRM-style journey tracking with intelligent agent orchestration and real-time collaboration</p>
 		</div>
 		
 		<!-- Quick Actions -->
@@ -185,6 +187,14 @@
 							<!-- View Tabs -->
 							<div class="flex bg-surface-200 dark:bg-surface-800 rounded-lg p-1">
 								<button
+									on:click={() => selectedView = 'orchestration'}
+									class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 {selectedView === 'orchestration' 
+										? 'bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 shadow-sm' 
+										: 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:text-surface-100'}"
+								>
+									🚀 AI Orchestration
+								</button>
+								<button
 									on:click={() => selectedView = 'kanban'}
 									class="px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 {selectedView === 'kanban' 
 										? 'bg-surface-50 dark:bg-surface-950 text-surface-900 dark:text-surface-100 shadow-sm' 
@@ -222,7 +232,9 @@
 
 					<!-- View Content -->
 					<div class="p-4">
-						{#if selectedView === 'kanban'}
+						{#if selectedView === 'orchestration'}
+							<PMOrchestrationDashboard projectId={selectedProjectId} />
+						{:else if selectedView === 'kanban'}
 							<ModernKanbanBoard projectId={selectedProjectId} />
 						{:else if selectedView === 'gantt'}
 							<ModernGanttChart projectId={selectedProjectId} />

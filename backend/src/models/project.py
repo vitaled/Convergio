@@ -122,6 +122,8 @@ class Project(Base):
     epics = relationship("Epic", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     resources = relationship("Resource", back_populates="project", cascade="all, delete-orphan")
+    # AI Orchestration relationship - defined in project_orchestration.py
+    # orchestration = relationship("ProjectOrchestration", back_populates="project", uselist=False)
     
     # Indexes
     __table_args__ = (
