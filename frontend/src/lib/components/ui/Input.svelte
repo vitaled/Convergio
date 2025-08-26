@@ -154,10 +154,6 @@
 		font-family: var(--font-primary);
 	}
 
-	.dark .input-label {
-		@apply text-gray-300;
-	}
-
 	.input-container {
 		@apply relative;
 	}
@@ -180,10 +176,6 @@
 		@apply absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-auto cursor-pointer text-gray-400 hover:text-gray-600 transition-colors duration-200;
 	}
 
-	.dark .input-clear-btn {
-		@apply text-gray-500 hover:text-gray-300;
-	}
-
 	.input-feedback {
 		@apply mt-2 text-xs;
 		font-family: var(--font-primary);
@@ -193,16 +185,8 @@
 		@apply text-error-600;
 	}
 
-	.dark .input-error-text {
-		@apply text-error-400;
-	}
-
 	.input-helper-text {
 		@apply text-gray-500;
-	}
-
-	.dark .input-helper-text {
-		@apply text-gray-400;
 	}
 
 	/* Icon styles - replace with your icon system */

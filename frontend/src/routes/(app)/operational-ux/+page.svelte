@@ -269,7 +269,7 @@
                           </div>
                           <div>
                             <span class="font-medium">Confidence:</span>
-                            <span class="ml-2 text-sm">{(event.details.confidence * 100).toFixed(1)}%</span>
+                            <span class="ml-2 text-sm">{event.details.confidence ? (event.details.confidence * 100).toFixed(1) : 'N/A'}%</span>
                           </div>
                         </div>
                       {:else if event.type === 'tool'}

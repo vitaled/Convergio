@@ -351,7 +351,7 @@
         });
         
         // Sort agents so Ali is first
-        transformedAgents.sort((a, b) => {
+        transformedAgents.sort((a: Agent, b: Agent) => {
           // Ali Chief of Staff should be first
           if (a.key && a.key.includes('ali-chief-of-staff')) return -1;
           if (b.key && b.key.includes('ali-chief-of-staff')) return 1;

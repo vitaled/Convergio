@@ -425,7 +425,7 @@
 
 	<!-- Quick Actions -->
 	<QuickActions
-		{quickActions}
+		actions={quickActions}
 		position="bottom-right"
 		trigger="hover"
 	/>

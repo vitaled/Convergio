@@ -151,8 +151,8 @@
           <DashboardMetricCard
             title="Total Revenue"
             value={dashboardData.overview.total_revenue}
-            change={dashboardData.overview.growth_rate}
-            changeType={dashboardData.overview.growth_rate >= 0 ? 'increase' : 'decrease'}
+            change={dashboardData.overview.growth_rate ?? 0}
+            changeType={(dashboardData.overview.growth_rate ?? 0) >= 0 ? 'increase' : 'decrease'}
             icon="/convergio_icons/cost_management.svg"
             iconColor="text-green-600"
             bgColor="bg-green-50"

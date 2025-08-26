@@ -3,7 +3,7 @@
 	import { projectsService } from '$lib/services/projectsService';
 
 	// Props
-	export let projectId: string;
+	export let projectId: string | undefined = undefined;
 
 	// Interfaces
 	interface ProjectMetrics {

@@ -49,10 +49,12 @@
 		avgDuration: 0
 	};
 	
-	onMount(async () => {
-		await loadWorkflows();
-		await loadExecutions();
-		updateStats();
+	onMount(() => {
+		(async () => {
+			await loadWorkflows();
+			await loadExecutions();
+			updateStats();
+		})();
 		
 		// Poll for execution updates
 		const interval = setInterval(async () => {
@@ -325,10 +327,11 @@
 			
 			<div class="space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
+					<label for="workflow-description" class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
 						Workflow Description
 					</label>
 					<textarea
+						id="workflow-description"
 						bind:value={generationPrompt}
 						on:blur={validatePrompt}
 						placeholder="Describe the workflow you want to generate..."
@@ -345,10 +348,11 @@
 				
 				<div class="grid grid-cols-3 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
+						<label for="business-domain" class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
 							Business Domain
 						</label>
 						<select
+							id="business-domain"
 							bind:value={generationDomain}
 							class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						>
@@ -362,10 +366,11 @@
 					</div>
 					
 					<div>
-						<label class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
+						<label for="workflow-priority" class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
 							Priority
 						</label>
 						<select
+							id="workflow-priority"
 							bind:value={generationPriority}
 							class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						>
@@ -377,10 +382,11 @@
 					</div>
 					
 					<div>
-						<label class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
+						<label for="max-steps" class="block text-sm font-medium text-surface-300 dark:text-surface-700 mb-1">
 							Max Steps
 						</label>
 						<input
+							id="max-steps"
 							type="number"
 							bind:value={maxSteps}
 							min="3"
@@ -553,6 +559,7 @@
 	.line-clamp-2 {
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
