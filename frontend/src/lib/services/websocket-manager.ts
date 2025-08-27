@@ -1,5 +1,4 @@
 import { writable, get } from 'svelte/store';
-import { writable, get } from 'svelte/store';
 import { notify } from '$lib/stores/notifications';
 
 export interface WebSocketConfig {

@@ -324,6 +324,7 @@ What would you like to know about your project?`,
 					<button 
 						on:click={() => { newMessage = action; sendMessage(); }}
 						class="text-xs px-3 py-1 bg-surface-200 dark:bg-surface-700 hover:bg-primary-100 dark:hover:bg-primary-900 text-surface-700 dark:text-surface-300 hover:text-primary-700 dark:hover:text-primary-300 rounded-full transition-colors duration-200"
+						aria-label="Send quick action: {action}"
 					>
 						{action}
 					</button>
@@ -335,20 +336,26 @@ What would you like to know about your project?`,
 	<!-- Input -->
 	<div class="p-4 border-t border-surface-200 dark:border-surface-700">
 		<div class="flex space-x-3">
+			<label for="ali-message-input" class="sr-only">Message to Ali AI Assistant</label>
 			<textarea
+				id="ali-message-input"
 				bind:value={newMessage}
 				on:keydown={handleKeyPress}
 				placeholder="Ask Ali about your project..."
 				class="flex-1 input resize-none"
 				rows="1"
 				disabled={isTyping}
+				aria-describedby="ali-input-help"
 			></textarea>
+			<span id="ali-input-help" class="sr-only">Press Enter to send message, Shift+Enter for new line</span>
 			<button 
 				on:click={sendMessage}
 				disabled={!newMessage.trim() || isTyping}
 				class="btn-primary btn-icon flex-shrink-0"
+				aria-label="Send message to Ali"
+				title="Send message"
 			>
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
 				</svg>
 			</button>
@@ -374,14 +381,5 @@ What would you like to know about your project?`,
 	
 	.prose {
 		color: inherit;
-	}
-	
-	.prose strong {
-		font-weight: 600;
-		color: inherit;
-	}
-	
-	.prose em {
-		font-style: italic;
 	}
 </style>

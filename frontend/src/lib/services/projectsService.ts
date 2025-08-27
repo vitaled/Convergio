@@ -20,7 +20,7 @@ export interface Engagement {
   id: number;
   title: string;
   description?: string;
-  status: 'planning' | 'in-progress' | 'review' | 'completed';
+  status: 'planning' | 'in-progress' | 'review' | 'completed' | 'on_hold';
   progress: number;
   created_at?: string;
   updated_at?: string;
@@ -30,7 +30,7 @@ export interface EngagementDetail {
   id: number;
   title: string;
   description?: string;
-  status: 'planning' | 'in-progress' | 'review' | 'completed';
+  status: 'planning' | 'in-progress' | 'review' | 'completed' | 'on_hold';
   progress: number;
   created_at?: string;
   updated_at?: string;
@@ -38,12 +38,16 @@ export interface EngagementDetail {
 }
 
 export interface ProjectOverview {
-  total_clients: number;
   total_engagements: number;
+  status_breakdown: Record<string, number>;
   active_engagements: number;
-  completed_engagements: number;
-  clients: Client[];
   recent_engagements: Engagement[];
+}
+
+export interface EngagementCreate {
+  title: string;
+  description?: string;
+  status?: string;
 }
 
 class ProjectsService {
@@ -72,7 +76,8 @@ class ProjectsService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      return data.clients || data; // Handle both formats
     } catch (error) {
       console.error('Failed to fetch clients:', error);
       throw error;
@@ -87,7 +92,8 @@ class ProjectsService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      return data.engagements || data; // Handle both formats
     } catch (error) {
       console.error('Failed to fetch engagements:', error);
       throw error;
@@ -147,9 +153,31 @@ class ProjectsService {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      return data.activities || data; // Handle both formats
     } catch (error) {
       console.error('Failed to fetch activities:', error);
+      throw error;
+    }
+  }
+
+  async createEngagement(engagement: EngagementCreate): Promise<Engagement> {
+    try {
+      const response = await fetch(`${this.baseUrl}/projects/engagements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(engagement)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to create engagement:', error);
       throw error;
     }
   }

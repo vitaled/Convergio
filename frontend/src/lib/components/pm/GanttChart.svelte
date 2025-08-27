@@ -255,17 +255,19 @@
 						<div class="timeline-bar flex-1 min-w-[800px] p-4 relative">
 							<div class="relative h-6">
 								<!-- Task Bar -->
-								<div 
-									class="absolute top-1 h-4 rounded-md {getStatusColor(task.status)} opacity-80 cursor-pointer hover:opacity-100 transition-opacity duration-200"
-									style="{getTaskPosition(task).left}; width: {getTaskPosition(task).width}"
+								<button 
+									class="absolute top-1 h-4 rounded-md {getStatusColor(task.status)} opacity-80 hover:opacity-100 transition-opacity duration-200 w-full cursor-pointer border-0 p-0"
+									style="left: {getTaskPosition(task).left}; width: {getTaskPosition(task).width}"
 									on:click={() => selectedTask = task}
+									aria-label="View details for task: {task.name}"
+									title="Click to view task details"
 								>
 									<!-- Progress Indicator -->
 									<div 
 										class="h-full bg-white bg-opacity-30 rounded-md"
 										style="width: {task.progress}%"
 									></div>
-								</div>
+								</button>
 								
 								<!-- Dependency Lines -->
 								{#each task.dependencies as depId}

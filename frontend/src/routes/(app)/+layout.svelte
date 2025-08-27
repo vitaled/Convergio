@@ -6,8 +6,7 @@
   import CostDisplay from '$lib/components/CostDisplay.svelte';
   import ApiStatusDropdown from '$lib/components/ApiStatusDropdown.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-  import '$lib/styles/modern-ui.css';
-  import '$lib/styles/design-system.css';
+  import '$lib/styles/unified-design-system.css';
   
   // MVP navigation items (simplified for initial release)
   const navItems = [
