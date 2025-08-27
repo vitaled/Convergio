@@ -17,12 +17,13 @@ Dependencies: Agent definition standardization, advanced UI components
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { writable } from 'svelte/store';
+	import { writable, type Writable } from 'svelte/store';
+	import type { Agent } from '$lib/services/agentsService';
 	// import AgentEditor from '$lib/components/AgentEditor.svelte';
 	
-	// Stores
-	let agents = writable([]);
-	let selectedAgent = writable(null);
+	// Stores with proper typing
+	let agents: Writable<Agent[]> = writable([]);
+	let selectedAgent: Writable<Agent | null> = writable(null);
 	let showEditor = writable(false);
 	let isNewAgent = writable(false);
 	
@@ -39,18 +40,18 @@ Dependencies: Agent definition standardization, advanced UI components
 		.filter(agent => {
 			const matchesSearch = !searchQuery || 
 				agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				agent.description.toLowerCase().includes(searchQuery.toLowerCase());
+				(agent.description && agent.description.toLowerCase().includes(searchQuery.toLowerCase()));
 			const matchesTier = !selectedTier || agent.tier === selectedTier;
 			return matchesSearch && matchesTier;
 		})
 		.sort((a, b) => {
-			const aVal = a[sortBy];
-			const bVal = b[sortBy];
+			const aVal = (a as any)[sortBy] || '';
+			const bVal = (b as any)[sortBy] || '';
 			const compareResult = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
 			return sortOrder === 'asc' ? compareResult : -compareResult;
 		});
 	
-	$: availableTiers = [...new Set($agents.map(agent => agent.tier))].sort();
+	$: availableTiers = [...new Set($agents.map(agent => agent.tier).filter(Boolean))].sort();
 	
 	onMount(async () => {
 		await loadAgents();
@@ -348,29 +349,29 @@ Dependencies: Agent definition standardization, advanced UI components
 							<div class="flex items-center space-x-3 mb-3">
 								<div 
 									class="w-12 h-12 rounded-lg flex items-center justify-center text-surface-950 dark:text-surface-50 font-bold text-lg"
-									style="background-color: {agent.color || '#4A90E2'}"
+									style="background-color: #4A90E2"
 									role="img"
 									aria-label="Agent avatar for {agent.name}"
 								>
 									{getAgentInitials(agent.name)}
 								</div>
 								<div class="flex-1 min-w-0">
-									<h3 id="agent-{agent.key}-name" class="font-semibold text-surface-100 dark:text-surface-900 truncate" title={agent.name}>
+									<h3 id="agent-{agent.agent_key}-name" class="font-semibold text-surface-100 dark:text-surface-900 truncate" title={agent.name}>
 										{agent.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
 									</h3>
-									<p class="text-sm text-surface-500 dark:text-surface-500 truncate" title={agent.description}>
-										{agent.description}
+									<p class="text-sm text-surface-500 dark:text-surface-500 truncate" title={agent.description || 'No description available'}>
+										{agent.description || 'No description available'}
 									</p>
 								</div>
 							</div>
 							<div class="flex items-center justify-between">
-								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getTierColor(agent.tier)}" aria-label="Agent tier: {agent.tier}">
-									{agent.tier}
+								<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {getTierColor(agent.tier || 'junior')}" aria-label="Agent tier: {agent.tier || 'junior'}">
+									{agent.tier || 'junior'}
 								</span>
 								<div class="flex space-x-1" aria-label="Agent capabilities">
-									<span class="text-xs text-surface-500 dark:text-surface-500">{agent.tools_count} tools</span>
+									<span class="text-xs text-surface-500 dark:text-surface-500">{agent.tools_count || 0} tools</span>
 									<span class="text-xs text-gray-400" aria-hidden="true">•</span>
-									<span class="text-xs text-surface-500 dark:text-surface-500">{agent.expertise_count} areas</span>
+									<span class="text-xs text-surface-500 dark:text-surface-500">{agent.expertise_count || 0} areas</span>
 								</div>
 							</div>
 						</div>
@@ -431,8 +432,8 @@ Dependencies: Agent definition standardization, advanced UI components
 					<div class="text-sm text-surface-500 dark:text-surface-500">Available Tiers</div>
 				</div>
 				<div class="text-center" role="listitem">
-					<div class="text-2xl font-bold text-orange-600" aria-label="{$agents.reduce((sum, agent) => sum + agent.tools_count, 0)} total tools">
-						{$agents.reduce((sum, agent) => sum + agent.tools_count, 0)}
+					<div class="text-2xl font-bold text-orange-600" aria-label="{$agents.reduce((sum, agent) => sum + (agent.tools_count || 0), 0)} total tools">
+						{$agents.reduce((sum, agent) => sum + (agent.tools_count || 0), 0)}
 					</div>
 					<div class="text-sm text-surface-500 dark:text-surface-500">Total Tools</div>
 				</div>

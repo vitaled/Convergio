@@ -2,8 +2,12 @@ export interface Agent {
   agent_key: string;
   name: string;
   role?: string;
+  description?: string;
   status: 'active' | 'inactive' | 'busy' | 'error';
   capabilities: string[];
+  tier?: 'junior' | 'mid' | 'senior' | 'lead' | 'specialist';
+  tools_count?: number;
+  expertise_count?: number;
   performance_metrics?: {
     total_tasks: number;
     success_rate: number;
