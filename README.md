@@ -90,6 +90,71 @@ npm run dev
 
 ---
 
+## 📁 Project Structure
+
+```
+convergio/
+├── 📄 README.md                          # This file
+├── 📄 LICENSE                            # BSL 1.1 License
+├── 📄 VERSION                            # Version tracking
+├── 📄 start.sh                          # Quick start script
+├── 📄 test.sh                           # Comprehensive test runner
+├── 📄 pytest.ini                        # Test configuration
+│
+├── 📁 backend/                           # FastAPI backend (Python 3.11+)
+│   ├── 📄 requirements.txt              # Python dependencies
+│   ├── 📄 pyproject.toml               # Python project config
+│   ├── 📄 validate_imports.py          # Import consistency validator
+│   └── 📁 src/                          # Source code
+│       ├── 📄 main.py                   # FastAPI application entry
+│       ├── 📁 api/                      # REST API endpoints
+│       ├── 📁 agents/                   # AI agent definitions & orchestration
+│       ├── 📁 core/                     # Core utilities (database, config, etc.)
+│       ├── 📁 models/                   # SQLAlchemy models
+│       └── 📁 services/                 # Business logic services
+│
+├── 📁 frontend/                          # SvelteKit frontend (TypeScript)
+│   ├── 📄 package.json                  # NPM dependencies
+│   ├── 📄 svelte.config.js             # SvelteKit configuration
+│   ├── 📄 tailwind.config.js           # TailwindCSS configuration
+│   ├── 📄 playwright.config.ts         # E2E test configuration
+│   └── 📁 src/                          # Source code
+│       ├── 📁 lib/                      # Reusable components & utilities
+│       └── 📁 routes/                   # SvelteKit pages & API routes
+│
+├── 📁 docs/                             # Documentation
+│   ├── 📄 API_REFERENCE.md             # Complete API documentation
+│   ├── 📄 ADMIN_GUIDE.md               # Administrator guide
+│   ├── 📄 AGENTS.md                    # AI agents catalog
+│   ├── 📄 IMPORT_PATH_CONSISTENCY_GUIDE.md  # Import standards (moved)
+│   ├── 📄 PM_DASHBOARD_IMPLEMENTATION_SUMMARY.md  # Dashboard docs (moved)
+│   └── 📄 USER_GUIDE.md                # End user guide
+│
+├── 📁 scripts/test/                     # Test automation scripts (organized)
+│   ├── 📄 01_test_backend_unit.sh       # Backend unit tests
+│   ├── 📄 02_test_backend_integration.sh # Backend integration tests
+│   ├── 📄 03_test_backend_e2e.sh        # Backend E2E tests
+│   └── 📄 ...                          # Additional test scripts
+│
+├── 📁 tests/                            # Main test directory
+│   ├── 📄 conftest.py                   # Pytest configuration
+│   ├── 📄 master_test_runner.py        # Central test orchestration
+│   └── 📁 backend/                      # Backend-specific tests
+│
+└── 📁 logs/                             # Test execution logs (auto-generated)
+    └── 📄 test_*.log                    # Individual test execution logs
+```
+
+### 🔑 Key Directories
+
+- **`backend/src/agents/definitions/`** - 48 specialized AI agent definitions
+- **`backend/src/api/`** - FastAPI routers for all endpoints
+- **`frontend/src/lib/components/`** - Reusable Svelte components
+- **`docs/`** - Comprehensive documentation (organized and updated)
+- **`scripts/test/`** - All test automation scripts (organized from root)
+
+---
+
 ## 📚 Documentation
 
 ### Core Documentation
@@ -98,6 +163,8 @@ npm run dev
 - **Agent Definitions**: [docs/AGENTS.md](docs/AGENTS.md) - All 48 agents documented
 - **Database Schema**: [docs/DataBaseSchema.md](docs/DataBaseSchema.md)
 - **Security System**: [docs/SECURE_COST_SYSTEM_VERIFICATION.md](docs/SECURE_COST_SYSTEM_VERIFICATION.md)
+- **Import Path Guide**: [docs/IMPORT_PATH_CONSISTENCY_GUIDE.md](docs/IMPORT_PATH_CONSISTENCY_GUIDE.md) - Import standards (organized)
+- **PM Dashboard Docs**: [docs/PM_DASHBOARD_IMPLEMENTATION_SUMMARY.md](docs/PM_DASHBOARD_IMPLEMENTATION_SUMMARY.md) - Dashboard implementation (organized)
 
 ### Agent System
 - **Agent Definitions**: backend/src/agents/definitions/
