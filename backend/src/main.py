@@ -25,40 +25,40 @@ from prometheus_client import make_asgi_app
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from core.rate_limiting_enhanced import create_enhanced_rate_limiter, get_slowapi_limiter, ProductionRateLimitMiddleware
+from .core.rate_limiting_enhanced import create_enhanced_rate_limiter, get_slowapi_limiter, ProductionRateLimitMiddleware
 
-from core.config_enhanced import initialize_configuration
-from core.database import init_db, close_db
-from core.redis import init_redis, close_redis
-from core.logging_utils import setup_async_logging
-from core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
-from core.error_handling_enhanced import error_handler, handle_startup_validation, validate_service_connectivity, ErrorContext
-from core.security_config import initialize_secure_defaults, validate_security_config
-from core.config_validator import ConfigValidator
+from .core.config_enhanced import initialize_configuration
+from .core.database import init_db, close_db
+from .core.redis import init_redis, close_redis
+from .core.logging_utils import setup_async_logging
+from .core.security_middleware import SecurityHeadersMiddleware, RateLimitMiddleware
+from .core.error_handling_enhanced import error_handler, handle_startup_validation, validate_service_connectivity, ErrorContext
+from .core.security_config import initialize_secure_defaults, validate_security_config
+from .core.config_validator import ConfigValidator
 
 # Import routers
-from api.talents import router as talents_router
-from api.agents import router as agents_router
-from api.vector import router as vector_router
-from api.health import router as health_router
-from api.user_keys import router as user_keys_router
-from api.ali_intelligence import router as ali_intelligence_router
-from api.cost_management import router as cost_management_router
-from api.analytics import router as analytics_router
-from api.workflows import router as workflows_router
-from api.agent_signatures import router as agent_signatures_router
-from api.component_serialization import router as serialization_router
-from api.agent_management import router as agent_management_router
-from api.swarm_coordination import router as swarm_coordination_router
-from api.agents_ecosystem import router as agents_ecosystem_router
-from api.admin import router as admin_router
-from api.approvals import router as approvals_router
-from api.projects import router as projects_router
-from api.system_status import router as system_status_router
-from api.telemetry import router as telemetry_router
-from api.governance import router as governance_router
-from api.pm_orchestration import router as pm_orchestration_router
-from api.realtime_endpoints import router as realtime_router
+from .api.talents import router as talents_router
+from .api.agents import router as agents_router
+from .api.vector import router as vector_router
+from .api.health import router as health_router
+from .api.user_keys import router as user_keys_router
+from .api.ali_intelligence import router as ali_intelligence_router
+from .api.cost_management import router as cost_management_router
+from .api.analytics import router as analytics_router
+from .api.workflows import router as workflows_router
+from .api.agent_signatures import router as agent_signatures_router
+from .api.component_serialization import router as serialization_router
+from .api.agent_management import router as agent_management_router
+from .api.swarm_coordination import router as swarm_coordination_router
+from .api.agents_ecosystem import router as agents_ecosystem_router
+from .api.admin import router as admin_router
+from .api.approvals import router as approvals_router
+from .api.projects import router as projects_router
+from .api.system_status import router as system_status_router
+from .api.telemetry import router as telemetry_router
+from .api.governance import router as governance_router
+from .api.pm_orchestration import router as pm_orchestration_router
+from .api.realtime_endpoints import router as realtime_router
 
 # Setup non-blocking structured logging for asyncio
 setup_async_logging()
@@ -117,14 +117,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         try:
             if settings.ENVIRONMENT == "development" and not os.getenv("SKIP_AUTO_MIGRATIONS", "false").lower() in ("true", "1", "yes"):
                 from sqlalchemy import text as _sql_text
-                from core.database import async_engine
+                from .core.database import async_engine
                 async with async_engine.begin() as conn:
                     # Create tables if not exist
-                    from core.database import Base
+                    from .core.database import Base
                     await conn.run_sync(Base.metadata.create_all)
                 logger.info("🧱 Database tables ensured (development mode)")
                 # Ensure specific dev schema consistency (lightweight auto-migrations)
-                from core.database import ensure_dev_schema
+                from .core.database import ensure_dev_schema
                 await ensure_dev_schema()
             else:
                 logger.info("⏭️ Auto-migrations skipped (SKIP_AUTO_MIGRATIONS=true)")
@@ -140,7 +140,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize enhanced rate limiting system
         logger.info("🚦 Initializing enhanced rate limiting...")
         try:
-            from core.redis import get_redis_client
+            from .core.redis import get_redis_client
             redis_client = await get_redis_client()
             
             rate_engine, rate_middleware = create_enhanced_rate_limiter(
@@ -159,7 +159,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize AI agent system
         logger.info("🤖 Initializing AI agent orchestration system...")
         try:
-            from agents.orchestrator import initialize_agents
+            from .agents.orchestrator import initialize_agents
             await initialize_agents()
             logger.info("✅ AI Agent System initialized successfully")
         except Exception as agent_error:
@@ -169,7 +169,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize streaming orchestrator system
         logger.info("🌊 Initializing streaming orchestrator system...")
         try:
-            from agents.services.streaming_orchestrator import get_streaming_orchestrator
+            from .agents.services.streaming_orchestrator import get_streaming_orchestrator
             streaming_orchestrator = get_streaming_orchestrator()
             await streaming_orchestrator.initialize()
             logger.info("✅ Streaming Orchestrator initialized successfully")
@@ -183,7 +183,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         # Initialize database maintenance scheduler
         logger.info("🔧 Initializing database maintenance scheduler...")
         try:
-            from core.db_maintenance import get_db_maintenance
+            from .core.db_maintenance import get_db_maintenance
             db_maintenance = get_db_maintenance()
             # Schedule VACUUM ANALYZE at 3:00 AM UTC daily
             db_maintenance.schedule_maintenance(vacuum_hour=3, vacuum_minute=0)
@@ -206,7 +206,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     try:
         # Stop database maintenance scheduler
         try:
-            from core.db_maintenance import get_db_maintenance
+            from .core.db_maintenance import get_db_maintenance
             db_maintenance = get_db_maintenance()
             db_maintenance.stop_maintenance()
             logger.info("✅ Database maintenance scheduler stopped")
@@ -255,7 +255,7 @@ def create_app() -> FastAPI:
     # Note: Redis is initialized in lifespan startup. Middleware is attached here without blocking on Redis.
     if settings.RATE_LIMITING_ENABLED:
         try:
-            from core.redis import get_redis_client
+            from .core.redis import get_redis_client
             redis_client = get_redis_client()
             rate_engine, _ = create_enhanced_rate_limiter(redis_client, enabled=True)
             app.add_middleware(ProductionRateLimitMiddleware, rate_engine=rate_engine, enabled=True)
