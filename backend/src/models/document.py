@@ -19,6 +19,7 @@ class Document(Base):
     """Document model for vector search indexing - no user auth required"""
     
     __tablename__ = "documents"
+    __table_args__ = {'extend_existing': True}
     
     # Primary key with auto-increment
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -188,6 +189,7 @@ class DocumentEmbedding(Base):
     """Document embedding model for vector search"""
     
     __tablename__ = "document_embeddings"
+    __table_args__ = {'extend_existing': True}
     
     # Primary key with auto-increment
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
