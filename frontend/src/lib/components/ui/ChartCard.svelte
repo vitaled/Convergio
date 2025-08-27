@@ -223,7 +223,9 @@
 	}
 
 	.chart-header {
-		@apply px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50;
+		padding: 1rem 1.5rem;
+		border-bottom: 1px solid var(--color-border-light);
+		background-color: var(--color-surface-50);
 	}
 
 	.header-content {
@@ -305,11 +307,15 @@
 	}
 
 	.chart-legend {
-		@apply px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/30;
+		padding: 1rem 1.5rem;
+		border-top: 1px solid var(--color-border-light);
+		background-color: var(--color-surface-50);
 	}
 
 	.chart-footer {
-		@apply px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/30;
+		padding: 1rem 1.5rem;
+		border-top: 1px solid var(--color-border-light);
+		background-color: var(--color-surface-50);
 	}
 
 	.fullscreen-backdrop {

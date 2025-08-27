@@ -78,7 +78,7 @@
 	}
 
 	.dark .badge-remove-btn:hover {
-		@apply bg-white/10;
+		background-color: rgba(255, 255, 255, 0.1);
 	}
 
 	/* Icon styles */

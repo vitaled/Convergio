@@ -319,8 +319,23 @@
 	}
 
 	.header-action-btn {
-		@apply text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors duration-200;
+		font-size: var(--text-xs);
+		color: var(--color-primary-600);
+		font-weight: var(--font-medium);
+		transition: color 0.2s ease;
 		font-family: var(--font-primary);
+	}
+	
+	.dark .header-action-btn {
+		color: var(--color-primary-400);
+	}
+	
+	.header-action-btn:hover {
+		color: var(--color-primary-700);
+	}
+	
+	.dark .header-action-btn:hover {
+		color: var(--color-primary-300);
 	}
 
 	.dropdown-content {
@@ -356,7 +371,11 @@
 	}
 
 	.notification-item.unread {
-		@apply bg-primary-50 dark:bg-primary-900/20;
+		background-color: var(--color-primary-50);
+	}
+	
+	.dark .notification-item.unread {
+		background-color: var(--color-primary-900);
 	}
 
 	.unread-indicator {
@@ -372,19 +391,43 @@
 	}
 
 	.notification-icon.type-info {
-		@apply bg-info-100 text-info-600 dark:bg-info-900/30 dark:text-info-400;
+		background-color: var(--color-info-100, #dbeafe);
+		color: var(--color-info-600, #2563eb);
+	}
+	
+	.dark .notification-icon.type-info {
+		background-color: var(--color-info-900, #1e3a8a);
+		color: var(--color-info-400, #60a5fa);
 	}
 
 	.notification-icon.type-success {
-		@apply bg-success-100 text-success-600 dark:bg-success-900/30 dark:text-success-400;
+		background-color: var(--color-success-100, #dcfce7);
+		color: var(--color-success-600, #059669);
+	}
+	
+	.dark .notification-icon.type-success {
+		background-color: var(--color-success-900, #064e3b);
+		color: var(--color-success-400, #4ade80);
 	}
 
 	.notification-icon.type-warning {
-		@apply bg-warning-100 text-warning-600 dark:bg-warning-900/30 dark:text-warning-400;
+		background-color: var(--color-warning-100, #fef3c7);
+		color: var(--color-warning-600, #d97706);
+	}
+	
+	.dark .notification-icon.type-warning {
+		background-color: var(--color-warning-900, #78350f);
+		color: var(--color-warning-400, #fbbf24);
 	}
 
 	.notification-icon.type-error {
-		@apply bg-error-100 text-error-600 dark:bg-error-900/30 dark:text-error-400;
+		background-color: var(--color-error-100, #fee2e2);
+		color: var(--color-error-600, #dc2626);
+	}
+	
+	.dark .notification-icon.type-error {
+		background-color: var(--color-error-900, #7f1d1d);
+		color: var(--color-error-400, #f87171);
 	}
 
 	.notification-content {
@@ -428,8 +471,25 @@
 	}
 
 	.view-all-link {
-		@apply block text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-center transition-colors duration-200;
+		display: block;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--color-primary-600);
+		text-align: center;
+		transition: color 0.2s ease;
 		font-family: var(--font-primary);
+	}
+	
+	.dark .view-all-link {
+		color: var(--color-primary-400);
+	}
+	
+	.view-all-link:hover {
+		color: var(--color-primary-700);
+	}
+	
+	.dark .view-all-link:hover {
+		color: var(--color-primary-300);
 	}
 
 	/* Icon styles */

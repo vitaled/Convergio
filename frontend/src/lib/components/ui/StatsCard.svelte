@@ -40,11 +40,11 @@
 
 	// Compute icon color classes
 	$: iconColorClasses = {
-		primary: 'text-primary-600 bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400',
-		success: 'text-success-600 bg-success-100 dark:bg-success-900/30 dark:text-success-400',
-		warning: 'text-warning-600 bg-warning-100 dark:bg-warning-900/30 dark:text-warning-400',
-		error: 'text-error-600 bg-error-100 dark:bg-error-900/30 dark:text-error-400',
-		info: 'text-info-600 bg-info-100 dark:bg-info-900/30 dark:text-info-400',
+		primary: 'text-primary-600 bg-primary-100 dark:bg-primary-900 dark:text-primary-400',
+		success: 'text-success-600 bg-success-100 dark:bg-success-900 dark:text-success-400',
+		warning: 'text-warning-600 bg-warning-100 dark:bg-warning-900 dark:text-warning-400',
+		error: 'text-error-600 bg-error-100 dark:bg-error-900 dark:text-error-400',
+		info: 'text-info-600 bg-info-100 dark:bg-info-900 dark:text-info-400',
 		gray: 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-400'
 	};
 

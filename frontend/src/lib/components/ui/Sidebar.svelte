@@ -286,48 +286,87 @@
 	}
 
 	.sidebar-nav {
-		@apply flex-1 px-4 py-6 overflow-y-auto;
+		flex: 1;
+		padding: 1.5rem 1rem;
+		overflow-y: auto;
 	}
 
 	.nav-list {
-		@apply space-y-2;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	.nav-item {
-		@apply relative;
+		position: relative;
 	}
 
 	.nav-link {
-		@apply flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.5rem 0.75rem;
+		font-size: var(--text-sm);
+		font-weight: var(--font-medium);
+		color: var(--color-text-secondary);
+		border-radius: var(--radius-lg);
+		transition: all 0.2s ease;
 		font-family: var(--font-primary);
+		outline: none;
+	}
+	
+	.nav-link:hover {
+		background-color: var(--color-surface-100);
+	}
+
+	.nav-link:focus {
+		box-shadow: 0 0 0 2px var(--color-primary-500);
 	}
 
 	.nav-link.active {
-		@apply bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300;
+		background-color: var(--color-primary-100);
+		color: var(--color-primary-700);
+	}
+	
+	.dark .nav-link.active {
+		background-color: var(--color-primary-900);
+		color: var(--color-primary-300);
 	}
 
 	.nav-link.disabled {
-		@apply opacity-50 cursor-not-allowed pointer-events-none;
+		opacity: 0.5;
+		cursor: not-allowed;
+		pointer-events: none;
 	}
 
 	.nav-group {
-		@apply border-none bg-transparent cursor-pointer;
+		border: none;
+		background-color: transparent;
+		cursor: pointer;
 	}
 
 	.nav-child {
-		@apply ml-6 text-xs;
+		margin-left: 1.5rem;
+		font-size: var(--text-xs);
 	}
 
 	.collapsed .nav-link {
-		@apply justify-center px-2;
+		justify-content: center;
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
 	}
 
 	.nav-icon {
-		@apply w-5 h-5 flex-shrink-0;
+		width: 1.25rem;
+		height: 1.25rem;
+		flex-shrink: 0;
 	}
 
 	.nav-label {
-		@apply flex-1 truncate;
+		flex: 1;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.nav-badge {
