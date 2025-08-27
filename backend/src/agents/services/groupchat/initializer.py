@@ -9,7 +9,7 @@ import logging
 
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
-from agents.services.agent_loader import DynamicAgentLoader, AgentMetadata
+from ..agent_loader import DynamicAgentLoader, AgentMetadata
 from agents.utils.config import get_settings
 
 
@@ -37,7 +37,7 @@ if not openai_logger.handlers:
 
 def initialize_model_client() -> OpenAIChatCompletionClient:
     """Initialize model client using centralized AI client manager"""
-    from core.ai_clients import get_autogen_client
+    from ....core.ai_clients import get_autogen_client
     
     settings = get_settings()
     

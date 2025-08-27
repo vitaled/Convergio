@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
-from core.config import get_settings
+from .config import get_settings
 
 logger = structlog.get_logger()
 
@@ -198,16 +198,16 @@ async def init_db() -> None:
         # Test connection and (optionally) ensure basic schema in test/dev
         # Use the test-patched engine for initialization if present
         base_engine = engine or async_engine
-        begin_ctx = base_engine.begin()
-        if asyncio.iscoroutine(begin_ctx) or hasattr(begin_ctx, "__await__"):
-            begin_ctx = await begin_ctx
-        async with begin_ctx as conn:
+        async with base_engine.begin() as conn:
             # Ensure required extension (Postgres only)
             try:
-                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                logger.info("🧩 Ensured pgvector extension present")
+                if str(async_engine.url).startswith("postgresql"):
+                    await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                    logger.info("🧩 Ensured pgvector extension present")
             except Exception as ext_e:
                 logger.warning("⚠️ Unable to ensure pgvector extension", error=str(ext_e))
+
+            # Simple connectivity check
             await conn.run_sync(lambda sync_conn: sync_conn.execute(text("SELECT 1")))
 
             # Optionally auto-create tables in test/dev or when running under pytest
@@ -220,9 +220,14 @@ async def init_db() -> None:
             settings_env = get_settings().ENVIRONMENT
             if should_autocreate or running_pytest or settings_env in ("test", "development"):
                 try:
-                    # Check for presence of a core table used by tests
-                    res = await conn.execute(text("SELECT to_regclass('public.projects')"))
-                    reg = res.scalar()
+                    # Check for presence of a core table used by tests (Postgres only)
+                    reg = None
+                    try:
+                        if str(async_engine.url).startswith("postgresql"):
+                            res = await conn.execute(text("SELECT to_regclass('public.projects')"))
+                            reg = res.scalar()
+                    except Exception:
+                        reg = None
                     if not reg:
                         # Import models to populate metadata, then create all
                         try:
@@ -237,7 +242,7 @@ async def init_db() -> None:
                             from models import tenant as _m_tenant    # noqa: F401
                         except Exception as _imp_e:
                             logger.warning("⚠️ Model import for create_all failed", error=str(_imp_e))
-                        from core.database import Base as _Base
+                        from .database import Base as _Base
                         await conn.run_sync(_Base.metadata.create_all)
                         logger.info("🧱 Database tables ensured (auto-create in test/dev)")
                 except Exception as ce:
@@ -287,7 +292,7 @@ async def init_db() -> None:
                 # Ensure tables exist for basic operation
                 try:
                     async with async_engine.begin() as conn:
-                        from core.database import Base as _Base
+                        from .database import Base as _Base
                         await conn.run_sync(_Base.metadata.create_all)
                     logger.info("🧱 SQLite fallback tables ensured")
                 except Exception as ce:

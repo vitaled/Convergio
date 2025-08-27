@@ -12,8 +12,8 @@ from dataclasses import dataclass
 import structlog
 from autogen_agentchat.messages import TextMessage
 
-from agents.memory.autogen_memory_system import AutoGenMemorySystem, MemoryType, MemoryEntry
-from agents.utils.config import get_settings
+from ...memory.autogen_memory_system import AutoGenMemorySystem, MemoryType, MemoryEntry
+from ...utils.config import get_settings
 from .rag_enhancements import (
     DynamicThreshold,
     PerAgentFilter,
@@ -259,7 +259,7 @@ class AdvancedRAGProcessor:
     async def _calculate_relevance_score(self, content: str, query: str) -> float:
         """Calculate semantic relevance score using embedding similarity"""
         try:
-            from agents.tools.vector_search_client import embed_text, calculate_similarity
+            from ..tools.vector_search_client import embed_text, calculate_similarity
             
             content_embedding = await embed_text(content)
             query_embedding = await embed_text(query)

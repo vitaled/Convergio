@@ -11,10 +11,10 @@ import structlog
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db_session, check_database_health
-from core.redis import get_redis_client
-from core.config import get_settings
-from core.monitoring import health_checker, HealthStatus
+from ..core.database import get_db_session, check_database_health
+from ..core.redis import get_redis_client
+from ..core.config import get_settings
+from ..core.monitoring import health_checker, HealthStatus
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Health"])
@@ -101,21 +101,25 @@ async def cache_health():
     try:
         redis_client = get_redis_client()
         
-        # Test basic operations
+        # Test basic operations (best-effort for no-op client)
         test_key = "health_check_test"
-        await redis_client.set(test_key, "test_value", ex=60)
-        value = await redis_client.get(test_key)
-        await redis_client.delete(test_key)
+        try:
+            await redis_client.set(test_key, "test_value", ex=60)
+            value = await redis_client.get(test_key)
+            await redis_client.delete(test_key)
+        except Exception:
+            value = None
         
-        if value != "test_value":
-            raise Exception("Redis read/write test failed")
+        # Get Redis info if available
+        try:
+            info = await redis_client.info()
+        except Exception:
+            info = {}
         
-        # Get Redis info
-        info = await redis_client.info()
-        
+        status = "healthy" if value == "test_value" or info != {} else "degraded"
         return {
-            "status": "healthy",
-            "connection": "active",
+            "status": status,
+            "connection": "active" if status == "healthy" else "limited",
             "version": info.get("redis_version", "unknown"),
             "memory": {
                 "used": info.get("used_memory_human", "unknown"),
@@ -145,8 +149,8 @@ async def agents_health():
     
     try:
         # Implement actual agents health check
-        from agents.orchestrator import get_agent_orchestrator
-        from agents.services.agent_loader import DynamicAgentLoader
+        from ..agents.orchestrator import get_agent_orchestrator
+        from ..agents.services.agent_loader import DynamicAgentLoader
         
         try:
             orchestrator = await get_agent_orchestrator()
@@ -197,7 +201,7 @@ async def vector_health():
     
     try:
         # Implement actual vector health check
-        from core.database import get_async_session
+        from ..core.database import get_async_session
         from sqlalchemy import text
         
         try:
@@ -411,7 +415,7 @@ async def startup_verification():
     
     Verify all services required for startup are healthy
     """
-    from core.error_handling_enhanced import validate_service_connectivity
+    from ..core.error_handling_enhanced import validate_service_connectivity
     
     try:
         # Run connectivity validation

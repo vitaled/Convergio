@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 import httpx
 import structlog
+# Use absolute imports so pytest with python_paths=backend/src can import correctly
 from agents.utils.config import get_settings
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession

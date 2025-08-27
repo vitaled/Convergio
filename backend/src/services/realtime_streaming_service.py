@@ -15,9 +15,9 @@ from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from core.config import get_settings
-from core.database import get_async_session
-from models.project_orchestration import (
+from ..core.config import get_settings
+from ..core.database import get_async_session
+from ..models.project_orchestration import (
     ProjectOrchestration, ProjectConversation, ProjectTouchpoint,
     OrchestrationStatus, JourneyStage
 )

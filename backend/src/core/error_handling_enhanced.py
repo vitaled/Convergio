@@ -324,7 +324,17 @@ class EnhancedErrorHandler:
 error_handler = EnhancedErrorHandler()
 
 def handle_startup_validation(required_services: List[str]) -> None:
-    """Validate required services are available at startup"""
+    """Validate required services are available at startup.
+
+    In test environment, skip strict validation to allow the app to boot
+    with in-memory/sqlite fallback and mocked services.
+    """
+    import os
+    env = os.getenv("ENVIRONMENT", "development").lower()
+    if env == "test":
+        logger.warning("🧪 Skipping strict startup validation in test environment")
+        return
+
     logger.info("🔍 Validating required services", services=required_services)
     
     errors = []
@@ -333,7 +343,6 @@ def handle_startup_validation(required_services: List[str]) -> None:
         try:
             if service == "database":
                 # Check database connection
-                import os
                 if not all([
                     os.getenv("POSTGRES_HOST"),
                     os.getenv("POSTGRES_DB"),
@@ -343,7 +352,8 @@ def handle_startup_validation(required_services: List[str]) -> None:
                     errors.append("Database configuration incomplete")
             
             elif service == "redis":
-                if not os.getenv("REDIS_HOST"):
+                # Accept either REDIS_HOST or consolidated REDIS_URL
+                if not (os.getenv("REDIS_HOST") or os.getenv("REDIS_URL")):
                     errors.append("Redis configuration incomplete")
             
             elif service == "ai_apis":
@@ -369,7 +379,7 @@ async def validate_service_connectivity() -> Dict[str, bool]:
     
     # Database connectivity
     try:
-        from core.database import get_db_session
+        from .database import get_db_session
         from sqlalchemy import text as _sql_text
         async with get_db_session() as session:
             await session.execute(_sql_text("SELECT 1"))
@@ -381,7 +391,7 @@ async def validate_service_connectivity() -> Dict[str, bool]:
     
     # Redis connectivity
     try:
-        from core.redis import get_redis_client
+        from .redis import get_redis_client
         redis_client = get_redis_client()
         await redis_client.ping()
         results["redis"] = True

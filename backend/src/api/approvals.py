@@ -8,11 +8,11 @@ from fastapi import APIRouter, HTTPException, Query, Body
 from pydantic import BaseModel
 import structlog
 
-from agents.services.hitl.approval_store_redis import (
+from ..agents.services.hitl.approval_store_redis import (
     RedisApprovalStore, ApprovalStatus, RiskLevel
 )
-from core.redis import get_redis_client
-from core.config import get_settings
+from ..core.redis import get_redis_client
+from ..core.config import get_settings
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["approvals"])

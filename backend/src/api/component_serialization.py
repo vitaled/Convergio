@@ -10,8 +10,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import structlog
 
-from agents.serialization.component_serializer import component_serializer
-from core.logging import get_logger
+from ..agents.serialization.component_serializer import component_serializer
+from ..core.logging import get_logger
 
 logger = get_logger()
 router = APIRouter()

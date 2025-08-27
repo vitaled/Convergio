@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import structlog
 
-from agents.orchestrator import get_agent_orchestrator
+from ..agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 

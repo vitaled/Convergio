@@ -12,12 +12,12 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Authentication removed - no auth required for some endpoints
-from core.database import get_db_session
-from core.redis import cache_get, cache_set
-from services.unified_cost_tracker import unified_cost_tracker
-from services.budget_monitor_service import budget_monitor
-from services.pricing_updater_service import pricing_updater
-from services.circuit_breaker_service import circuit_breaker
+from ..core.database import get_db_session
+from ..core.redis import cache_get, cache_set
+from ..services.unified_cost_tracker import unified_cost_tracker
+from ..services.budget_monitor_service import budget_monitor
+from ..services.pricing_updater_service import pricing_updater
+from ..services.circuit_breaker_service import circuit_breaker
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Cost Management"])
@@ -156,7 +156,7 @@ async def get_real_cost_data():
         # Also try to get OpenAI usage if API key available
         openai_usage = None
         try:
-            from core.config import get_settings
+            from ..core.config import get_settings
             settings = get_settings()
             if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
                 today = datetime.utcnow().strftime('%Y-%m-%d')

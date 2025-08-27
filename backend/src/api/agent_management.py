@@ -9,7 +9,7 @@ from pathlib import Path
 import json
 import yaml
 
-from agents.services.agent_loader import DynamicAgentLoader
+from ..agents.services.agent_loader import DynamicAgentLoader
 from pydantic import BaseModel
 
 router = APIRouter(tags=["Agent Management"])

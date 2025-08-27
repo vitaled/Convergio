@@ -12,7 +12,7 @@ from structlog.processors import JSONRenderer
 from structlog.stdlib import add_log_level, filter_by_level
 from structlog.dev import ConsoleRenderer
 
-from core.config import get_settings
+from .config import get_settings
 
 # Define known chatty third-party loggers used in the project
 openai_logger = logging.getLogger("openai")

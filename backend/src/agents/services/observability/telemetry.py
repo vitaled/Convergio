@@ -778,7 +778,7 @@ class ConvergioTelemetry:
         """Get total telemetry events count from storage."""
         try:
             # Try to get from Redis cache first
-            from core.redis import get_redis_client
+            from ...core.redis import get_redis_client
             redis_client = await get_redis_client()
             cached_count = await redis_client.get("telemetry:events:count")
             
@@ -800,7 +800,7 @@ class ConvergioTelemetry:
         """Get total conversations count."""
         try:
             # Try to get from memory system or database
-            from agents.memory.autogen_memory_system import AutoGenMemorySystem
+            from ..memory.autogen_memory_system import AutoGenMemorySystem
             memory_system = AutoGenMemorySystem()
             
             # Count unique conversation IDs from memory
@@ -814,7 +814,7 @@ class ConvergioTelemetry:
     async def _get_total_agents_count(self) -> int:
         """Get total agents count from agent loader."""
         try:
-            from agents.services.agent_loader import DynamicAgentLoader
+            from ..agent_loader import DynamicAgentLoader
             loader = DynamicAgentLoader("src/agents/definitions")
             agents_metadata = loader.scan_and_load_agents()
             return len(agents_metadata)

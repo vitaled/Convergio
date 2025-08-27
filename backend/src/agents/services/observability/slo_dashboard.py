@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import json
-from agents.utils.config import get_settings
+from ...utils.config import get_settings
 
 class SLOStatus(Enum):
     """SLO status enumeration"""

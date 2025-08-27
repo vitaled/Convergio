@@ -11,7 +11,7 @@ import stripe
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.tenant import (
+from ..models.tenant import (
     Tenant, TenantStatus, SubscriptionPlan, BillingPeriod,
     Invoice, PaymentStatus, SubscriptionPlanDefinition
 )

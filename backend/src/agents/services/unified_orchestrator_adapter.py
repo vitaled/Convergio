@@ -6,7 +6,7 @@ Provides compatibility interfaces for all existing orchestrator use cases
 from typing import Dict, List, Any, Optional, AsyncGenerator
 from datetime import datetime
 from agents.orchestrators.unified import UnifiedOrchestrator
-from agents.services.redis_state_manager import RedisStateManager
+from .redis_state_manager import RedisStateManager
 from services.unified_cost_tracker import unified_cost_tracker
 from uuid import UUID
 import structlog

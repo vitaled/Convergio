@@ -266,7 +266,6 @@ class DatabaseTools:
                     "status": "success",
                     "timestamp": datetime.utcnow().isoformat()
                 }
-                
         except ImportError:
             # Fallback if Project model doesn't exist
             logger.warning("Project model not found, using fallback data")

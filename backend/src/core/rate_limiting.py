@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 import redis.asyncio as redis
 try:
     # Prefer core config
-    from core.config import get_settings  # type: ignore
+    from .config import get_settings  # type: ignore
 except Exception:
     # Fallback to legacy location if needed
     from agents.utils.config import get_settings  # type: ignore

@@ -156,7 +156,7 @@ async def get_current_user(
     """
     Get the current authenticated user.
     For now, returns a mock user for development.
-    In production, this should validate JWT tokens and fetch user from core.database.
+    In production, this should validate JWT tokens and fetch user from .database.
     """
     # Import here to avoid circular dependency
     from models.user import User
@@ -179,7 +179,7 @@ async def get_current_user(
         #     algorithms=["HS256"]
         # )
         # user_id = payload.get("sub")
-        # Fetch user from core.database...
+        # Fetch user from .database...
         
         # For now, return mock admin user
         return User(

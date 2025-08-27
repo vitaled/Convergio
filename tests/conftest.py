@@ -33,6 +33,63 @@ sys.path.insert(0, str(BACKEND_SRC_DIR))
 # Create logs directory
 LOGS_DIR.mkdir(exist_ok=True)
 
+# Utility functions needed early
+def _is_port_open(host: str, port: int) -> bool:
+    """Quick TCP check to see if a port is listening."""
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.settimeout(0.5)
+        return sock.connect_ex((host, port)) == 0
+
+def _http_health_ok(base_url: str, timeout: float = 1.0) -> bool:
+    """Return True only if the endpoint looks like Convergio's health."""
+    try:
+        import httpx
+        # Try both /health and /health/ to maximize compatibility
+        for path in ("/health", "/health/"):
+            try:
+                r = httpx.get(f"{base_url}{path}", timeout=timeout)
+                if r.status_code == 200:
+                    try:
+                        data = r.json()
+                    except Exception:
+                        data = {}
+                    # Convergio health includes these keys
+                    if isinstance(data, dict) and (
+                        data.get("service") == "convergio-backend"
+                        or "environment" in data
+                        or "version" in data
+                    ):
+                        return True
+            except Exception:
+                pass
+        return False
+    except Exception:
+        return False
+
+def _find_free_port() -> int:
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(("localhost", 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]
+
+# --- Early environment/port selection guard ---
+# Some environments may already have something listening on the default port (9000)
+# but it's not our backend. If so, pick a free port before tests import modules
+# that compute BASE_URL from BACKEND_PORT.
+# If the default port is in use but unhealthy, switch to a free one now
+_default_port = int(os.environ.get("BACKEND_PORT", "9000"))
+_base_url_probe = os.environ.get("API_BASE_URL", f"http://localhost:{_default_port}")
+if _is_port_open("localhost", _default_port) and not _http_health_ok(_base_url_probe, timeout=0.8):
+    _new_port = _find_free_port()
+    os.environ["BACKEND_PORT"] = str(_new_port)
+    os.environ["API_BASE_URL"] = f"http://localhost:{_new_port}"
+    os.environ["COST_API_BASE_URL"] = f"http://localhost:{_new_port}/api/v1"
+    logging.getLogger(__name__).warning(
+        "Default port %s in use by non-Convergio service; switching tests to BACKEND_PORT=%s",
+        _default_port,
+        _new_port,
+    )
+
 # Configure logging
 def setup_logging(test_name: str):
     """Setup logging for a test with timestamp."""
@@ -84,19 +141,23 @@ def _is_port_open(host: str, port: int) -> bool:
         return sock.connect_ex((host, port)) == 0
 
 
-def _wait_for_http(base_url: str, timeout: float = 20.0) -> bool:
+def _wait_for_http(base_url: str, timeout: float = 40.0) -> bool:
     """Poll the /health endpoint until the server responds or timeout."""
     import httpx
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            resp = httpx.get(f"{base_url}/health", timeout=1.0)
-            if resp.status_code == 200:
-                return True
+            # Try both with and without trailing slash
+            for path in ("/health", "/health/"):
+                resp = httpx.get(f"{base_url}{path}", timeout=1.0)
+                if resp.status_code == 200:
+                    return True
         except Exception:
             pass
         time.sleep(0.3)
     return False
+ 
+        
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -130,8 +191,16 @@ def ensure_backend_server():
             finally:
                 pass  # Don't kill existing server
             return
+        else:
+            # Something else is listening on the port; choose a free port and start our own server
+            new_port = _find_free_port()
+            os.environ["BACKEND_PORT"] = str(new_port)
+            base_url = f"http://{host}:{new_port}"
+            os.environ["API_BASE_URL"] = base_url
+            os.environ["COST_API_BASE_URL"] = f"{base_url}/api/v1"
+            port = new_port
     
-    if not already_running:
+    if not already_running or proc is None:
         # Start uvicorn server in a subprocess
         # Use the backend directory as cwd so imports resolve (src.main:app)
         backend_dir = str(BACKEND_DIR)
@@ -162,10 +231,16 @@ def ensure_backend_server():
         proc = subprocess.Popen(cmd, cwd=backend_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         # Wait until server is ready
-        if not _wait_for_http(base_url, timeout=30.0):
+    if not _wait_for_http(base_url, timeout=60.0):
             # If it didn't start, dump a bit of output for debugging and fail fixture
             try:
-                preview = proc.stdout.read(4000).decode(errors="ignore") if proc and proc.stdout else ""
+                # Non-blocking read of available output
+                import select
+                preview = ""
+                if proc and proc.stdout:
+                    rlist, _, _ = select.select([proc.stdout], [], [], 1.0)
+                    if rlist:
+                        preview = proc.stdout.read(8000).decode(errors="ignore")
                 logging.getLogger(__name__).error("Backend failed to start in time. Output preview:\n%s", preview)
             except Exception:
                 pass

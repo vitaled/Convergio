@@ -298,10 +298,19 @@ class DynamicAgentLoader:
             try:
                 # Build system message
                 system_message = self._build_system_message(metadata)
+
+                # If this is Ali, enrich the system prompt with a knowledge base of all agents
+                if metadata.key == "ali_chief_of_staff":
+                    try:
+                        kb = self.generate_ali_knowledge_base()
+                        system_message = f"{system_message}\n\n---\nALI KNOWLEDGE BASE:\n{kb}"
+                    except Exception as e:
+                        logger.warning("Failed to build Ali knowledge base", error=str(e))
                 
                 # Create AutoGen agent WITH TOOLS from the start
                 agent = AssistantAgent(
-                    name=metadata.class_name,
+                    # Use the stable loader key as the agent name so routers and orchestrators can match reliably
+                    name=metadata.key,
                     model_client=model_client,
                     system_message=system_message,
                     tools=tools or []  # Pass tools directly to constructor

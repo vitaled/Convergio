@@ -15,13 +15,13 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 
-from core.database import get_db_session
-from core.redis import cache_get, cache_set
-from api.user_keys import get_user_api_key, get_user_default_model
+from ..core.database import get_db_session
+from ..core.redis import cache_get, cache_set
+from ..api.user_keys import get_user_api_key, get_user_default_model
 from core.config import get_settings
-from models.talent import Talent
-from models.document import Document
-from agents.orchestrator import get_agent_orchestrator
+from ..models.talent import Talent
+from ..models.document import Document
+from ..agents.orchestrator import get_agent_orchestrator
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -479,7 +479,8 @@ async def ali_intelligence_endpoint(
             "use_database_insights": request.use_database_insights,
             "include_strategic_analysis": request.include_strategic_analysis,
             "target_agent": "ali_chief_of_staff",  # Force Ali to respond
-            "agent_name": "ali_chief_of_staff"  # Also add this for conversation handler
+            "agent_name": "ali_chief_of_staff",  # Also add this for conversation handler
+            "multi_agent_preferred": True  # Prefer GroupChat so Ali can coordinate other agents
         })
         
         # Orchestrate with Ali specifically

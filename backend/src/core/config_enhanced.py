@@ -385,14 +385,34 @@ class DynamicConfigurationManager:
         return self.settings
     
     def setup_development_defaults(self) -> None:
-        """Setup secure defaults for development environment"""
-        if os.getenv("ENVIRONMENT", "development") == "development":
+        """Setup secure defaults for development and test environments.
+
+        Ensures the app can boot in local/test runs without requiring full
+        production-grade configuration. We also set placeholder AI keys so
+        health checks mark services as disabled instead of failing.
+        """
+        env = os.getenv("ENVIRONMENT", "development").lower()
+        if env in ("development", "test"):
             defaults = self.generate_secure_defaults()
-            
-            for key, value in defaults.items():
+
+            # Required fields without safe library defaults
+            required_overrides = {
+                # Provide permissive CORS in non-production to simplify tests/dev
+                "CORS_ALLOWED_ORIGINS": os.getenv("CORS_ALLOWED_ORIGINS", "*"),
+                # AI API keys as placeholders so health check treats them as disabled
+                # and avoids making outbound calls during tests
+                "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", "sk-..."),
+                "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", "sk-ant-..."),
+                # Commonly referenced base URL/port
+                "HOST": os.getenv("HOST", "0.0.0.0"),
+                "PORT": os.getenv("PORT", os.getenv("BACKEND_PORT", "9000")),
+            }
+
+            # Merge defaults with overrides; env vars remain authoritative
+            for key, value in {**defaults, **required_overrides}.items():
                 if not os.getenv(key):
-                    os.environ[key] = value
-                    self.logger.info(f"Generated secure default for {key}")
+                    os.environ[key] = str(value)
+                    self.logger.info(f"Generated default for {key}")
 
 # Global configuration manager instance
 config_manager = DynamicConfigurationManager()

@@ -11,13 +11,13 @@ from datetime import datetime, timedelta
 from uuid import UUID
 import json
 
-from core.database import get_db
-from models.project import (
+from ..core.database import get_db
+from ..models.project import (
     Project, Epic, Task, Resource, TaskConversation, ProjectAnalytics,
     ProjectStatus, TaskStatus, TaskPriority, ResourceType,
     task_dependencies, task_resources, task_agents
 )
-from agents.services.ali_swarm_orchestrator import AliSwarmOrchestrator
+from ..agents.services.ali_swarm_orchestrator import AliSwarmOrchestrator
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/pm", tags=["Project Management"])

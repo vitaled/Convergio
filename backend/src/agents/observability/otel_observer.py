@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import Any, Dict
 import structlog
 
-from agents.utils.tracing import start_span
-from agents.observability.autogen_observer import AutoGenObserver
+from ..utils.tracing import start_span
+from ..observability.autogen_observer import AutoGenObserver
 
 
 logger = structlog.get_logger()

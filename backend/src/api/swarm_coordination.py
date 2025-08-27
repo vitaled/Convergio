@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 import structlog
 
-from agents.services.swarm_coordinator import (
+from ..agents.services.swarm_coordinator import (
     swarm_coordinator, 
     SwarmTask, 
     SwarmAgent,
@@ -17,13 +17,13 @@ from agents.services.swarm_coordinator import (
     SwarmRole
 )
 try:
-    from agents.services.agent_loader import agent_loader
+    from ..agents.services.agent_loader import agent_loader
 except ImportError:
     # Fallback to alternative import
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-    from agents.services.agent_loader import agent_loader
+    from ..agents.services.agent_loader import agent_loader
 
 logger = structlog.get_logger()
 router = APIRouter()

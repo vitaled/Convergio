@@ -7,11 +7,11 @@ import json
 import structlog
 from typing import Any, Dict, List, Optional
 from autogen_agentchat.messages import TextMessage
-from agents.tools.smart_tool_selector import SmartToolSelector
-from agents.tools.web_search_tool import WebSearchTool, WebSearchArgs
+from ...tools.smart_tool_selector import SmartToolSelector
+from ...tools.web_search_tool import WebSearchTool, WebSearchArgs
 from ..observability.telemetry import get_telemetry, TelemetryContext
 try:
-    from agents.decision_engine import DecisionPlan
+    from ..decision_engine import DecisionPlan
 except Exception:
     DecisionPlan = None  # type: ignore
 
@@ -180,7 +180,7 @@ class GroupChatToolExecutor:
     async def _execute_talents_query(self, args: Dict[str, Any]) -> str:
         """Execute talents query tool"""
         try:
-            from agents.tools.convergio_tools import TalentsQueryTool, TalentsQueryArgs
+            from ..tools.convergio_tools import TalentsQueryTool, TalentsQueryArgs
             tool = TalentsQueryTool()
             query_args = TalentsQueryArgs(
                 query_type=args.get("query_type", "count")
@@ -193,7 +193,7 @@ class GroupChatToolExecutor:
     async def _execute_vector_search(self, args: Dict[str, Any]) -> str:
         """Execute vector search tool"""
         try:
-            from agents.tools.convergio_tools import VectorSearchTool, VectorSearchArgs
+            from ..tools.convergio_tools import VectorSearchTool, VectorSearchArgs
             tool = VectorSearchTool()
             search_args = VectorSearchArgs(
                 query=args.get("query", ""),
@@ -207,7 +207,7 @@ class GroupChatToolExecutor:
     async def _execute_business_intelligence(self, args: Dict[str, Any]) -> str:
         """Execute business intelligence tool"""
         try:
-            from agents.tools.convergio_tools import BusinessIntelligenceTool, BusinessIntelligenceArgs
+            from ..tools.convergio_tools import BusinessIntelligenceTool, BusinessIntelligenceArgs
             tool = BusinessIntelligenceTool()
             bi_args = BusinessIntelligenceArgs(
                 focus_area=args.get("focus_area", "overview")

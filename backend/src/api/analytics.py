@@ -15,10 +15,10 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Authentication removed - no auth required for this version
-from core.database import get_db_session, get_read_db_session
-from core.redis import cache_get, cache_set
-from core.pagination import CursorPaginator, PaginationParams, PaginatedResponse
-from models.user import User
+from ..core.database import get_db_session, get_read_db_session
+from ..core.redis import cache_get, cache_set
+from ..core.pagination import CursorPaginator, PaginationParams, PaginatedResponse
+from ..models.user import User
 
 logger = structlog.get_logger()
 router = APIRouter(tags=["Analytics"])

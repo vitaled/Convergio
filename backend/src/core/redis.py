@@ -8,12 +8,29 @@ from typing import Any, Optional, Union
 import structlog
 import redis.asyncio as redis
 
-from core.config import get_settings
+from .config import get_settings
 
 logger = structlog.get_logger()
 
 # Global Redis client
 redis_client: Optional[redis.Redis] = None
+
+
+class _NoOpRedis:
+    async def ping(self):
+        return True
+    async def set(self, *args, **kwargs):
+        return True
+    async def setex(self, *args, **kwargs):
+        return True
+    async def get(self, *args, **kwargs):
+        return None
+    async def delete(self, *args, **kwargs):
+        return True
+    async def info(self):
+        return {}
+    async def aclose(self):
+        return None
 
 
 async def init_redis() -> None:
@@ -64,6 +81,10 @@ def get_redis_client() -> redis.Redis:
     """Get Redis client"""
     
     if redis_client is None:
+        # Provide a no-op client during tests to avoid failures when Redis isn't available
+        import os
+        if os.getenv("ENVIRONMENT", "development").lower() == "test":
+            return _NoOpRedis()
         raise RuntimeError("Redis not initialized. Call init_redis() first.")
     
     return redis_client

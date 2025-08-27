@@ -14,9 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, insert, select as sa_select, update, text
 
-from core.database import get_db_session
-from models.engagement import Engagement
-from models.activity import Activity
+from ..core.database import get_db_session
+from ..models.engagement import Engagement
+from ..models.activity import Activity
 
 router = APIRouter(tags=["projects"])
 

@@ -8,8 +8,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
-from core.database import get_db_session
-from core.config import get_settings
+from ..core.database import get_db_session
+from ..core.config import get_settings
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/system", tags=["System"])
@@ -90,7 +90,7 @@ async def get_detailed_health(db: AsyncSession = Depends(get_db_session)) -> Dic
     
     # Check Redis
     try:
-        from core.redis import redis_client
+        from ..core.redis import redis_client
         if redis_client:
             await redis_client.ping()
             redis_connected = True

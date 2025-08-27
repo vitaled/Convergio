@@ -17,8 +17,8 @@ import structlog
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
 import redis.asyncio as aioredis
 from sqlalchemy import text
-from core.database import async_engine, get_async_session
-from core.redis import get_redis_client
+from .database import async_engine, get_async_session
+from .redis import get_redis_client
 
 logger = structlog.get_logger(__name__)
 
@@ -373,7 +373,7 @@ class HealthChecker:
         check_name = "configuration"
         
         try:
-            from core.config_validator import ConfigValidator
+            from .config_validator import ConfigValidator
             
             validator = ConfigValidator()
             result = validator.validate_all()

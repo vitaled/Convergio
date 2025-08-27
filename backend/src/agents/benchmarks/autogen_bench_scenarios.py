@@ -13,11 +13,12 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field, asdict
 import structlog
 
-from agents.services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
-from agents.services.redis_state_manager import RedisStateManager
+from ..services.autogen_groupchat_orchestrator import ModernGroupChatOrchestrator
+from ..services.redis_state_manager import RedisStateManager
 from services.unified_cost_tracker import unified_cost_tracker
-from agents.observability.otel_integration import initialize_otel, record_conversation_metrics
-from agents.utils.config import get_settings
+from ..observability.otel_integration import initialize_otel
+from ..services.observability.metrics_collector import get_metrics_collector
+from ..utils.config import get_settings
 
 logger = structlog.get_logger()
 
@@ -386,15 +387,17 @@ class AutoGenBenchRunner:
                 result.failure_reason = "Failed success criteria evaluation"
             
             # Record OTEL metrics
-            record_conversation_metrics(
-                conversation_id=execution_id,
-                user_id=f"bench_{scenario.scenario_id}",
-                agent_count=len(all_agents),
-                duration_ms=duration_ms,
-                tokens_used=total_tokens,
-                cost_usd=total_cost,
-                success=passed
-            )
+            metrics_collector = get_metrics_collector()
+            if metrics_collector:
+                metrics_collector.record_conversation_metrics(
+                    conversation_id=execution_id,
+                    user_id=f"bench_{scenario.scenario_id}",
+                    agent_count=len(all_agents),
+                    duration_ms=duration_ms,
+                    tokens_used=total_tokens,
+                    cost_usd=total_cost,
+                    success=passed
+                )
             
             logger.info(
                 f"✅ Scenario completed",
@@ -624,7 +627,7 @@ async def main():
     # Initialize orchestrator
     settings = get_settings()
     state_manager = RedisStateManager(settings.REDIS_URL)
-    cost_tracker = CostTracker()
+    cost_tracker = unified_cost_tracker
     
     orchestrator = ModernGroupChatOrchestrator(
         state_manager=state_manager,

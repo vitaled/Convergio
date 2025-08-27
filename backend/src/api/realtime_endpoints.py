@@ -12,9 +12,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, H
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db_session
-from services.realtime_streaming_service import get_realtime_service, RealtimeStreamingService
-from models.project_orchestration import ProjectOrchestration
+from ..core.database import get_db_session
+from ..services.realtime_streaming_service import get_realtime_service, RealtimeStreamingService
+from ..models.project_orchestration import ProjectOrchestration
 
 logger = structlog.get_logger()
 

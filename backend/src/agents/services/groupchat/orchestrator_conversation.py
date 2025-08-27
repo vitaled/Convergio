@@ -17,9 +17,9 @@ from .context import enhance_message_with_context
 from .types import GroupChatResult
 from .per_turn_rag import PerTurnRAGInjector, RAGEnhancedGroupChat, initialize_per_turn_rag
 from .intelligent_router import IntelligentAgentRouter
-from agents.utils.tracing import start_span
-from agents.security.ai_security_guardian import SecurityDecision
-from agents.services.agent_intelligence import AgentIntelligence
+from ...utils.tracing import start_span
+from ...security.ai_security_guardian import SecurityDecision
+from ..agent_intelligence import AgentIntelligence
 
 
 logger = structlog.get_logger()
@@ -45,8 +45,8 @@ async def _execute_tool_call(tool_call: dict) -> str:
             args = raw_args
 
         # Import tool arg models and tools lazily to minimize import cost
-        from agents.tools.web_search_tool import WebSearchTool, WebSearchArgs, WebBrowseTool, WebBrowseArgs
-        from agents.tools.convergio_tools import (
+        from ..tools.web_search_tool import WebSearchTool, WebSearchArgs, WebBrowseTool, WebBrowseArgs
+        from ..tools.convergio_tools import (
             VectorSearchTool, VectorSearchArgs,
             TalentsQueryTool, TalentsQueryArgs,
             EngagementAnalyticsTool, EngagementAnalyticsArgs,

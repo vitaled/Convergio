@@ -10,17 +10,17 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import structlog
 
-from agents.services.graphflow_orchestrator import get_graphflow_orchestrator
-from agents.services.graphflow.generator import (
+from ..agents.services.graphflow_orchestrator import get_graphflow_orchestrator
+from ..agents.services.graphflow.generator import (
     WorkflowGenerator,
     WorkflowGenerationRequest,  # alias to payload (non-Pydantic)
     BusinessWorkflow,
     generate_workflow_from_prompt,
 )
-from agents.services.graphflow.registry import get_workflow_catalog
-from agents.services.observability.telemetry_api import TelemetryAPIService
-from agents.utils.config import get_settings
-from core.logging import get_logger
+from ..agents.services.graphflow.registry import get_workflow_catalog
+from ..agents.services.observability.telemetry_api import TelemetryAPIService
+from ..agents.utils.config import get_settings
+from ..core.logging import get_logger
 
 logger = get_logger()
 router = APIRouter()
@@ -846,7 +846,7 @@ async def validate_workflow_prompt(prompt: str):
     try:
         _ensure_graphflow_enabled()
         
-        from agents.security.ai_security_guardian import AISecurityGuardian
+        from ..agents.security.ai_security_guardian import AISecurityGuardian
         
         guardian = AISecurityGuardian()
         

@@ -11,9 +11,22 @@ from enum import Enum
 import structlog
 import redis.asyncio as redis
 from fastapi import Request, HTTPException, Response
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler  # type: ignore
+    from slowapi.errors import RateLimitExceeded  # type: ignore
+    from slowapi.util import get_remote_address  # type: ignore
+    _SLOWAPI_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency
+    Limiter = None  # type: ignore
+    _rate_limit_exceeded_handler = None  # type: ignore
+    RateLimitExceeded = Exception  # type: ignore
+    def get_remote_address(request):  # type: ignore
+        # Minimal fallback using client host header
+        try:
+            return request.client.host if request and request.client else "unknown"
+        except Exception:
+            return "unknown"
+    _SLOWAPI_AVAILABLE = False
 
 logger = structlog.get_logger(__name__)
 
@@ -272,13 +285,19 @@ def create_enhanced_rate_limiter(redis_client: redis.Redis, enabled: bool = True
 
 def get_slowapi_limiter() -> Limiter:
     """Get slowapi limiter for backwards compatibility using configured Redis"""
+    if not _SLOWAPI_AVAILABLE:
+        # Return a minimal shim that won't be used, but keeps attribute presence
+        class _Shim:  # pragma: no cover
+            def __init__(self):
+                self.enabled = False
+        return _Shim()  # type: ignore
     try:
-        from core.config import get_settings
+        from .config import get_settings
         s = get_settings()
         storage = s.REDIS_URL
     except Exception:
         storage = "redis://localhost:6379/1"
-    return Limiter(
+    return Limiter(  # type: ignore
         key_func=get_remote_address,
         storage_uri=storage,
         enabled=True,

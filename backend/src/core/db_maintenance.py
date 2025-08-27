@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from core.database import get_db_session
+from .database import get_db_session
 
 logger = structlog.get_logger()
 

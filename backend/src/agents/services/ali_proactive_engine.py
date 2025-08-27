@@ -158,7 +158,7 @@ class AliProactiveEngine:
         while self.monitoring_active:
             try:
                 # Import tools here to avoid circular imports
-                from agents.tools.database_tools import DatabaseTools
+                from ..tools.database_tools import DatabaseTools
                 
                 # Get current business data
                 projects_data = await DatabaseTools.get_projects_overview()
@@ -182,7 +182,7 @@ class AliProactiveEngine:
         """Monitor technical system health and performance"""
         while self.monitoring_active:
             try:
-                from agents.tools.database_tools import DatabaseTools
+                from ..tools.database_tools import DatabaseTools
                 
                 # Get system health data
                 health_data = await DatabaseTools.get_system_health()
@@ -209,7 +209,7 @@ class AliProactiveEngine:
         """Monitor team productivity and collaboration patterns"""
         while self.monitoring_active:
             try:
-                from agents.tools.database_tools import DatabaseTools
+                from ..tools.database_tools import DatabaseTools
                 
                 # Get team data
                 department_data = await DatabaseTools.get_department_overview()

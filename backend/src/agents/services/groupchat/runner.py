@@ -9,10 +9,10 @@ can subscribe to stream events without coupling to AutoGen internals.
 from typing import List, Tuple, Any, Dict, Iterable, Optional
 import time
 
-from agents.observability.autogen_observer import AutoGenObserver
+# from ..observability.autogen_observer import AutoGenObserver
 from .tool_executor import GroupChatToolExecutor
 try:
-    from agents.decision_engine import DecisionPlan
+    from ..decision_engine import DecisionPlan
 except Exception:
     DecisionPlan = None  # type: ignore
 
@@ -21,7 +21,7 @@ async def run_groupchat_stream(
     group_chat,
     task: str,
     *,
-    observers: Optional[Iterable[AutoGenObserver]] = None,
+    observers: Optional[Iterable[Any]] = None,
     metadata: Optional[Dict[str, Any]] = None,
     hard_timeout_seconds: Optional[int] = None,
     termination_markers: Optional[List[str]] = None,

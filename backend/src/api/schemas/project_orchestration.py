@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Any, Union
 from pydantic import BaseModel, Field, validator
 from enum import Enum
 
-from models.project_orchestration import (
+from ...models.project_orchestration import (
     OrchestrationStatus, CoordinationPattern, JourneyStage,
     TouchpointType, AgentRole
 )

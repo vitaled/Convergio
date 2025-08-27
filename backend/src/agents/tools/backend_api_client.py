@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from agents.utils.config import get_settings
+from ..utils.config import get_settings
 
 class BackendAPIClient:
     """Client for making authenticated API calls to Convergio backend."""

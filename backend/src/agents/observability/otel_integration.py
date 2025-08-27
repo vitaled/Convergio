@@ -40,7 +40,7 @@ try:
 except ImportError:
     REDIS_INSTRUMENTATION_AVAILABLE = False
 
-from agents.utils.config import get_settings
+from ..utils.config import get_settings
 
 logger = structlog.get_logger()
 

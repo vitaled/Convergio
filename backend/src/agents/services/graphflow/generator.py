@@ -13,8 +13,8 @@ import json
 import uuid
 import structlog
 
-from agents.security.ai_security_guardian import AISecurityGuardian
-from agents.services.graphflow.definitions import (
+from ...security.ai_security_guardian import AISecurityGuardian
+from ..graphflow.definitions import (
     BusinessWorkflow,
     WorkflowStep,
     BusinessDomain,

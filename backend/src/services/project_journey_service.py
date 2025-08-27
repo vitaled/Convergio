@@ -13,12 +13,12 @@ from sqlalchemy import select, update, delete, and_, or_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from core.database import get_async_session
-from models.project_orchestration import (
+from ..core.database import get_async_session
+from ..models.project_orchestration import (
     ProjectOrchestration, ProjectJourneyStage, ProjectTouchpoint,
     AgentCollaborationMetric, JourneyStage, TouchpointType
 )
-from api.schemas.project_orchestration import (
+from ..api.schemas.project_orchestration import (
     ProjectJourneyAnalyticsResponse, TouchpointResponse
 )
 
@@ -187,7 +187,7 @@ class ProjectJourneyService:
         await db.execute(orchestration_stmt)
         
         # Record transition as touchpoint
-        from services.pm_orchestrator_service import PMOrchestratorService
+        from ..services.pm_orchestrator_service import PMOrchestratorService
         pm_service = PMOrchestratorService()
         
         await pm_service._create_touchpoint(

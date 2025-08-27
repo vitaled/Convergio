@@ -66,6 +66,23 @@ class CircuitBreaker:
             self.stats.failed_calls += 1
             raise
 
+    def get_status(self) -> Dict[str, Any]:
+        """Return current circuit breaker status and stats"""
+        return {
+            "name": self.name,
+            "state": self.state.value if isinstance(self.state, Enum) else str(self.state),
+            "stats": {
+                "total_calls": self.stats.total_calls,
+                "failed_calls": self.stats.failed_calls,
+                "successful_calls": self.stats.successful_calls,
+                "consecutive_failures": self.stats.consecutive_failures,
+                "consecutive_successes": self.stats.consecutive_successes,
+                "last_failure_time": self.stats.last_failure_time.isoformat() if self.stats.last_failure_time else None,
+                "last_success_time": self.stats.last_success_time.isoformat() if self.stats.last_success_time else None,
+            },
+            "state_changed_at": self.state_changed_at.isoformat(),
+        }
+
 class HealthMonitor:
     """Basic health monitoring"""
     def __init__(self, check_interval: int = 30):
@@ -82,6 +99,13 @@ class HealthMonitor:
         """Stop health monitoring"""
         self._running = False
         logger.info("Health monitor stopped")
+    
+    def get_health_status(self) -> Dict[str, Any]:
+        """Return current health status"""
+        return {
+            "status": "running" if self._running else "stopped",
+            "check_interval": self.check_interval,
+        }
 from agents.services.groupchat.intelligent_router import IntelligentAgentRouter
 # RAG functionality is now dynamically imported in initialize() method when enabled
 from agents.services.groupchat.metrics import extract_agents_used, estimate_cost
@@ -195,8 +219,8 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
             # Initialize RAG processor if enabled
             if kwargs.get("enable_rag", True):  # Enabled by default now
                 try:
-                    from agents.services.groupchat.rag import AdvancedRAGProcessor
-                    from agents.memory.autogen_memory_system import AutoGenMemorySystem
+                    from ..services.groupchat.rag import AdvancedRAGProcessor
+                    from ..memory.autogen_memory_system import AutoGenMemorySystem
                     
                     memory_system = AutoGenMemorySystem()
                     self.rag_processor = AdvancedRAGProcessor(
@@ -306,8 +330,19 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
                     logger.warning(f"⚠️ RAG context generation failed: {e}")
                     # Continue with original message if RAG fails
             
-            # Determine routing strategy (force single agent if target is specified)
-            should_use_single = target_agent or self.router.should_use_single_agent(message)
+            # Determine routing strategy
+            # If Ali is targeted explicitly or caller prefers multi-agent, use GroupChat
+            multi_agent_preferred = bool((context or {}).get("multi_agent_preferred"))
+            ali_targeted = False
+            if target_agent:
+                ta = target_agent.lower().replace('-', '_')
+                ali_targeted = ta in ("ali_chief_of_staff", "ali", "ali-chief-of-staff")
+
+            if (ali_targeted or multi_agent_preferred) and getattr(self, 'group_chat', None):
+                should_use_single = False
+            else:
+                # Default behavior: single agent for efficiency, unless router signals multi-agent
+                should_use_single = self.router.should_use_single_agent(message)
             
             if should_use_single:
                 # Route to single best agent

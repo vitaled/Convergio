@@ -40,7 +40,7 @@ class ModernGroupChatOrchestrator:
         self._initialized = False
         
         # Add missing attributes for test compatibility
-        from agents.utils.config import get_settings
+        from ..utils.config import get_settings
         self.settings = get_settings()
         self._group_chat = None
         self.group_chat = None  # For test compatibility

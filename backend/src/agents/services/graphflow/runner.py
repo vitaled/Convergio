@@ -21,7 +21,7 @@ from .definitions import (
     StepType, WorkflowPriority
 )
 from agents.utils.config import get_settings
-from agents.observability.otel_integration import get_otel_manager
+from ...services.observability.integration import ObservabilityIntegration
 
 logger = structlog.get_logger()
 
@@ -138,12 +138,14 @@ class GraphFlowRunner:
         # Lazy-load OTEL manager if needed
         if not self.otel_manager:
             try:
-                self.otel_manager = get_otel_manager()
+                # Use ObservabilityIntegration as a provider for spans if available
+                obs = get_observability()
+                self.otel_manager = obs.telemetry if obs else None
             except Exception:
-                pass
+                self.otel_manager = None
         
         # Start OTEL span for workflow
-        if self.otel_manager:
+        if self.otel_manager and hasattr(self.otel_manager, "span"):
             with self.otel_manager.span(
                 f"workflow.{workflow.workflow_id}",
                 {

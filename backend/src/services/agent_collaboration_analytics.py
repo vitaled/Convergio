@@ -14,13 +14,13 @@ import structlog
 from sqlalchemy import select, update, delete, and_, or_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_async_session
-from models.project_orchestration import (
+from ..core.database import get_async_session
+from ..models.project_orchestration import (
     ProjectOrchestration, ProjectAgentAssignment, ProjectJourneyStage,
     ProjectTouchpoint, ProjectConversation, AgentCollaborationMetric,
     AgentRole
 )
-from services.realtime_streaming_service import publish_metrics_update
+from ..services.realtime_streaming_service import publish_metrics_update
 
 logger = structlog.get_logger()
 

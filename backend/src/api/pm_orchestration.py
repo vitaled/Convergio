@@ -12,17 +12,17 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query, s
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db_session
-from services.pm_orchestrator_service import PMOrchestratorService
-from services.project_journey_service import ProjectJourneyService
-from api.schemas.project_orchestration import (
+from ..core.database import get_db_session
+from ..services.pm_orchestrator_service import PMOrchestratorService
+from ..services.project_journey_service import ProjectJourneyService
+from ..api.schemas.project_orchestration import (
     EnhancedProjectCreateRequest, ProjectOrchestrationResponse,
     ProjectOrchestrationDetailResponse, OrchestrationMetricsResponse,
     AgentAssignmentRequest, JourneyStageUpdateRequest, TouchpointCreateRequest,
     ConversationCreateRequest, OptimizationRequest, OptimizationResponse,
     ProjectJourneyAnalyticsResponse, StreamingUpdateResponse
 )
-from models.project_orchestration import JourneyStage, TouchpointType
+from ..models.project_orchestration import JourneyStage, TouchpointType
 
 logger = structlog.get_logger()
 

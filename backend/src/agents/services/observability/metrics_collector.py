@@ -12,7 +12,25 @@ from collections import defaultdict, deque
 import statistics
 
 import structlog
-from .prometheus_client import Counter, Histogram, Gauge, Summary, generate_latest, REGISTRY
+try:
+    from .prometheus_client import Counter, Histogram, Gauge, Summary, generate_latest, REGISTRY
+except Exception:
+    # Minimal no-op fallbacks if prometheus_client module isn't available
+    class _NoOpMetric:
+        def __init__(self, *args, **kwargs):
+            self._value = type("_V", (), {"get": lambda s: 0, "sum": lambda s: 0, "values": lambda s: {}, "items": lambda s: {}})()
+        def labels(self, **kwargs):
+            return self
+        def inc(self, *a, **k):
+            pass
+        def observe(self, *a, **k):
+            pass
+        def set(self, *a, **k):
+            pass
+    Counter = Histogram = Gauge = Summary = _NoOpMetric
+    def generate_latest(reg):
+        return b""
+    REGISTRY = object()
 
 logger = structlog.get_logger()
 
