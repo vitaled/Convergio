@@ -1,7 +1,8 @@
-# 🚀 Convergio — AI Command Center powered by Multi‑Agent Orchestration
-Human purpose. AI momentum.
+# 🚀 Convergio — Human purpose. AI momentum.
+*“Convergio is the platform that lets solopreneurs blend human ingenuity with AI so seamlessly, it feels like magic.”*
 
-> Convergio turns a team’s intent into coordinated execution by orchestrating 40+ specialized AI agents. You set the goal; the system assembles experts (finance, architecture, PM, security, design, analytics) to plan, decide, and deliver.
+
+Convergio is the AI‑first orchestration platform where human ingenuity converges with a coordinated crew of 40+ expert agents. Together they plan, execute, and explain work across your tools—so you deliver outcomes, not just automations.
 
 [![CI/CD Pipeline](https://github.com/Roberdan/Convergio/actions/workflows/ci.yml/badge.svg)](https://github.com/Roberdan/Convergio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)](https://python.org)
@@ -16,9 +17,11 @@ Human purpose. AI momentum.
 
 - Convergio is a unified, production‑leaning reference implementation of a multi‑agent platform built on top of Microsoft AutoGen. It is one of the first large‑scale, end‑to‑end implementations of AutoGen in an open repository, showing how to compose dozens of purpose‑built agents into reliable workflows. See Microsoft AutoGen on GitHub: https://github.com/microsoft/autogen
 - Our north star is the Agentic Manifesto and inclusive design. Start here:
-  - Agentic Manifesto: AgenticManifesto/AgenticManifesto.md
-  - What is Convergio: AgenticManifesto/WhatIsConvergio.md
-  - Built for Mario — AI‑First Interface: AgenticManifesto/💜 For Mario - AI-First Interface.md
+  - Agentic Manifesto: [AgenticManifesto/AgenticManifesto.md](AgenticManifesto/AgenticManifesto.md)
+  - What is Convergio: [AgenticManifesto/WhatIsConvergio.md](AgenticManifesto/WhatIsConvergio.md)
+  - Built for Mario — AI‑First Interface: [AgenticManifesto/💜 For Mario - AI-First Interface.md](AgenticManifesto/💜%20For%20Mario%20-%20AI-First%20Interface.md)
+  - Convergio Intro/Pitch: [ConvergioIntro.md](ConvergioIntro.md)
+  - Sequoia‑style One‑Pager: [onePager.md](onePager.md)
 - Communication meets engineering: this README is both a product primer and a practical guide to run the stack locally.
 
 ---
@@ -36,6 +39,11 @@ No Docker/Kubernetes manifests are provided in this repo. Local developer setup 
 ### Key capabilities
 
 - Multi‑agent conversations with tool use, memory, and specialization
+- Agent planner/critic loop that turns human intent into plans → actions → verified outcomes
+- Hybrid orchestration: AI agents plus human‑in‑the‑loop and human‑on‑demand routing (gig platforms)
+- Explainability & provenance: every step auditable ("why this, why now")
+- Safety rails & cost governance: approvals, budget caps, per‑agent SLOs
+- Accessibility‑first UI (voice, high‑contrast, keyboard, clear status cues)
 - GraphFlow for generating workflows from natural language
 - Cost tracking, analytics endpoints, and observability hooks
 - Vector search utilities for RAG‑style enrichment
@@ -166,6 +174,9 @@ convergio/
 - **Import Path Guide**: [docs/IMPORT_PATH_CONSISTENCY_GUIDE.md](docs/IMPORT_PATH_CONSISTENCY_GUIDE.md) - Import standards (organized)
 - **PM Dashboard Docs**: [docs/PM_DASHBOARD_IMPLEMENTATION_SUMMARY.md](docs/PM_DASHBOARD_IMPLEMENTATION_SUMMARY.md) - Dashboard implementation (organized)
 
+- **Intro/Pitch**: [ConvergioIntro.md](ConvergioIntro.md)
+- **Sequoia-style One-Pager**: [onePager.md](onePager.md)
+
 ### Agent System
 - **Agent Definitions**: backend/src/agents/definitions/
 - **Orchestrators & resilience**: backend/src/agents/orchestrators/
@@ -175,7 +186,7 @@ convergio/
 - **Cost Management**: [docs/cost-tracking-system.md](docs/cost-tracking-system.md)
 - **Multi-tenancy**: Complete SaaS platform with Stripe billing
 - **Real Data Integrations**: [docs/REAL_DATA_INTEGRATIONS.md](docs/REAL_DATA_INTEGRATIONS.md)
-- **Security Compliance**: OWASP Top 10 compliance and comprehensive audit trail
+- **Security Compliance**: OWASP Top 10 compliance and comprehensive audit trail; explainable plans and approvals by default
 
 ### Live Documentation
 - **Swagger UI**: http://localhost:9000/docs
@@ -501,6 +512,6 @@ After the change date (2027-01-01), this software will be available under the Ap
 
 ---
 
-**Built with ❤️ by the Convergio Team**
+**Built with ❤️ for Mario by the Convergio Team**
 
 *Making AI work for humans, not the other way around.*
