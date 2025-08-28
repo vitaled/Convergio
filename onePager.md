@@ -12,7 +12,7 @@ Enable ambitious solopreneurs to become one-person unicorns by orchestrating a c
 - iPaaS wires apps; single LLM copilots draft text; nothing coordinates multi-disciplinary execution across AI and humans with guardrails and provenance.
 
 ## Solution (Product)
-- AI-first orchestration platform where human ingenuity converges with a crew of 40+ role-based agents (Chief of Staff, Architect, Marketing, Finance, Security).
+- AI-first orchestration platform where named specialists (Ali as Chief of Staff, Baccio as Architect, Sofia for Marketing, Amy for Finance, Luca for Security) collaborate through intelligent coordination—not just parallel execution.
 - Planner/critic loop turns intent into plans -> actions -> verified outcomes across your tools.
 - Human-in-the-loop for judgment; human-on-demand routes nuanced steps to vetted freelancers; results flow back into the same execution graph.
 - Built-in explainability, cost governance, and accessibility (voice, high-contrast, keyboard, clear status cues).
@@ -36,7 +36,7 @@ Enable ambitious solopreneurs to become one-person unicorns by orchestrating a c
   [Grand View Research](https://www.grandviewresearch.com/industry-analysis/freelance-platforms-market)
 
 ## Unique Value Proposition
-- Agent orchestration, not app wiring: plans, actions, and verifiable outcomes — not just prompts or point automations.
+- True multi-agent orchestration: intelligent coordination enabling agents to plan together, delegate appropriately, and deliver cohesive outcomes across disciplines—not just prompts or point automations.
 - Hybrid AI+human execution: the right resource at each step (agent or expert), within one observable workflow.
 - Explainability and provenance by default; accessibility-first; safety rails and cost controls.
 

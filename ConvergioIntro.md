@@ -2,7 +2,7 @@
 
 *“Convergio is the platform that lets solopreneurs blend human ingenuity with AI so seamlessly, it feels like magic.”*
 
-Convergio is the AI‑first orchestration platform where human ingenuity converges with a coordinated crew of 40+ expert agents. Together they plan, execute, and explain work across your tools—so you deliver outcomes, not just automations.
+Convergio is the AI‑first orchestration platform where human ingenuity converges with a coordinated crew of specialized agents. Through intelligent coordination—not just parallel processing—they plan together, execute seamlessly, and explain outcomes across your tools.
 
 ## One‑liner
 
@@ -33,7 +33,7 @@ Together these signals point to a new class of “AI solopreneurs” who can sca
 
 ## Unique Value Proposition (aligned to “Human intent. Agent momentum.”)
 
-- **Agent orchestration, not app wiring**: A coordinated team of 40+ role‑based agents turns your intent into plans, actions, and verifiable outcomes—going beyond single‑agent copilots and static iPaaS flows.
+- **True multi‑agent orchestration**: Named specialists (Ali as Chief of Staff, Amy as CFO, Baccio as Architect) collaborate through intelligent coordination—not just parallel execution. The breakthrough is the orchestration layer that enables agents to plan together, delegate appropriately, and deliver cohesive outcomes across disciplines.
 - **Human‑in‑the‑loop and human‑on‑demand**: Keep humans in control for judgment calls; route nuanced tasks to on‑demand experts via gig platforms when needed—“the right resource at the right step.”
 - **Explainability and provenance by default**: Every plan and action is traceable—“why this, why now”—so you can audit and trust results.
 - **Accessibility‑first interface**: Voice, high‑contrast, keyboard navigation, and clear status cues—built from the “For Mario” principles so anyone can operate an AI command center.

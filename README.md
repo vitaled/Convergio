@@ -1,8 +1,10 @@
+![Convergio logo: stylized brain split — left colorful facets, right blue circuitry](frontend/static/convergio_logo.png)
+
 # 🚀 Convergio — Human purpose. AI momentum.
 *“Convergio is the platform that lets solopreneurs blend human ingenuity with AI so seamlessly, it feels like magic.”*
 
 
-Convergio is the AI‑first orchestration platform where human ingenuity converges with a coordinated crew of 40+ expert agents. Together they plan, execute, and explain work across your tools—so you deliver outcomes, not just automations.
+Convergio is the AI‑first orchestration platform where human ingenuity converges with a coordinated crew of specialized agents. Through intelligent coordination—not just parallel processing—they plan together, execute seamlessly, and explain outcomes across your tools.
 
 [![CI/CD Pipeline](https://github.com/Roberdan/Convergio/actions/workflows/ci.yml/badge.svg)](https://github.com/Roberdan/Convergio/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)](https://python.org)
