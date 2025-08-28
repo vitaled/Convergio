@@ -1,3 +1,5 @@
+![Convergio logo: stylized brain split — left colorful facets, right blue circuitry](frontend/static/convergio_logo.png)
+
 # CONVERGIO.io
 
 *“Convergio is the platform that lets solopreneurs blend human ingenuity with AI so seamlessly, it feels like magic.”*
