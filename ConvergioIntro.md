@@ -2,8 +2,6 @@
 
 *“Convergio is the platform that lets solopreneurs blend human ingenuity with AI so seamlessly, it feels like magic.”*
 
-“Human intent. Agent momentum.”
-
 Convergio is the AI‑first orchestration platform where human ingenuity converges with a coordinated crew of 40+ expert agents. Together they plan, execute, and explain work across your tools—so you deliver outcomes, not just automations.
 
 ## One‑liner
