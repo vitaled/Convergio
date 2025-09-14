@@ -384,6 +384,27 @@ class UnifiedCostTracker:
     async def get_realtime_overview(self) -> Dict[str, Any]:
         """Get REAL-time cost overview with DATABASE TOTALS + CURRENT SESSION DETAIL"""
         try:
+            # Check if database is initialized
+            from core.database import async_read_session_factory
+            if async_read_session_factory is None:
+                logger.warning("⚠️ Database not initialized yet, returning empty overview")
+                return {
+                    "total_cost_usd": 0.0,
+                    "today_cost_usd": 0.0,
+                    "total_interactions": 0,
+                    "total_tokens": 0,
+                    "budget_utilization": 0.0,
+                    "daily_budget_usd": 50.0,
+                    "status": "initializing",
+                    "service_breakdown": {},
+                    "provider_breakdown": {},
+                    "model_breakdown": {},
+                    "service_details": {},
+                    "model_details": {},
+                    "session_summary": {"total_cost_usd": 0, "total_tokens": 0, "total_calls": 0},
+                    "last_updated": datetime.utcnow().isoformat()
+                }
+
             async with get_async_read_session() as db:
                 # 1. GET TOTAL HISTORIC COSTS FROM DATABASE (ALL TIME)
                 total_query = select(
