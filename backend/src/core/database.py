@@ -416,9 +416,14 @@ async def ensure_dev_schema() -> None:
                 if row and row[0] != 'vector':
                     # Try to alter column type to vector; cast from JSON/text via pgvector
                     # Note: assumes JSON array of floats stored as text; we recreate from text -> vector
-                    await conn.execute(text(
-                        "ALTER TABLE public.document_embeddings ALTER COLUMN embedding TYPE vector USING (to_vector(embedding::text))"
-                    ))
+                    
+                    alter_embedding = "ALTER TABLE public.document_embeddings ALTER COLUMN embedding TYPE vector(1536) USING (embedding::vector(1536))"
+
+#"ALTER TABLE public.document_embeddings ALTER COLUMN embedding TYPE vector USING (to_vector(embedding::text))"
+
+                    await conn.execute(text(alter_embedding))       
+
+                        
                     logger.info("🔄 Converted embedding column to vector type")
             except Exception as conv_e:
                 logger.warning("⚠️ Unable to convert embedding column to vector type", error=str(conv_e))
