@@ -12,7 +12,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
 
-from core.database import Base
+from src.core.database import Base
 
 
 class Talent(Base):
@@ -22,10 +22,10 @@ class Talent(Base):
     __table_args__ = {'extend_existing': True}
     
     # Primary key
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)#, index=True)
     
     # Basic info - matching existing schema
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)#, index=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(100))
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     
