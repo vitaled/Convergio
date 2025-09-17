@@ -137,7 +137,7 @@ class DatabaseTools:
             async with get_async_session() as db:
                 # Get talents filtered by department if specified
                 if department:
-                    talents =await Talent.get_by_department(department=department)
+                    talents =await Talent.get_by_department(db,department=department)
                     #talents = await Talent.get_all(db, limit=1000, department=department, is_active=True)
                     title = f"Department: {department}"
                 else:
