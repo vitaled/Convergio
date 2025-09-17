@@ -169,14 +169,17 @@ async def init_db() -> None:
         async_engine = engine
         
         # Create session factory for primary
-        async_session_factory = async_sessionmaker(
-            async_engine,
-            class_=CustomAsyncSession,
-            expire_on_commit=False,  # Keep objects usable after commit
-            autoflush=True,  # Auto-flush before queries
-            autocommit=False,  # Explicit transaction control
-        )
-        
+        try:
+            async_session_factory = async_sessionmaker(
+                async_engine,
+                class_=CustomAsyncSession,
+                expire_on_commit=False,  # Keep objects usable after commit
+                autoflush=True,  # Auto-flush before queries
+                autocommit=False,  # Explicit transaction control
+            )
+        except Exception as e:
+            logger.error("Unable to create async db session")
+
         # Create read replica engine and session factory if configured
         settings = get_settings()
         if hasattr(settings, 'DATABASE_READ_URL') and settings.DATABASE_READ_URL:

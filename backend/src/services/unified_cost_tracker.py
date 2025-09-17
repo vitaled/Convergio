@@ -385,7 +385,10 @@ class UnifiedCostTracker:
         """Get REAL-time cost overview with DATABASE TOTALS + CURRENT SESSION DETAIL"""
         try:
             # Check if database is initialized
-            from core.database import async_read_session_factory
+            from core.database import get_async_read_session_factory
+            from core.database import init_db
+            await init_db()
+            async_read_session_factory = get_async_read_session_factory()
             if async_read_session_factory is None:
                 logger.warning("⚠️ Database not initialized yet, returning empty overview")
                 return {
