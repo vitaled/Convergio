@@ -76,11 +76,25 @@ class AIAgentGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Initialize OpenAI client
+        # Initialize OpenAI client (supports both OpenAI and Azure OpenAI)
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment variables")
-        self.client = OpenAI(api_key=api_key)
+        
+        # Check for Azure OpenAI configuration
+        azure_base_url = os.getenv('AZURE_OPENAI_BASE_URL')
+        azure_api_version = os.getenv('AZURE_OPENAI_API_VERSION', '2024-02-15-preview')
+        
+        if azure_base_url:
+            # Use Azure OpenAI
+            self.client = OpenAI(
+                api_key=api_key,
+                base_url=azure_base_url,
+                default_headers={"api-version": azure_api_version}
+            )
+        else:
+            # Use standard OpenAI
+            self.client = OpenAI(api_key=api_key)
         
         # Track generated names to avoid duplicates
         self.generated_names = set()

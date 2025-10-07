@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with pgvector extension
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: convergio-postgres
+    environment:
+      POSTGRES_DB: convergio_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      #- ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - convergio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d convergio_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: convergio-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - convergio-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (Python FastAPI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: convergio-backend
+    environment:
+      # Database Configuration
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: convergio_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/convergio_db
+      DB_HOST: postgres
+      DB_PORT: 5432
+      
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # Server Configuration
+      HOST: 0.0.0.0
+      PORT: 9000
+      BACKEND_URL: http://backend:9000
+      ENVIRONMENT: development
+      DEBUG: false
+      WORKERS: 1
+    ports:
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - convergio-network
+    volumes:
+      - ./backend:/app
+    working_dir: /app
+    restart: unless-stopped
+
+  # Frontend (SvelteKit)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: convergio-frontend
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:9000
+      VITE_FRONTEND_PORT: 4000
+      VITE_BACKEND_PORT: 9000
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend
+    networks:
+      - convergio-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    restart: unless-stopped
+
+networks:
+  convergio-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

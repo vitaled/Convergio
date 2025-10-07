@@ -261,6 +261,8 @@ async def ai_services_health():
     
     Check connectivity to external AI APIs
     """
+
+    
     import os
     
     services = {}
@@ -269,14 +271,30 @@ async def ai_services_health():
     # Check OpenAI
     try:
         openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key and not openai_key.startswith("sk-..."):  # Not placeholder
+        if openai_key and not openai_key.startswith("sk-...") and len(openai_key) >= 32:  # Valid key format
             from openai import AsyncOpenAI
-            client = AsyncOpenAI(api_key=openai_key)
+            
+            # Check for Azure OpenAI configuration
+            azure_base_url = os.getenv("AZURE_OPENAI_BASE_URL")
+            azure_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+            
+            if azure_base_url:
+                # Use Azure OpenAI
+                client = AsyncOpenAI(
+                    api_key=openai_key,
+                    base_url=azure_base_url,
+                    default_headers={"api-version": azure_api_version}
+                )
+            else:
+                # Use standard OpenAI
+                client = AsyncOpenAI(api_key=openai_key)
+            
             models = await client.models.list()
             services["openai"] = {
                 "status": "healthy",
                 "available_models": len(models.data) if models else 0,
-                "connection": "active"
+                "connection": "active",
+                "provider": "Azure OpenAI" if azure_base_url else "OpenAI"
             }
         else:
             services["openai"] = {
