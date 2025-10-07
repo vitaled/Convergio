@@ -54,17 +54,26 @@ class AIClientManager:
     def _initialize_clients(self):
         """Initialize available AI clients based on configured API keys"""
         
-        # OpenAI client
+        # OpenAI client (including Azure OpenAI)
         openai_key = os.getenv("OPENAI_API_KEY")
         if openai_key:
-            self._clients["openai"] = {
-                "type": "openai",
-                "api_key": openai_key,
-                "base_url": os.getenv("OPENAI_API_BASE", "https://api.openai.com"),
-                "default_model": os.getenv("DEFAULT_AI_MODEL", "gpt-4o-mini"),
-                "embedding_model": "text-embedding-3-small"
-            }
-            logger.info("✅ OpenAI client initialized")
+            # Accept both OpenAI (sk-) and Azure OpenAI keys
+            is_valid_key = (
+                openai_key.startswith("sk-") or  # Standard OpenAI key
+                len(openai_key) >= 32  # Azure OpenAI key (typically longer)
+            )
+            
+            if is_valid_key:
+                self._clients["openai"] = {
+                    "type": "openai",
+                    "api_key": openai_key,
+                    "base_url": os.getenv("OPENAI_API_BASE", "https://api.openai.com"),
+                    "default_model": os.getenv("DEFAULT_AI_MODEL", "gpt-4o-mini"),
+                    "embedding_model": "text-embedding-3-small"
+                }
+                logger.info("✅ OpenAI client initialized")
+            else:
+                logger.warning("⚠️ OpenAI API key provided but appears invalid")
         
         # Perplexity client (for web search)
         perplexity_key = os.getenv("PERPLEXITY_API_KEY")

@@ -209,14 +209,29 @@ class ConfigurationValidator:
         # Test OpenAI
         try:
             if hasattr(self.settings, 'OPENAI_API_KEY') and self.settings.OPENAI_API_KEY:
-                client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
+                # Check for Azure OpenAI configuration
+                azure_base_url = getattr(self.settings, 'AZURE_OPENAI_BASE_URL', None)
+                azure_api_version = getattr(self.settings, 'AZURE_OPENAI_API_VERSION', '2024-02-15-preview')
+                
+                if azure_base_url:
+                    # Use Azure OpenAI
+                    client = OpenAI(
+                        api_key=self.settings.OPENAI_API_KEY,
+                        base_url=azure_base_url,
+                        default_headers={"api-version": azure_api_version}
+                    )
+                else:
+                    # Use standard OpenAI
+                    client = OpenAI(api_key=self.settings.OPENAI_API_KEY)
+                
                 # Test with a minimal request
                 response = client.models.list()
                 models = [model.id for model in response.data]
                 
                 self.validation_results["openai"] = {
                     "status": "passed",
-                    "models_available": len(models)
+                    "models_available": len(models),
+                    "provider": "Azure OpenAI" if azure_base_url else "OpenAI"
                 }
             else:
                 self.validation_results["openai"] = {

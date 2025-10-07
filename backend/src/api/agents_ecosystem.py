@@ -280,8 +280,22 @@ async def generate_agent_with_ai(request: GenerateAgentRequest) -> Dict[str, Any
         if not os.getenv("OPENAI_API_KEY"):
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
-        # Initialize OpenAI client
-        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Initialize OpenAI client (supports both OpenAI and Azure OpenAI)
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE")
+        
+        client_kwargs = {"api_key": api_key}
+        
+        # Configure for Azure OpenAI if base_url is provided
+        if base_url:
+            # Azure OpenAI configuration
+            client_kwargs["base_url"] = base_url
+            # Azure OpenAI typically requires api_version
+            api_version = os.getenv("OPENAI_API_VERSION", "2024-02-15-preview")
+            if "azure" in base_url.lower():
+                client_kwargs["default_headers"] = {"api-version": api_version}
+        
+        client = openai.OpenAI(**client_kwargs)
         
         # Prepare context about existing agents
         existing_context = ""
@@ -326,7 +340,7 @@ Keep the response professional, concise, and aligned with business team standard
             ],
             temperature=0.7,
             max_tokens=1000,
-            timeout=30.0  # 30 second timeout
+            timeout=30.0  # 30 second timeout,
         )
         
         # Parse AI response

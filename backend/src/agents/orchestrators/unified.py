@@ -173,6 +173,7 @@ class UnifiedOrchestrator(BaseGroupChatOrchestrator):
         try:
             # Initialize model client if not provided
             if model_client is None:
+                logger.info("Getting Model Client")
                 model_client = get_autogen_client(provider="openai")
             self.model_client = model_client
             

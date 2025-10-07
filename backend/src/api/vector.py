@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 import numpy as np
+import os
 
 from ..core.database import get_db_session
 from ..core.config import get_settings
@@ -24,7 +25,10 @@ router = APIRouter(tags=["Vector Search"])
 
 # Real OpenAI configuration
 settings = get_settings()
-OPENAI_API_URL = "https://vitaledopenaitest001.openai.azure.com/openai/v1/" #settings.OPENAI_API_BASE or os.getenv('OPENAI_APPI_BASE',"https://vitaledopenaitest001.openai.azure.com/openai/v1/")
+
+OPENAI_API_URL = settings.OPENAI_API_BASE or os.getenv('OPENAI_API_BASE')
+
+#OPENAI_API_URL = "https://sweden-demo-openai.openai.azure.com//openai/v1/" #settings.OPENAI_API_BASE or os.getenv('OPENAI_APPI_BASE',"https://vitaledopenaitest001.openai.azure.com/openai/v1/")
 
 def _openai_headers(request: Request) -> dict:
     """Build OpenAI headers using user session key if present, otherwise fallback to settings."""
